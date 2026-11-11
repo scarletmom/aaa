@@ -39,7 +39,7 @@ function toPost(row, { withUrl = false } = {}) {
 
 async function list() {
   const [rows] = await getPool().query(`SELECT ${COLUMNS} FROM ${FROM} ${ORDER}`);
-  return rows.map((row) => toPost(row));
+  return rows.map((row) => toPost(row, { withUrl: true }));
 }
 
 async function get(postTag) {

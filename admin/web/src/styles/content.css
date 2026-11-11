@@ -45,6 +45,11 @@
   margin-top: 16px;
 }
 
+.toolbar-search {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
 .toolbar-select.select-trigger {
   width: auto;
   min-width: 180px;

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ChevronDown, ChevronUp, CopyPlus, Ellipsis, ExternalLink, Eye, EyeOff, PencilLine, Plus, SquareArrowOutUpRight, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, CopyPlus, Ellipsis, ExternalLink, Eye, EyeOff, PencilLine, Plus, Search, SquareArrowOutUpRight, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { duplicatePath, formatCount, formatDate, loadSite, postPath, publicPostUrl } from "../lib/content.js";
-import { Button, Select, Switch, Tip } from "../ui/controls.jsx";
+import { Button, Select, Switch, TextInput, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
 
@@ -23,6 +23,10 @@ function describeVisit(result) {
   return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}`;
 }
 
+function matchesSearch(post, query) {
+  return [post.title, post.postTag, post.category?.name, post.realUrl].some((value) => value?.toLowerCase().includes(query));
+}
+
 function Stat({ label, value, note }) {
   return (
     <div className="stat-card">
@@ -36,8 +40,10 @@ function Stat({ label, value, note }) {
 export default function Content() {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
-  const [params] = useSearchParams();
-  const query = (params.get("q") || "").trim().toLowerCase();
+  const [params, setParams] = useSearchParams();
+  const rawQuery = params.get("q") || "";
+  const query = rawQuery.trim().toLowerCase();
+  const setQuery = (value) => setParams(value ? { q: value } : {}, { replace: true });
   const [posts, setPosts] = useState(null);
   const [site, setSite] = useState({});
   const [setupNeeded, setSetupNeeded] = useState(false);
@@ -69,7 +75,7 @@ export default function Content() {
         if (tab === "disabled" && post.enabled) return false;
         if (category === NO_CATEGORY && post.categoryId) return false;
         if (category !== ANY_CATEGORY && category !== NO_CATEGORY && String(post.categoryId) !== category) return false;
-        return !query || post.title.toLowerCase().includes(query) || post.postTag.toLowerCase().includes(query);
+        return !query || matchesSearch(post, query);
       }),
     [posts, tab, category, query]
   );
@@ -191,6 +197,15 @@ export default function Content() {
       </div>
 
       <div className="content-toolbar">
+        <TextInput
+          type="search"
+          icon={Search}
+          className="toolbar-search"
+          placeholder="Search title, category or Real URL"
+          aria-label="Search posts by title, category or Real URL"
+          value={rawQuery}
+          onChange={(e) => setQuery(e.target.value)}
+        />
         <Select
           value={category}
           onChange={setCategory}
