@@ -1,0 +1,20 @@
+{
+  "title": "Big Buck Bunny in 4K",
+  "description": "The same open movie in MPEG-DASH, with renditions from 180p up to 2160p. Open the gear menu to switch quality, or leave it on Auto.",
+  "channel": "Open Movie Night",
+  "publishedAt": "2026-11-09T18:00:00Z",
+  "poster": "https://picsum.photos/seed/ledger-bbb4k/1280/720",
+  "tags": ["Animation", "4K", "DASH"],
+  "source": { "url": "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd", "type": "dash" },
+  "chapters": [
+    { "time": 0, "title": "Opening titles" },
+    { "time": 150, "title": "The three troublemakers" },
+    { "time": 420, "title": "Setting the traps" },
+    { "time": 600, "title": "Credits" }
+  ],
+  "related": [
+    { "endpoint": "big-buck-bunny.json", "title": "Big Buck Bunny", "channel": "Open Movie Night", "duration": "10:35", "poster": "https://picsum.photos/seed/ledger-bbb/640/360" },
+    { "endpoint": "test-pattern.json", "title": "Test pattern with subtitles", "channel": "Signal Lab", "duration": "10:00", "poster": "https://picsum.photos/seed/ledger-bipbop/640/360" },
+    { "endpoint": "studio-live.json", "title": "Studio feed: live test signal", "channel": "Quillwood Live", "live": true, "poster": "https://picsum.photos/seed/ledger-studio/640/360" }
+  ]
+}

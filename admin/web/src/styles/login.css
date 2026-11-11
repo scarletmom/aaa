@@ -1,0 +1,67 @@
+.login-screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: radial-gradient(600px 360px at 50% 30%, rgb(237 237 237 / 0.035), transparent 70%), var(--bg-deep);
+}
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(15 15 16 / 0.82);
+  backdrop-filter: blur(6px);
+  animation: fade-in var(--menu) var(--ease);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 28px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--highlight), 0 24px 48px rgb(0 0 0 / 0.35);
+  animation: rise var(--enter) var(--ease);
+}
+
+.login-head h1 {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.login-head p {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.login-field .text-input[aria-invalid="true"],
+.login-field .text-input:has([aria-invalid="true"]) {
+  border-color: var(--err);
+}
+
+.login-error {
+  margin-top: -8px;
+  color: var(--err);
+  font-size: 13px;
+}
+
+.login-card .btn {
+  width: 100%;
+  justify-content: center;
+}

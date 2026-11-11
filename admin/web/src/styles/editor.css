@@ -1,0 +1,800 @@
+/* ---- top bar ---- */
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -8px;
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  transition: background-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.back:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crumb {
+  color: var(--text-3);
+  font-size: 14px;
+  transition: color var(--fast) var(--ease);
+}
+
+.crumb:hover {
+  color: var(--text);
+}
+
+.crumb-sep {
+  color: var(--text-3);
+  opacity: 0.6;
+}
+
+.title-input {
+  min-width: 0;
+  max-width: 360px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.title-input:hover {
+  background: var(--raised);
+}
+
+.title-input:focus {
+  background: var(--bg);
+  border-color: rgb(237 237 237 / 0.24);
+}
+
+.slug {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.unsaved::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--expr);
+}
+
+/* ---- layout ---- */
+
+.editor-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.editor-loading {
+  flex: 1;
+  background: var(--bg);
+}
+
+.react-flow {
+  --xy-background-color: var(--bg);
+}
+
+/* Arrow cursor everywhere; the hand only appears while Space is held. */
+.react-flow__pane,
+.react-flow__pane.draggable,
+.react-flow__pane.selection,
+.react-flow__node.selectable,
+.react-flow__node.draggable {
+  cursor: default;
+}
+
+.canvas.is-panning .react-flow__pane,
+.canvas.is-panning .react-flow__node {
+  cursor: grab;
+}
+
+.canvas.is-panning .react-flow__pane.dragging,
+.react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
+.react-flow__selection {
+  background: rgb(255 109 90 / 0.06);
+  border: 1px solid rgb(255 109 90 / 0.55);
+  border-radius: 4px;
+}
+
+/* Dragging any selected step already moves the group, so the overlay rect would only block hover actions. */
+.react-flow__nodesselection-rect {
+  display: none;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 6px 0 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--float);
+  animation: rise var(--enter) var(--ease);
+}
+
+.selection-count {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-bar .topbar-divider {
+  margin: 0 6px;
+}
+
+.btn-ghost.danger-ghost:hover:not(:disabled) {
+  background: var(--err-soft);
+  color: #f07b7f;
+}
+
+.react-flow__attribution {
+  background: transparent;
+  padding: 4px 8px;
+}
+
+.react-flow__attribution a {
+  color: var(--text-3);
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+/* ---- step node ---- */
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  min-height: 64px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--highlight), 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.18);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.react-flow__node:hover .step {
+  border-color: rgb(237 237 237 / 0.22);
+}
+
+.step.is-selected {
+  border-color: var(--accent);
+  box-shadow: var(--highlight), 0 0 0 3px var(--accent-soft), 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.step.is-error {
+  border-color: rgb(229 72 77 / 0.6);
+}
+
+.step-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: var(--text);
+  box-shadow: var(--highlight);
+}
+
+.step.is-success .step-icon {
+  color: var(--text);
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.step-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-sub {
+  font: 11px/16px var(--mono);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-status {
+  position: absolute;
+  left: 12px;
+  top: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 11px/16px var(--mono);
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.step-status span {
+  color: var(--text-3);
+}
+
+.is-error .step-status {
+  color: var(--err);
+}
+
+.step-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 62px;
+  padding: 0 16px 0 12px;
+}
+
+.step-ports {
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+
+.step-port {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 24px;
+  padding: 0 16px 0 12px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.step-port-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-port-count {
+  min-width: 16px;
+  font: 11px/16px var(--mono);
+  color: var(--text-3);
+  text-align: right;
+}
+
+.step.is-skipped {
+  opacity: 0.5;
+}
+
+.step-status.is-skipped {
+  color: var(--text-3);
+  font-family: var(--font);
+}
+
+/* ports */
+
+.react-flow__handle.port {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1.5px solid rgb(237 237 237 / 0.35);
+  transition: background-color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.react-flow__handle.port.react-flow__handle-left {
+  left: -6px;
+}
+
+.react-flow__handle.port.react-flow__handle-right {
+  right: -6px;
+}
+
+/* A larger invisible grab area, so the dot is easy to hit when zoomed out. */
+.react-flow__handle.port::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+.react-flow__handle.port.connectingfrom,
+.react-flow__handle.port.connectingto,
+.react-flow__handle.port:hover:not(:has(.step-add:hover)) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.react-flow__handle.port.connectingto:not(.valid) {
+  background: var(--err);
+  border-color: var(--err);
+}
+
+/* hover actions */
+
+.step-actions {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--float);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+
+.step-actions::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 8px;
+}
+
+.step-actions button,
+.wire-tools button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  transition: background-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.step-actions button[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.step-actions button[data-state="open"],
+.step-actions button:not([aria-disabled="true"]):hover,
+.wire-tools button:hover {
+  background: rgb(237 237 237 / 0.08);
+  color: var(--text);
+}
+
+.step-actions button.danger:hover,
+.wire-tools button.danger:hover {
+  background: var(--err-soft);
+  color: #f07b7f;
+}
+
+.react-flow__node:hover .step-actions,
+.step-actions:focus-within,
+.step-actions:has([data-state="open"]) {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* the + that hangs off the output port */
+
+.step-add {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  transform: translateY(-50%);
+  cursor: crosshair;
+}
+
+.step-add-wire {
+  width: 28px;
+  height: 1px;
+  background: rgb(237 237 237 / 0.2);
+}
+
+.step-add-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  color: var(--text-2);
+  box-shadow: var(--highlight);
+  transition: background-color var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.step-add-btn:hover,
+.step-add-btn[data-state="open"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---- wires ---- */
+
+.react-flow__edge-path.wire {
+  stroke: rgb(237 237 237 / 0.22);
+  stroke-width: 1.5;
+  transition: stroke var(--fast) var(--ease);
+}
+
+.react-flow__edge:hover .wire {
+  stroke: rgb(237 237 237 / 0.45);
+}
+
+.wire.is-run {
+  stroke: rgb(237 237 237 / 0.7);
+}
+
+.wire.is-selected {
+  stroke: var(--accent);
+}
+
+.wire.is-live {
+  stroke: rgb(237 237 237 / 0.5);
+  stroke-dasharray: 6 6;
+  animation: flow 600ms linear infinite;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.react-flow__connection-path {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.wire-tools {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--float);
+  pointer-events: all;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--fast) var(--ease), visibility var(--fast);
+}
+
+.wire-count {
+  position: absolute;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  font: 10px/16px var(--mono);
+  color: var(--text-2);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.wire-count.is-empty {
+  color: var(--text-3);
+}
+
+.wire-tools.is-visible,
+.wire-tools:has([data-state="open"]) {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ---- canvas chrome ---- */
+
+.canvas-tools {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--highlight);
+}
+
+.canvas-tools button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  transition: background-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.canvas-tools button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.add-step {
+  height: 36px;
+  padding: 0 16px 0 12px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.run-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(760px, 80vw);
+  height: 44px;
+  padding: 0 4px 0 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--float);
+  font-size: 13px;
+  animation: rise var(--enter) var(--ease);
+}
+
+.run-card .mono {
+  flex: none;
+  white-space: nowrap;
+}
+
+.run-card-label {
+  flex: none;
+  font-weight: 500;
+}
+
+.run-card-result {
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-deep);
+  font: 12px/16px var(--mono);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--fast) var(--ease);
+}
+
+.run-card-result:hover {
+  color: var(--text);
+}
+
+.run-card.is-error .run-card-result {
+  color: #f07b7f;
+}
+
+/* ---- history drawer ---- */
+
+.drawer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  border-left: 1px solid var(--line);
+  background: var(--bg-deep);
+  animation: fade-in var(--menu) var(--ease);
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-head h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.drawer-head .mono {
+  font-size: 12px;
+}
+
+.drawer-list {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.run-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.run-row + .run-row {
+  margin-top: 2px;
+}
+
+.run-row:hover {
+  background: var(--surface);
+}
+
+.run-row.is-current {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--highlight);
+}
+
+.run-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.run-row-top .mono {
+  font-size: 12px;
+}
+
+.run-row-meta {
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.run-row-err {
+  padding-left: 16px;
+  font: 11px/16px var(--mono);
+  color: #f07b7f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+/* ---- add-step picker ---- */
+
+.picker {
+  width: 320px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+}
+
+.picker-search input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.picker-search input::placeholder {
+  color: var(--text-3);
+}
+
+.picker-list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  text-align: left;
+}
+
+.picker-item.is-active {
+  background: rgb(237 237 237 / 0.06);
+}
+
+.picker-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+}
+
+.picker-item.is-active .picker-icon {
+  color: var(--text);
+}
+
+.picker-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.picker-desc {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-none {
+  padding: 16px 12px;
+  color: var(--text-3);
+  font-size: 13px;
+}

@@ -1,0 +1,13 @@
+{
+  "title": "New Year’s Eve live from the harbour",
+  "description": "Fireworks, music and the countdown to midnight. The stream starts automatically when the clock reaches zero, so you can leave this page open.",
+  "channel": "Quillwood Live",
+  "startsAt": "2026-12-31T23:00:00Z",
+  "poster": "https://picsum.photos/seed/ledger-nye/1280/720",
+  "tags": ["Live", "Events"],
+  "source": { "url": "https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8", "type": "hls" },
+  "related": [
+    { "endpoint": "studio-live.json", "title": "Studio feed: live test signal", "channel": "Quillwood Live", "live": true, "poster": "https://picsum.photos/seed/ledger-studio/640/360" },
+    { "endpoint": "big-buck-bunny.json", "title": "Big Buck Bunny", "channel": "Open Movie Night", "duration": "10:35", "poster": "https://picsum.photos/seed/ledger-bbb/640/360" }
+  ]
+}

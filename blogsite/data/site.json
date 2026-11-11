@@ -1,0 +1,130 @@
+{
+  "name": "Quillwood Notes",
+  "tagline": "A fictional blog of small-town stories",
+  "edition": "A fiction blog",
+  "description": "Quillwood Notes is a fictional blog. Every post, person, place and organisation on it is invented.",
+  "sections": [
+    {
+      "slug": "world",
+      "name": "World",
+      "description": "Posts about faraway places, borders, rivers and the people who argue over them."
+    },
+    {
+      "slug": "politics",
+      "name": "Politics",
+      "description": "Notes on councils, votes and the people in charge of the made-up town of Halden."
+    },
+    {
+      "slug": "business",
+      "name": "Business",
+      "description": "Shops, bakeries, freight yards and the money that moves between them."
+    },
+    {
+      "slug": "markets",
+      "name": "Money",
+      "description": "Imaginary indexes, invented interest rates and what they might mean for your wallet."
+    },
+    {
+      "slug": "technology",
+      "name": "Technology",
+      "description": "Gadgets, apps, batteries and practical how-tos."
+    },
+    {
+      "slug": "science",
+      "name": "Science",
+      "description": "Coral reefs, asteroids and other things that are bigger than us."
+    },
+    {
+      "slug": "health",
+      "name": "Health",
+      "description": "Flu seasons, hospital rotas and looking after yourself."
+    },
+    {
+      "slug": "sports",
+      "name": "Sport",
+      "description": "Football, running and the rest of the sporting week in a town that doesn’t exist."
+    },
+    {
+      "slug": "culture",
+      "name": "Culture",
+      "description": "Art, books, maps and ideas."
+    },
+    {
+      "slug": "opinion",
+      "name": "Essays",
+      "description": "Longer personal essays and arguments from the blog’s writers."
+    }
+  ],
+  "topics": [
+    "Budget 2027",
+    "Rail Strike",
+    "Harbour Bridge",
+    "Interest Rates",
+    "Artificial Intelligence",
+    "Winter Health",
+    "Energy Transition",
+    "Cost of Living",
+    "Cup Final"
+  ],
+  "trending": [
+    "Coalition vote",
+    "Northwind Freight",
+    "Coffee prices",
+    "Flu season",
+    "Stoppage-time winner",
+    "Tarrow Island",
+    "Lumen Atlas",
+    "Marathon"
+  ],
+  "labels": {
+    "latestNav": "Latest",
+    "mastheadLink": "About this blog",
+    "topics": "Topics",
+    "featured": "Featured posts",
+    "latest": "Latest posts",
+    "latestIntro": "Every post on the blog, newest first.",
+    "trending": "Popular searches",
+    "mostRead": "Most read",
+    "videos": "Videos",
+    "notFoundTitle": "We couldn’t find that post",
+    "notFoundText": "It may have been moved or removed.",
+    "newsletterTitle": "The Sunday Letter",
+    "newsletterText": "A short round-up of new posts, once a week. No spam, unsubscribe any time.",
+    "newsletterDone": "Thanks for signing up. Check your inbox to confirm."
+  },
+  "footer": {
+    "about": "Quillwood Notes is a fictional blog. Every post, person, place and organisation on it is invented, and any resemblance to real people or events is coincidental.",
+    "company": [
+      "About this blog",
+      "Write for us",
+      "Contact",
+      "Advertise"
+    ],
+    "help": [
+      "Terms of use",
+      "Privacy policy",
+      "Cookie settings",
+      "Accessibility"
+    ]
+  },
+  "telegramApp": {
+    "apiUrl": "http://localhost:3000"
+  },
+  "linkGate": {
+    "countdownSeconds": 10,
+    "method": "GET",
+    "header": "Authorization",
+    "scheme": "Bearer",
+    "allowedOrigins": [],
+    "text": {
+      "banner": "Your link is ready.",
+      "bannerButton": "Continue to link",
+      "title": "Your link is almost ready",
+      "intro": "Press the button below, wait a few seconds, then get your link.",
+      "start": "Click here",
+      "waiting": "Please wait {s} seconds…",
+      "get": "Click here to get link",
+      "expired": "This link has expired. Go back and request a new one."
+    }
+  }
+}

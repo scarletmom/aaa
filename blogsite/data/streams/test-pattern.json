@@ -1,0 +1,19 @@
+{
+  "title": "Test pattern with subtitles",
+  "description": "Apple’s advanced HLS example: several resolutions, surround audio and an English subtitle track built into the stream. Press C to turn subtitles on.",
+  "channel": "Signal Lab",
+  "publishedAt": "2026-11-05T09:00:00Z",
+  "poster": "https://picsum.photos/seed/ledger-bipbop/1280/720",
+  "tags": ["Test stream", "Subtitles"],
+  "source": { "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8", "type": "hls" },
+  "chapters": [
+    { "time": 0, "title": "Start" },
+    { "time": 120, "title": "Two minutes" },
+    { "time": 300, "title": "Halfway" },
+    { "time": 480, "title": "Final stretch" }
+  ],
+  "related": [
+    { "endpoint": "big-buck-bunny.json", "title": "Big Buck Bunny", "channel": "Open Movie Night", "duration": "10:35", "poster": "https://picsum.photos/seed/ledger-bbb/640/360" },
+    { "endpoint": "studio-live.json", "title": "Studio feed: live test signal", "channel": "Quillwood Live", "live": true, "poster": "https://picsum.photos/seed/ledger-studio/640/360" }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "quillwood-videos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static video catalogue. `npm run build` writes a deployable copy with obfuscated JavaScript to dist/.",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "config": "node scripts/build-config.js",
+    "build": "node scripts/build-config.js && node scripts/build-dist.js",
+    "start": "node scripts/serve.js",
+    "preview": "node scripts/serve.js dist"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1"
+  }
+}

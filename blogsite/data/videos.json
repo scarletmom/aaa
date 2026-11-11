@@ -1,0 +1,42 @@
+[
+  {
+    "id": "v-brine-plant",
+    "title": "Inside the Calloway factory making batteries from salt",
+    "duration": "3:42",
+    "publishedAt": "2026-11-10T14:05:00Z",
+    "image": "https://picsum.photos/seed/ledger-video-brine/800/450",
+    "articleId": "salt-battery-factory"
+  },
+  {
+    "id": "v-strand-budget",
+    "title": "Kerrow: “This budget is a promise kept, not a promise broken”",
+    "duration": "1:58",
+    "publishedAt": "2026-11-10T16:20:00Z",
+    "image": "https://picsum.photos/seed/ledger-video-strand/800/450",
+    "articleId": "coalition-survives-confidence-vote"
+  },
+  {
+    "id": "v-mensah-goal",
+    "title": "Watch: Wendlow’s 94th-minute winner against Calloway City",
+    "duration": "0:47",
+    "publishedAt": "2026-11-10T13:40:00Z",
+    "image": "https://picsum.photos/seed/ledger-video-mensah/800/450",
+    "articleId": "rovers-stoppage-time-winner"
+  },
+  {
+    "id": "v-tarrow-ferries",
+    "title": "Tarrow Island residents board ferries as volcano alert rises",
+    "duration": "2:15",
+    "publishedAt": "2026-11-09T09:10:00Z",
+    "image": "https://picsum.photos/seed/ledger-video-tarrow/800/450",
+    "articleId": "tarrow-island-volcano"
+  },
+  {
+    "id": "v-coffee-explained",
+    "title": "Explained: why your morning coffee is about to cost more",
+    "duration": "4:06",
+    "publishedAt": "2026-11-10T11:50:00Z",
+    "image": "https://picsum.photos/seed/ledger-video-coffee/800/450",
+    "articleId": "coffee-prices-record"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "title": "Studio feed: live test signal",
+  "description": "A round-the-clock test card streamed live. Use it to check the Live badge, the jump-to-live button and rewinding through the replay window.\n\nThe player tries HLS first and falls back to DASH.",
+  "channel": "Quillwood Live",
+  "poster": "https://picsum.photos/seed/ledger-studio/1280/720",
+  "tags": ["Live", "Test signal"],
+  "sources": [
+    { "url": "https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8", "type": "hls" },
+    { "url": "https://demo.unified-streaming.com/k8s/live/stable/live.isml/.mpd", "type": "dash" }
+  ],
+  "related": [
+    { "endpoint": "new-year-countdown.json", "title": "New Year’s Eve live from the harbour", "channel": "Quillwood Live", "poster": "https://picsum.photos/seed/ledger-nye/640/360" },
+    { "endpoint": "big-buck-bunny.json", "title": "Big Buck Bunny", "channel": "Open Movie Night", "duration": "10:35", "poster": "https://picsum.photos/seed/ledger-bbb/640/360" },
+    { "endpoint": "test-pattern.json", "title": "Test pattern with subtitles", "channel": "Signal Lab", "duration": "10:00", "poster": "https://picsum.photos/seed/ledger-bipbop/640/360" }
+  ]
+}

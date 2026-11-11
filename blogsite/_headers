@@ -1,0 +1,6 @@
+/sw.js
+  Cache-Control: no-cache
+
+/pages.json
+  Cache-Control: no-cache
+  Access-Control-Allow-Origin: *

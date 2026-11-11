@@ -1,0 +1,20 @@
+{
+  "name": "videos-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API behind the videos site: captcha passes, the news-site gate tokens, player data and workflow URL resolving.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js",
+    "sync-engine": "node scripts/sync-engine.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.3"
+  }
+}

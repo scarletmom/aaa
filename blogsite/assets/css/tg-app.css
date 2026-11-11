@@ -1,0 +1,124 @@
+/* Telegram passes its theme as --tg-theme-* variables; the fallbacks match the news site's dark theme. */
+:root {
+  --bg: var(--tg-theme-bg-color, #111213);
+  --surface: var(--tg-theme-secondary-bg-color, #191a1c);
+  --text: var(--tg-theme-text-color, #ebeae6);
+  --muted: var(--tg-theme-hint-color, #8f8e89);
+  --button: var(--tg-theme-button-color, #ef5a5f);
+  --button-text: var(--tg-theme-button-text-color, #ffffff);
+  --link: var(--tg-theme-link-color, #ef5a5f);
+  --error: var(--tg-theme-destructive-text-color, #ef5a5f);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, p { margin: 0; }
+img { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+
+.app {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.app__loading, .message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 70vh;
+  text-align: center;
+  color: var(--muted);
+}
+.message h1 { font-family: "Playfair Display", Georgia, serif; font-size: 24px; color: var(--text); }
+
+.spinner {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border: 2px solid var(--surface);
+  border-top-color: var(--button);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.video__poster {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+}
+.video__poster img { width: 100%; height: 100%; object-fit: cover; }
+.video__time {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .78);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kicker {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--link);
+}
+.video__title {
+  margin-top: 4px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.unlock {
+  margin-top: 20px;
+  padding: 18px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+.unlock__text { margin-bottom: 14px; color: var(--muted); }
+
+.btn {
+  width: 100%;
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--button);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn:disabled { opacity: .55; cursor: progress; }
+
+.status { min-height: 1.5em; margin-top: 12px; font-size: 14px; color: var(--muted); }
+.status.is-error { color: var(--error); }
+
+.link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--link);
+  font-weight: 700;
+  word-break: break-all;
+}

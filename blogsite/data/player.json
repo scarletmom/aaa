@@ -1,0 +1,279 @@
+{
+  "title": "Play any video stream",
+  "intro": "Paste a link to a live or on-demand stream. HLS, DASH, MP4, WebM, FLV and MPEG-TS all play right here in your browser.",
+  "placeholder": "https://example.com/live/stream.m3u8",
+  "samples": [
+    {
+      "label": "Rich link: open movie",
+      "endpoint": "data/streams/big-buck-bunny.json"
+    },
+    {
+      "label": "Rich link: live",
+      "endpoint": "data/streams/studio-live.json"
+    },
+    {
+      "label": "Rich link: countdown",
+      "endpoint": "data/streams/new-year-countdown.json"
+    },
+    {
+      "label": "HLS live",
+      "url": "https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8"
+    },
+    {
+      "label": "HLS with subtitles",
+      "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"
+    },
+    {
+      "label": "DASH",
+      "url": "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"
+    },
+    {
+      "label": "MP4",
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4"
+    }
+  ],
+  "formats": [
+    {
+      "name": "HLS",
+      "example": ".m3u8",
+      "engine": "hls.js (built-in on Safari)",
+      "live": "Yes"
+    },
+    {
+      "name": "MPEG-DASH",
+      "example": ".mpd",
+      "engine": "dash.js",
+      "live": "Yes"
+    },
+    {
+      "name": "MP4, M4V, MOV",
+      "example": ".mp4",
+      "engine": "Browser",
+      "live": "No"
+    },
+    {
+      "name": "WebM, Ogg, MKV",
+      "example": ".webm",
+      "engine": "Browser",
+      "live": "No"
+    },
+    {
+      "name": "FLV",
+      "example": ".flv",
+      "engine": "mpegts.js",
+      "live": "Yes"
+    },
+    {
+      "name": "MPEG-TS",
+      "example": ".ts",
+      "engine": "mpegts.js",
+      "live": "Yes"
+    },
+    {
+      "name": "Audio (MP3, AAC, M4A, Opus, WAV, FLAC)",
+      "example": ".mp3",
+      "engine": "Browser",
+      "live": "Radio streams"
+    }
+  ],
+  "shortcuts": [
+    {
+      "keys": [
+        "Space",
+        "K"
+      ],
+      "action": "Play or pause"
+    },
+    {
+      "keys": [
+        "J",
+        "L"
+      ],
+      "action": "Back or forward 10 s"
+    },
+    {
+      "keys": [
+        "←",
+        "→"
+      ],
+      "action": "Back or forward 5 s"
+    },
+    {
+      "keys": [
+        "↑",
+        "↓"
+      ],
+      "action": "Volume up or down"
+    },
+    {
+      "keys": [
+        "M"
+      ],
+      "action": "Mute"
+    },
+    {
+      "keys": [
+        "F"
+      ],
+      "action": "Fullscreen"
+    },
+    {
+      "keys": [
+        "C"
+      ],
+      "action": "Subtitles on or off"
+    },
+    {
+      "keys": [
+        "I"
+      ],
+      "action": "Picture-in-picture"
+    },
+    {
+      "keys": [
+        "<",
+        ">"
+      ],
+      "action": "Slower or faster"
+    },
+    {
+      "keys": [
+        ",",
+        "."
+      ],
+      "action": "Previous or next frame"
+    },
+    {
+      "keys": [
+        "0",
+        "9"
+      ],
+      "action": "Jump to 0–90%"
+    },
+    {
+      "keys": [
+        "?"
+      ],
+      "action": "Show shortcuts"
+    }
+  ],
+  "guide": [
+    "This player plays video streams straight from a link. It runs entirely in your browser: the video travels directly from the stream’s server to your screen, and nothing passes through us.",
+    {
+      "h": "1. Paste a link"
+    },
+    "Paste the address of a stream into the box above and press Play. You can also open the player directly by adding the stream address to the page URL:",
+    {
+      "code": "/player?url=https://example.com/live/stream.m3u8"
+    },
+    "If the stream address contains its own `?` or `&`, put `url=` last or encode the address first. The box above does this for you.",
+    {
+      "h": "2. The format is detected"
+    },
+    "The player reads the end of the link (`.m3u8`, `.mpd`, `.mp4` and so on) and loads the right playback engine. If the link has no recognisable ending, it tries the browser’s built-in player, then HLS, then DASH, until one works. To force a specific engine, add `type=` before the link, for example `/player?type=hls&url=…` (also `dash`, `flv`, `ts` or `native`).",
+    {
+      "formats": true
+    },
+    {
+      "h": "3. It plays"
+    },
+    "Live streams get a Live badge and a button that jumps back to the live edge; if the stream keeps a rewind window, you can scrub back through it. The settings menu (the gear) lets you choose:",
+    {
+      "list": [
+        {
+          "title": "Quality",
+          "text": "Pick a resolution, or leave it on Auto to follow your connection. Auto shows which quality is playing right now."
+        },
+        {
+          "title": "Playback speed",
+          "text": "From 0.25× to 2×."
+        },
+        {
+          "title": "Audio and subtitles",
+          "text": "Switch language or surround track when the stream offers more than one. The `CC` button turns subtitles on and off."
+        },
+        {
+          "title": "Stats for nerds",
+          "text": "Engine, resolution, bitrate, connection speed, buffer, dropped frames and live latency, updated every second."
+        },
+        {
+          "title": "Copy link at current time",
+          "text": "Shares the stream starting where you are, using `t=` in the address."
+        }
+      ]
+    },
+    "On-demand videos remember where you stopped and offer to resume next time. On phones, double-tap the left or right side of the video to skip 10 seconds.",
+    {
+      "h": "4. Rich links with an endpoint"
+    },
+    "Instead of a bare stream address, a link can point at a JSON endpoint that describes the video. The player fetches it and builds the whole page from it: title, description, poster, chapters, subtitles, a countdown for scheduled streams and an Up next list.",
+    {
+      "code": "/player?endpoint=https://api.example.com/videos/42"
+    },
+    "The endpoint returns JSON like this. Only `source` is required; everything else is optional.",
+    {
+      "code": "{\n  \"title\": \"Big Buck Bunny\",\n  \"description\": \"Plain text. Blank lines start new paragraphs; links are clickable.\",\n  \"channel\": \"Open Movie Night\",\n  \"publishedAt\": \"2026-11-08T18:00:00Z\",\n  \"startsAt\": \"2026-12-31T23:00:00Z\",\n  \"poster\": \"https://example.com/poster.jpg\",\n  \"tags\": [\"Animation\", \"Short film\"],\n  \"source\": { \"url\": \"https://example.com/video/master.m3u8\", \"type\": \"hls\" },\n  \"subtitles\": [{ \"label\": \"English\", \"lang\": \"en\", \"url\": \"subs/en.vtt\", \"default\": false }],\n  \"chapters\": [{ \"time\": 0, \"title\": \"Opening\" }, { \"time\": 150, \"title\": \"Trouble arrives\" }],\n  \"related\": [\n    { \"endpoint\": \"next-video.json\", \"title\": \"Next video\", \"poster\": \"…\", \"duration\": \"4:12\" },\n    { \"url\": \"https://example.com/clip.mp4\", \"title\": \"A plain clip\", \"live\": false }\n  ]\n}"
+    },
+    {
+      "list": [
+        {
+          "title": "source or sources",
+          "text": "One stream, or a list to try in order (for example HLS first, MP4 as a fallback). `type` can be `hls`, `dash`, `flv`, `ts` or `native`."
+        },
+        {
+          "title": "Relative links",
+          "text": "Links inside the JSON, such as subtitle files or related endpoints, are resolved against the endpoint’s own address."
+        },
+        {
+          "title": "startsAt",
+          "text": "If the time is in the future, the page shows a countdown and starts the stream automatically."
+        },
+        {
+          "title": "subtitles",
+          "text": "WebVTT or SRT files. They appear in the subtitles menu alongside any tracks built into the stream."
+        },
+        {
+          "title": "related",
+          "text": "Each item links to another `endpoint` (opens as a rich link) or a plain `url`. The first one plays automatically when a video ends."
+        },
+        {
+          "title": "Hosting",
+          "text": "Endpoints on another site must allow cross-origin requests (CORS). Files in this site’s `data/streams/` folder work as-is. `type=fetch&url=…` is accepted as an alias for `endpoint=`."
+        }
+      ]
+    },
+    {
+      "h": "When a stream won’t play"
+    },
+    {
+      "list": [
+        {
+          "title": "The server blocks other websites",
+          "text": "Many streams only allow playback on their own site, using a browser rule called CORS. Nothing on this page can override that."
+        },
+        {
+          "title": "The link has expired",
+          "text": "Signed links from many providers stop working after a few minutes or hours. Copy a fresh one."
+        },
+        {
+          "title": "It is protected by DRM",
+          "text": "Encrypted streams from subscription services need licences this player doesn’t have."
+        },
+        {
+          "title": "The protocol isn’t made for browsers",
+          "text": "RTMP, RTSP and UDP streams can’t play in any web browser. Ask the provider for an HLS or DASH address instead."
+        },
+        {
+          "title": "Secure page, insecure stream",
+          "text": "When this page is served over HTTPS, browsers block streams on plain `http://` addresses."
+        },
+        {
+          "title": "The codec isn’t supported",
+          "text": "Some files, such as AVI, WMV or H.265 video on older systems, can’t be decoded by every browser."
+        }
+      ]
+    }
+  ],
+  "playNote": "The stream plays directly from its source to your browser; nothing passes through our servers. To watch something else, choose New stream, or change the address after `/player?url=` or `/player?endpoint=`.",
+  "allowedEndpoints": []
+}
