@@ -17,8 +17,8 @@ API_URL=https://api.example.com
 TELEGRAM_URL=https://t.me/yourchannel
 ```
 
-`API_URL` is the server's `PUBLIC_URL` and is required. `TELEGRAM_URL` adds a Telegram button to the top bar and a "Join our channel" modal on a visitor's
-first open (shown once per browser). Leave it empty to hide both.
+`API_URL` is the server's `PUBLIC_URL` and is required. `TELEGRAM_URL` adds a Telegram button to the top bar and a "Join our channel" modal once a visitor
+has passed the Turnstile check (shown once per browser). Leave it empty to hide both.
 
 The browser can't read `.env`, so `npm run config` writes these values to `data/site.json`, which
 the site loads at runtime. That file is generated and git-ignored; rerun `npm run config` after

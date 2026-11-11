@@ -458,6 +458,7 @@
       try {
         const { videos } = await ctx.api('/api/videos', { withPass: true });
         renderList(ctx, main, videos);
+        showTelegramPrompt(ctx.site);
       } catch (err) {
         if (err.status === 401) {
           pass.clear();
@@ -579,6 +580,7 @@
 
   async function watchPage(ctx, main) {
     renderTopbar(ctx.site, { back: true });
+    if (pass.get()) showTelegramPrompt(ctx.site);
     const tag = watchTag();
     if (!tag) {
       location.replace('/');
@@ -613,7 +615,6 @@
       return;
     }
 
-    showTelegramPrompt(site);
     const ctx = { site, api: client(site.apiUrl) };
     const pages = { home: homePage, watch: watchPage };
     await (pages[document.body.dataset.page] || homePage)(ctx, main);
