@@ -947,30 +947,16 @@
 
     // ----- Status & overlays -----
 
-    function showError(message) {
+    function showError() {
+      el.status.hidden = false;
       if (meta.external) {
-        el.status.hidden = false;
         el.status.innerHTML = externalStep(meta, esc);
         return;
       }
-      const hints = [];
-      if (location.protocol === 'https:' && url.protocol === 'http:') {
-        hints.push('This page is secure (HTTPS), so the browser blocks streams on plain http:// links.');
-      }
-      hints.push(
-        'The link may have expired, or the stream may be offline.',
-        'The server may only allow playback on its own website (CORS).',
-        'The stream may be DRM-protected or use a codec this browser can’t decode.',
-      );
-      el.status.hidden = false;
       el.status.innerHTML = `
         <div class="player-error">
-          <h2>This stream couldn’t be played</h2>
-          <p>${esc(message || 'Something went wrong while loading the stream.')}</p>
-          <ul>${hints.map((hint) => `<li>${esc(hint)}</li>`).join('')}</ul>
           <div class="actions">
-            <a class="btn btn--solid" href="player/">Try another link</a>
-            <a class="btn" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Open link directly</a>
+            <a class="btn btn--solid" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Open video</a>
           </div>
         </div>`;
     }

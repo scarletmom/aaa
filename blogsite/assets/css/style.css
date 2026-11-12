@@ -965,18 +965,7 @@ a.kicker:hover { text-decoration: underline; text-underline-offset: 3px; }
   filter: blur(6px);
 }
 .player-frame--external .player-status { background: rgba(14, 15, 16, .55); }
-.player-error h2 { font-family: var(--serif); font-size: 24px; font-weight: 700; color: #f2f1ed; }
-.player-error > p { margin-top: 8px; }
-.player-error ul {
-  margin-top: 14px;
-  padding-left: 20px;
-  list-style: disc;
-  text-align: left;
-  font-size: 14px;
-  color: #8f8e89;
-}
-.player-error li + li { margin-top: 4px; }
-.player-error .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
+.player-error .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .player-error .btn { height: 36px; padding: 0 16px; }
 
 .unmute {
@@ -1144,8 +1133,6 @@ kbd {
   .player-frame--empty .url-form { flex-direction: column; }
   .player-frame:not(.player-frame--empty) { margin-left: calc(var(--gutter) * -1); margin-right: calc(var(--gutter) * -1); }
   .player-status { font-size: 14px; padding: 16px; }
-  .player-error h2 { font-size: 19px; }
-  .player-error ul { display: none; }
 }
 
 /* ---------- Video player controls ---------- */
