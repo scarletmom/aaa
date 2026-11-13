@@ -26,7 +26,8 @@ npm run preview   # serves dist/ at http://localhost:8080
 
 ```
 data/
-  site.json       blog name, sections, topics, popular searches, all UI labels, footer
+  site.json       blog name, sections, topics, popular searches, all UI labels, footer;
+                  apiUrl = the video server, which records page views (empty = no tracking)
   articles.json   all stories
   videos.json     sidebar videos (each links to an article by id)
   player.json     player page text, sample streams, formats table, how-it-works guide

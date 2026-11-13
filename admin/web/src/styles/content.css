@@ -836,3 +836,160 @@
     width: 100%;
   }
 }
+
+/* ---- visits ---- */
+
+.visit-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.visit-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.visit-country .mono {
+  color: var(--text);
+}
+
+.visit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) 104px;
+  align-items: center;
+  gap: 16px;
+  min-height: 60px;
+  padding: 8px 16px 8px 20px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.visit-row:first-child {
+  border-top: 0;
+}
+
+.visit-row:hover,
+.visit-row[aria-expanded="true"] {
+  background: rgb(237 237 237 / 0.025);
+}
+
+.visit-row.cat-head {
+  min-height: 40px;
+  padding-block: 0;
+}
+
+.visit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.visit-main,
+.visit-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.visit-main {
+  font-size: 13px;
+}
+
+.visit-main svg {
+  vertical-align: -2px;
+  color: var(--text-3);
+}
+
+.visit-sub {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.visit-when {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.visit-chevron {
+  color: var(--text-3);
+  transition: transform var(--fast) var(--ease);
+}
+
+.visit-row[aria-expanded="true"] .visit-chevron {
+  transform: rotate(180deg);
+}
+
+.visit-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px 24px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-deep);
+}
+
+.visit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.visit-detail > span:first-child {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.visit-detail a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.visit-ua {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.visit-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+@container content (max-width: 760px) {
+  .visit-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 88px;
+    gap: 12px;
+    padding-left: 12px;
+  }
+
+  .visit-row .col-device,
+  .visit-row .col-page {
+    display: none;
+  }
+
+  .visit-details {
+    padding-inline: 12px;
+  }
+}

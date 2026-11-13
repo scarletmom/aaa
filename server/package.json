@@ -15,6 +15,7 @@
   "dependencies": {
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "maxmind": "5.0.7",
     "mysql2": "^3.11.3"
   }
 }

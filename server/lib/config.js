@@ -1,3 +1,5 @@
+const path = require("node:path");
+
 const isProduction = process.env.NODE_ENV === "production";
 
 function origin(raw) {
@@ -73,6 +75,12 @@ const config = {
   appTtlSeconds: 60 * 60,
   telegramAppUrl: telegramAppUrl(process.env.TELEGRAM_APP_URL),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+  geoip: {
+    accountId: (process.env.MAXMIND_ACCOUNT_ID || "").trim(),
+    licenseKey: (process.env.MAXMIND_LICENSE_KEY || "").trim(),
+    dir: process.env.GEOIP_DIR || path.join(__dirname, "..", "data", "geoip"),
+  },
+  visitRetentionDays: Number(process.env.VISIT_RETENTION_DAYS) > 0 ? Number(process.env.VISIT_RETENTION_DAYS) : 90,
   database,
 };
 

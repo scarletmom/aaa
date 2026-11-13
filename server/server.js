@@ -7,6 +7,8 @@ const news = require("./lib/news");
 const { verifyCaptcha } = require("./lib/captcha");
 const { playable } = require("./lib/workflows");
 const telegram = require("./lib/telegram");
+const geoip = require("./lib/geoip");
+const visits = require("./lib/visits");
 
 assertReady();
 
@@ -32,14 +34,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Render sits behind Cloudflare, which puts the visitor's address in CF-Connecting-IP and
+// overwrites any copy a client sends; req.ip would be a Cloudflare edge address.
+const clientIp = (req) => geoip.normalizeIp(req.get("cf-connecting-ip") || req.ip);
+
 function rateLimit({ windowMs, limit }) {
   const hits = new Map();
   return (req, res, next) => {
     const now = Date.now();
-    const entry = hits.get(req.ip);
+    const ip = clientIp(req);
+    const entry = hits.get(ip);
     if (!entry || entry.resetAt < now) {
       if (hits.size > 10000) hits.clear();
-      hits.set(req.ip, { count: 1, resetAt: now + windowMs });
+      hits.set(ip, { count: 1, resetAt: now + windowMs });
       return next();
     }
     entry.count += 1;
@@ -51,13 +58,14 @@ function rateLimit({ windowMs, limit }) {
 
 const captchaLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30 });
 const gateLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 60 });
+const visitLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 120 });
 
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 async function requireCaptcha(req, res, next) {
   const response = typeof req.body?.captcha === "string" ? req.body.captcha : "";
   if (!response) return res.status(400).json({ error: "Please solve the captcha first." });
-  if (!(await verifyCaptcha(response, req.ip))) return res.status(403).json({ error: "Captcha check failed. Try again." });
+  if (!(await verifyCaptcha(response, clientIp(req)))) return res.status(403).json({ error: "Captcha check failed. Try again." });
   next();
 }
 
@@ -81,6 +89,33 @@ app.get("/api/config", (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   res.json({ sitekey: config.turnstileSitekey });
 });
+
+const siteByOrigin = new Map(
+  [
+    [config.videosSite, "videos"],
+    [config.newsSite, "news"],
+  ].map(([url, site]) => [new URL(url).origin, site])
+);
+
+// Page-view beacon from both sites. Sent as text/plain so the browser skips the CORS preflight.
+app.post(
+  "/api/visit",
+  visitLimit,
+  express.text({ type: "text/plain", limit: "4kb" }),
+  wrap(async (req, res) => {
+    const site = siteByOrigin.get(req.headers.origin);
+    if (!site) return res.sendStatus(403);
+    let body;
+    try {
+      body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    } catch {
+      return res.sendStatus(400);
+    }
+    if (!body || typeof body !== "object") return res.sendStatus(400);
+    await visits.record({ site, ip: clientIp(req), userAgent: req.get("user-agent"), body });
+    res.sendStatus(204);
+  })
+);
 
 // Step 1: the captcha in front of the video list.
 app.post("/api/pass", captchaLimit, wrap(requireCaptcha), (req, res) => {
@@ -241,6 +276,8 @@ app.use((err, req, res, next) => {
 
 async function start() {
   await db.ping();
+  await visits.start();
+  geoip.start();
   const server = app.listen(config.port, () => {
     console.log(`videos server on http://localhost:${config.port}`);
     console.log(`videos site: ${config.videosSite}`);

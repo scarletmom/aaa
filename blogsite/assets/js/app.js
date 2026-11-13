@@ -660,6 +660,36 @@
     console.error(error);
   }
 
+  // ---------- Visit tracking ----------
+
+  // Gate tokens and stream links ride at the end of the query string; they never leave the page.
+  const withoutSecrets = (url) => String(url || '').replace(/[?&](?:token|endpoint|url|startapp)=[^]*$/, '');
+
+  function trackVisit(apiUrl) {
+    let visitorId = '';
+    try {
+      visitorId = localStorage.getItem('vid') || '';
+      if (!visitorId) {
+        visitorId = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('vid', visitorId);
+      }
+    } catch {
+      visitorId = '';
+    }
+    const connection = navigator.connection || {};
+    const body = {
+      path: withoutSecrets(location.pathname + location.search),
+      referrer: withoutSecrets(document.referrer),
+      visitorId,
+      language: navigator.language,
+      screen: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      connection: { effectiveType: connection.effectiveType, downlink: connection.downlink, rtt: connection.rtt },
+    };
+    // A plain string body is sent as text/plain, which needs no CORS preflight.
+    fetch(`${apiUrl.replace(/\/+$/, '')}/api/visit`, { method: 'POST', body: JSON.stringify(body), keepalive: true, credentials: 'omit' }).catch(() => {});
+  }
+
   async function init() {
     bindEvents();
 
@@ -667,6 +697,7 @@
     let view;
     try {
       const data = await loadData();
+      if (/^https?:\/\//.test(data.site.apiUrl || '')) trackVisit(data.site.apiUrl);
       labels = data.site.labels || {};
       ctx = { ...data, params: new URLSearchParams(window.LedgerQuery ?? location.search), helpers: { esc, fetchJSON } };
       const render = PAGES[document.body.dataset.page] || homePage;

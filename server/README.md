@@ -65,6 +65,19 @@ Workflow lists are cached for 30 seconds, so edits in linkproxy reach this serve
 A workflow's own **Cache** setting is honoured and resets whenever the workflow is saved. Runs made
 here don't appear in linkproxy's History.
 
+## Visit tracking
+
+Both sites send `POST /api/visit` on every page load. The server stores a row in `visits` (created on
+start) with the visitor's IP, the GeoLite country/region/city/coordinates and ISP/ASN for it, the
+browser's network info, device, OS, browser, language and screen. linkproxy shows them under **Visits**.
+
+- The IP comes from `CF-Connecting-IP` (Render is fronted by Cloudflare), falling back to `req.ip`.
+- With `MAXMIND_ACCOUNT_ID` and `MAXMIND_LICENSE_KEY` set, the GeoLite City and ASN databases are
+  downloaded into `data/geoip/` on start and refreshed when older than 7 days. Without them only the
+  IP is stored.
+- Rows older than `VISIT_RETENTION_DAYS` (default 90) are deleted daily.
+- Gate tokens and stream links (`token=`, `endpoint=`, `url=`, `startapp=`) are cut from the stored path.
+
 ## Endpoints
 
 | Method | Path | Auth | Answer |
@@ -78,5 +91,6 @@ here don't appear in linkproxy's History.
 | GET  | `/api/play?token=` | play token | player JSON |
 | GET  | `/api/app/video?token=` | app token (+ `initData`) | `{ title, poster, channel, durationSeconds }` |
 | POST | `/api/app/claim` | `{ token, initData }` | `{ url }`: the video link to open |
+| POST | `/api/visit` | allowed `Origin` | `204`; records a page view (body is JSON sent as `text/plain`) |
 
 Captcha endpoints allow 30 attempts per IP per 10 minutes.

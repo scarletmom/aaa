@@ -4,6 +4,7 @@ const posts = require("./posts");
 const categories = require("./categories");
 const { probeDuration } = require("./media");
 const { resolveVisit } = require("./visit");
+const visits = require("./visits");
 
 const { HTTP_URL, SITE_URL, AD_SITE, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
 
@@ -32,7 +33,7 @@ router.get("/site", (req, res) =>
   })
 );
 
-router.use(["/posts", "/categories"], (req, res, next) => {
+router.use(["/posts", "/categories", "/visits"], (req, res, next) => {
   if (db.configured) return next();
   res.status(503).json({ error: "The website database is not configured.", code: "no_database" });
 });
@@ -95,6 +96,8 @@ router.post(
 );
 
 router.delete("/posts/:tag", handle(async (req, res) => res.json({ deleted: await posts.remove(req.params.tag) })));
+
+router.get("/visits", handle(async (req, res) => res.json(await visits.list(req.query))));
 
 router.get("/categories", handle(async (req, res) => res.json(await categories.list())));
 
