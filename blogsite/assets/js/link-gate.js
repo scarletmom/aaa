@@ -98,7 +98,7 @@
   }
 
   function linkGate(ctx) {
-    const token = new URLSearchParams(location.search).get('token');
+    const token = new URLSearchParams(window.LedgerQuery ?? location.search).get('token');
     if (!token) return;
 
     const { esc } = ctx.helpers;

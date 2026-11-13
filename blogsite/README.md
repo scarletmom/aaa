@@ -60,6 +60,10 @@ An endpoint can also return `embed` (a page URL) instead of a source; the player
 
 Engines are loaded from jsDelivr only when needed. Links without a known extension are tried natively, then as HLS, then DASH; `?type=hls|dash|flv|ts|native&url=…` forces one. The stream's server must allow cross-origin playback (CORS); RTMP/RTSP can't play in browsers.
 
+## Link-only parameters
+
+`assets/js/query-parser.js` runs first on every page. When a link carries `token`, `endpoint`, `url`, `type` or `t`, it saves the full query in the tab's `sessionStorage` and trims the address bar (`article.html?id=x&token=…` shows as `article.html?id=x`, `player/?endpoint=…` as `player/`). Reloading or going back in that tab still works; the short URL opened in a new tab or later doesn't carry them. Page scripts read `window.LedgerQuery` instead of `location.search`.
+
 ## Adding a story
 
 Append an object to `data/articles.json`:

@@ -668,7 +668,7 @@
     try {
       const data = await loadData();
       labels = data.site.labels || {};
-      ctx = { ...data, params: new URLSearchParams(location.search), helpers: { esc, fetchJSON } };
+      ctx = { ...data, params: new URLSearchParams(window.LedgerQuery ?? location.search), helpers: { esc, fetchJSON } };
       const render = PAGES[document.body.dataset.page] || homePage;
       view = await render(ctx);
     } catch (error) {

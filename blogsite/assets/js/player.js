@@ -1974,7 +1974,7 @@
   async function playerPage(ctx) {
     const { esc, fetchJSON } = ctx.helpers;
     const config = await fetchJSON('data/player.json');
-    const request = readRequest(location.search);
+    const request = readRequest(window.LedgerQuery ?? location.search);
     const page = (html, title = 'Player', mount) => ({ active: null, topics: false, title, html, mount });
     const fail = (notice) => page(startView(config, esc, notice));
 
