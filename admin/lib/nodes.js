@@ -1,12 +1,14 @@
 const vm = require("node:vm");
-const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
 const helpers = require("./helpers");
 const conditions = require("./conditions");
 const { loadFile, fileFromResponse, isBinaryType, baseMime, mimeFromName, nameFromUrl, EXT_BY_MIME } = require("./files");
 const storage = require("./storage");
 const ffmpeg = require("./ffmpeg");
+const sharp = require("sharp");
+
+// One image at a time and no decoded-image cache, so a small server's memory stays flat.
+sharp.concurrency(1);
+sharp.cache(false);
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
@@ -792,7 +794,7 @@ const IMAGE_FORMATS = { jpeg: { ext: "jpg", mime: "image/jpeg" }, webp: { ext: "
 const resize = {
   pipelineOnly: true,
   label: "Resize Image",
-  description: "Shrinks and re-encodes an image with ffmpeg, e.g. for a thumbnail. Output: file, dataUrl, width, height and size.",
+  description: "Shrinks and re-encodes an image, e.g. for a thumbnail. Output: file, dataUrl, width, height and size.",
   color: "#06b6d4",
   icon: "IMG",
   subtitle: "{format} {maxWidth}×{maxHeight}",
@@ -809,43 +811,42 @@ const resize = {
     const source = await loadFile(params.image);
     const format = IMAGE_FORMATS[params.format] ? params.format : "jpeg";
     const { ext, mime } = IMAGE_FORMATS[format];
-    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "resize-"));
-    try {
-      const input = path.join(dir, "input");
-      const output = path.join(dir, `output.${ext}`);
-      await fs.promises.writeFile(input, source.buffer);
-      const limit = format === "png" ? 0 : Math.max(Number(params.maxKB) || 0, 0) * 1024;
-      const original = await ffmpeg.imageSize(input);
-      let width = Math.min(Math.max(Number(params.maxWidth) || 400, 1), 8000, original.width || Infinity);
-      let height = Math.min(Math.max(Number(params.maxHeight) || 400, 1), 8000, original.height || Infinity);
-      let quality = Math.min(Math.max(Number(params.quality) || 75, 1), 100);
-      let buffer;
-      for (let attempt = 1; ; attempt += 1) {
-        await ffmpeg.resizeImage(input, output, { maxWidth: width, maxHeight: height, format, quality });
-        buffer = await fs.promises.readFile(output);
-        if (!limit || buffer.length <= limit) break;
-        if (attempt >= MAX_RESIZE_ATTEMPTS) throw new Error(`Couldn't get the image under ${params.maxKB} KB (smallest try was ${Math.ceil(buffer.length / 1024)} KB)`);
-        if (quality > 40) quality = Math.max(40, quality - 10);
-        else {
-          width = Math.max(32, Math.round(width * 0.8));
-          height = Math.max(32, Math.round(height * 0.8));
-        }
+    const limit = format === "png" ? 0 : Math.max(Number(params.maxKB) || 0, 0) * 1024;
+    const original = await sharp(source.buffer).metadata();
+    let width = Math.min(Math.max(Number(params.maxWidth) || 400, 1), 8000, original.width || Infinity);
+    let height = Math.min(Math.max(Number(params.maxHeight) || 400, 1), 8000, original.height || Infinity);
+    let quality = Math.min(Math.max(Number(params.quality) || 75, 1), 100);
+    let result;
+    for (let attempt = 1; ; attempt += 1) {
+      result = await encodeImage(source.buffer, { width, height, format, quality });
+      if (!limit || result.data.length <= limit) break;
+      if (attempt >= MAX_RESIZE_ATTEMPTS) throw new Error(`Couldn't get the image under ${params.maxKB} KB (smallest try was ${Math.ceil(result.data.length / 1024)} KB)`);
+      if (quality > 40) quality = Math.max(40, quality - 10);
+      else {
+        width = Math.max(32, Math.round(width * 0.8));
+        height = Math.max(32, Math.round(height * 0.8));
       }
-      const data = buffer.toString("base64");
-      const stem = String(source.fileName || "image").replace(/\.[^.]+$/, "");
-      return {
-        file: { data, mimeType: mime, fileName: `${stem}.${ext}`, size: buffer.length },
-        dataUrl: `data:${mime};base64,${data}`,
-        ...(await ffmpeg.imageSize(output)),
-        size: buffer.length,
-        originalSize: source.buffer.length,
-        ...(format === "png" ? {} : { quality }),
-      };
-    } finally {
-      await fs.promises.rm(dir, { recursive: true, force: true });
     }
+    const data = result.data.toString("base64");
+    const stem = String(source.fileName || "image").replace(/\.[^.]+$/, "");
+    return {
+      file: { data, mimeType: mime, fileName: `${stem}.${ext}`, size: result.data.length },
+      dataUrl: `data:${mime};base64,${data}`,
+      width: result.info.width,
+      height: result.info.height,
+      size: result.data.length,
+      originalSize: source.buffer.length,
+      ...(format === "png" ? {} : { quality }),
+    };
   },
 };
+
+// Fits the image inside width × height without enlarging it; rotate() applies the photo's EXIF orientation first.
+function encodeImage(buffer, { width, height, format, quality }) {
+  const image = sharp(buffer, { failOn: "none" }).rotate().resize({ width, height, fit: "inside", withoutEnlargement: true });
+  const encoded = format === "png" ? image.png() : format === "webp" ? image.webp({ quality }) : image.flatten({ background: "#ffffff" }).jpeg({ quality });
+  return encoded.toBuffer({ resolveWithObject: true });
+}
 
 async function categoryIdFor(value) {
   const text = String(value ?? "").trim();

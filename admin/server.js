@@ -285,6 +285,16 @@ app.delete("/api/workflows/:id", async (req, res, next) => {
   }
 });
 
+// Shows whether ffmpeg and sharp actually run on this server, for debugging a host like Render.
+app.get("/api/system/media-tools", async (req, res, next) => {
+  try {
+    const sharp = require("sharp");
+    res.json({ ...(await require("./lib/ffmpeg").check()), sharp: { ok: true, libvips: sharp.versions.vips }, platform: `${process.platform}-${process.arch}`, node: process.version });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---- Variables ----
 
 const isEnvName = (name) => name.startsWith("WF_") && process.env[name] !== undefined;

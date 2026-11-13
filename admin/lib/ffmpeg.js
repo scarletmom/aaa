@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 // FFMPEG_PATH/FFPROBE_PATH win; then the binaries from ffmpeg-static/ffprobe-static, for hosts like Render
@@ -32,10 +33,14 @@ function run(bin, args, { timeoutMs }) {
       clearTimeout(timer);
       reject(err.code === "ENOENT" ? new Error(`${bin} is not installed on the server. Install ffmpeg, or set FFMPEG_PATH and FFPROBE_PATH in .env`) : err);
     });
-    child.on("close", (code) => {
+    // A null code means a signal ended it: SIGKILL is usually the memory limit, SIGSEGV or SIGILL a binary that crashed.
+    child.on("close", (code, signal) => {
       clearTimeout(timer);
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`${bin} failed: ${stderr.trim().split("\n").slice(-3).join(" ") || `exit code ${code}`}`));
+      if (code === 0) return resolve(stdout);
+      const name = path.basename(bin);
+      const detail = stderr.trim().split("\n").slice(-3).join(" ");
+      const reason = signal ? `was stopped by ${signal}${signal === "SIGKILL" ? " (often the server running out of memory)" : ""}` : `failed with exit code ${code}`;
+      reject(new Error(`${name} ${reason}${detail ? `: ${detail}` : ""}`));
     });
   });
 }
@@ -84,4 +89,19 @@ async function imageSize(file) {
   return { width: width || null, height: height || null };
 }
 
-module.exports = { FFMPEG, FFPROBE, duration, remux, frame, resizeImage, imageSize };
+// Runs `-version` on both binaries, for checking a server's setup from the admin.
+async function check() {
+  const probe = async (bin) => {
+    const exists = !path.isAbsolute(bin) || fs.existsSync(bin);
+    const size = exists && path.isAbsolute(bin) ? fs.statSync(bin).size : null;
+    try {
+      const out = await run(bin, ["-hide_banner", "-version"], { timeoutMs: 15000 });
+      return { path: bin, size, ok: true, version: out.split("\n")[0] };
+    } catch (err) {
+      return { path: bin, size, ok: false, error: err.message };
+    }
+  };
+  return { ffmpeg: await probe(FFMPEG), ffprobe: await probe(FFPROBE) };
+}
+
+module.exports = { FFMPEG, FFPROBE, check, duration, remux, frame, resizeImage, imageSize };
