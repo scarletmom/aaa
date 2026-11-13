@@ -16,6 +16,7 @@ const site = {
   tagline: env('SITE_TAGLINE'),
   apiUrl: env('API_URL'),
   telegram: env('TELEGRAM_URL'),
+  turnstileSitekey: env('TURNSTILE_SITEKEY'),
 };
 
 if (!site.apiUrl) {

@@ -157,7 +157,10 @@
 
   let sitekeyRequest = null;
   async function mountCaptcha(ctx, container, onChange) {
-    sitekeyRequest ||= ctx.api('/api/config').then((config) => config.sitekey);
+    // The server lookup only covers builds made before TURNSTILE_SITEKEY was set here.
+    sitekeyRequest ||= ctx.site.turnstileSitekey
+      ? Promise.resolve(ctx.site.turnstileSitekey)
+      : ctx.api('/api/config').then((config) => config.sitekey);
     const [turnstile, sitekey] = await Promise.all([loadTurnstile(), sitekeyRequest]);
     container.innerHTML = '';
     const id = turnstile.render(container, {

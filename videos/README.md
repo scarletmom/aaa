@@ -15,10 +15,14 @@ SITE_NAME=Quillwood Video
 SITE_TAGLINE=Short films, clips and streams
 API_URL=https://api.example.com
 TELEGRAM_URL=https://t.me/yourchannel
+TURNSTILE_SITEKEY=1x00000000000000000000AA
 ```
 
 `API_URL` is the server's `PUBLIC_URL` and is required. `TELEGRAM_URL` adds a Telegram button to the top bar and a "Join our channel" modal once a visitor
 has passed the Turnstile check (shown once per browser). Leave it empty to hide both.
+
+`TURNSTILE_SITEKEY` is the public Turnstile key, the same value as the server's. With it the captcha
+renders without first asking the server for the key (`GET /api/config`).
 
 The browser can't read `.env`, so `npm run config` writes these values to `data/site.json`, which
 the site loads at runtime. That file is generated and git-ignored; rerun `npm run config` after
