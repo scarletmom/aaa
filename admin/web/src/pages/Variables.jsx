@@ -92,7 +92,7 @@ function VariableDialog({ editing, taken, onClose, onSaved }) {
             }}
           >
             <Field label="Name" htmlFor="var-name" error={error.name} hint={!error.name && name ? `Use it in a workflow as ${reference(name)}` : "e.g. POSTIMAGE_KEY"}>
-              <TextInput id="var-name" mono autoFocus={isNew} disabled={!isNew} autoComplete="off" data-1p-ignore data-lpignore="true" value={name} maxLength={64} onChange={(e) => setName(e.target.value.trim())} />
+              <TextInput id="var-name" mono autoFocus={isNew} disabled={!isNew} autoComplete="off" autoCapitalize="off" data-1p-ignore data-lpignore="true" data-form-type="other" value={name} maxLength={64} onChange={(e) => setName(e.target.value.trim())} />
             </Field>
             <Field
               label={isNew ? "Value" : "New value"}
@@ -105,7 +105,21 @@ function VariableDialog({ editing, taken, onClose, onSaved }) {
                 </Button>
               }
             >
-              <TextInput id="var-value" mono autoFocus={!isNew} type={shown ? "text" : "password"} autoComplete="new-password" data-1p-ignore data-lpignore="true" value={value} onChange={(e) => setValue(e.target.value)} />
+              {/* A plain text field masked with CSS: a type="password" field makes password managers treat Name and value as a login. */}
+              <TextInput
+                id="var-value"
+                mono
+                autoFocus={!isNew}
+                className={shown ? undefined : "is-masked"}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
             </Field>
             <div className="dialog-actions">
               <Button variant="ghost" onClick={onClose}>

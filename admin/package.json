@@ -26,6 +26,8 @@
     "@uiw/react-codemirror": "^4.25.12",
     "@xyflow/react": "^12.12.1",
     "express": "^4.21.2",
+    "ffmpeg-static": "5.3.0",
+    "ffprobe-static": "3.1.0",
     "lucide-react": "^1.71.0",
     "mysql2": "^3.24.6",
     "radix-ui": "^1.8.1",

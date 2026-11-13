@@ -1135,3 +1135,7 @@
     display: none;
   }
 }
+
+.text-input.is-masked {
+  -webkit-text-security: disc;
+}

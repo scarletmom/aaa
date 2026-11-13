@@ -1,7 +1,20 @@
+const fs = require("node:fs");
 const { spawn } = require("node:child_process");
 
-const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
-const FFPROBE = process.env.FFPROBE_PATH || "ffprobe";
+// FFMPEG_PATH/FFPROBE_PATH win; then the binaries from ffmpeg-static/ffprobe-static, for hosts like Render
+// where ffmpeg can't be installed system-wide; then whatever is on PATH.
+function binary(envName, packageName, fallback) {
+  if (process.env[envName]) return process.env[envName];
+  try {
+    const found = require(packageName);
+    const file = typeof found === "string" ? found : found?.path;
+    if (file && fs.existsSync(file)) return file;
+  } catch {}
+  return fallback;
+}
+
+const FFMPEG = binary("FFMPEG_PATH", "ffmpeg-static", "ffmpeg");
+const FFPROBE = binary("FFPROBE_PATH", "ffprobe-static", "ffprobe");
 const STDERR_TAIL = 2000;
 
 function run(bin, args, { timeoutMs }) {
@@ -71,4 +84,4 @@ async function imageSize(file) {
   return { width: width || null, height: height || null };
 }
 
-module.exports = { duration, remux, frame, resizeImage, imageSize };
+module.exports = { FFMPEG, FFPROBE, duration, remux, frame, resizeImage, imageSize };
