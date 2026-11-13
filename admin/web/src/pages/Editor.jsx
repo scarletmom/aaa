@@ -13,9 +13,10 @@ import {
   useNodesState,
   useReactFlow,
 } from "@xyflow/react";
-import { ArrowLeft, Copy, CopyPlus, Ellipsis, History, LogOut, Maximize, Minus, Play, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, Copy, CopyPlus, Ellipsis, History, Lock, LogOut, Maximize, Minus, Play, Plus, Save, Trash2, X } from "lucide-react";
+import { useUnsavedChanges } from "../lib/unsaved.js";
 import { api, loadTypes, signOut } from "../lib/api.js";
-import { GAP_X, defaultParams, fromFlow, isAncestor, newId, portCount, portOf, renameRefs, toFlow, uniqueName, wire, workflowPath } from "../lib/workflow.js";
+import { GAP_X, deliveryBlockers, usageOf, defaultParams, fromFlow, isAncestor, newId, portCount, portOf, renameRefs, toFlow, uniqueName, wire, workflowPath } from "../lib/workflow.js";
 import { Button, Switch, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { EditorContext } from "../editor/context.js";
@@ -24,6 +25,7 @@ import WireEdge from "../editor/WireEdge.jsx";
 import { AddNodeMenu } from "../editor/AddNodeMenu.jsx";
 import { NodePanel } from "../editor/NodePanel.jsx";
 import { HistoryDrawer } from "../editor/HistoryDrawer.jsx";
+import { UsagePicker } from "../editor/UsagePicker.jsx";
 
 const nodeTypes = { step: StepNode };
 const edgeTypes = { wire: WireEdge };
@@ -141,6 +143,8 @@ function WorkflowEditor({ id }) {
   const [runningStep, setRunningStep] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Test files picked on the Input step: kept in the browser only, never saved with the workflow.
+  const [testFiles, setTestFiles] = useState({});
   const [panelId, setPanelId] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
@@ -185,12 +189,6 @@ function WorkflowEditor({ id }) {
     }
   }, [meta]);
 
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
 
   const touch = () => setDirty(true);
   const setMeta = (patch) => {
@@ -425,7 +423,7 @@ function WorkflowEditor({ id }) {
     try {
       const input = JSON.parse(trigger?.data.params.testInput || "{}");
       if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("must be a JSON object");
-      return input;
+      return { ...input, ...testFiles };
     } catch (err) {
       toast(`Test input on the Input step is not valid JSON: ${err.message}`, "error");
       return null;
@@ -448,7 +446,7 @@ function WorkflowEditor({ id }) {
     if (running) return;
     const input = readTestInput();
     if (input) await execute("/api/execute", { input });
-  }, [running, meta]);
+  }, [running, meta, testFiles]);
 
   // Runs one step on what its parent produced in the current run; the rest of the run is kept.
   const runStep = useCallback(
@@ -460,7 +458,7 @@ function WorkflowEditor({ id }) {
       await execute("/api/execute-step", { nodeId, executionId: exec?.id ?? null, input });
       setRunningStep(null);
     },
-    [running, meta, exec]
+    [running, meta, exec, testFiles]
   );
 
   const save = useCallback(async () => {
@@ -470,22 +468,16 @@ function WorkflowEditor({ id }) {
       setMetaState((current) => ({ ...current, slug: saved.slug, updatedAt: saved.updatedAt }));
       setDirty(false);
       toast("Saved");
+      return true;
     } catch (err) {
       toast(err.message, "error");
+      return false;
     } finally {
       setSaving(false);
     }
   }, [id, meta]);
 
-  const leave = async (e) => {
-    if (!dirty) return;
-    e.preventDefault();
-    const ok = await confirm({ title: "Discard unsaved changes?", description: "Edits since the last save will be lost.", confirmLabel: "Discard", danger: true });
-    if (ok) {
-      setDirty(false);
-      navigate("/workflows");
-    }
-  };
+  const { allowLeave } = useUnsavedChanges(dirty, save);
 
   const duplicate = async () => {
     const { id: _, slug, createdAt, updatedAt, ...rest } = snapshot();
@@ -493,6 +485,7 @@ function WorkflowEditor({ id }) {
       const created = await api("/api/workflows", { method: "POST", body: { ...rest, name: `${meta.name} copy`, active: false } });
       toast(`Duplicated as ${created.name}`);
       setDirty(false);
+      allowLeave();
       navigate(workflowPath(created.id));
     } catch (err) {
       toast(err.message, "error");
@@ -509,6 +502,7 @@ function WorkflowEditor({ id }) {
     if (!ok) return;
     await api(`/api/workflows/${id}`, { method: "DELETE" });
     setDirty(false);
+    allowLeave();
     toast(`Deleted ${meta.name}`);
     navigate("/workflows");
   };
@@ -591,6 +585,9 @@ function WorkflowEditor({ id }) {
   const context = useMemo(
     () => ({
       types,
+      testFiles,
+      setTestFiles,
+      usage: usageOf(meta),
       exec,
       running,
       runningStep,
@@ -608,7 +605,7 @@ function WorkflowEditor({ id }) {
       remapPorts,
       renameNode,
     }),
-    [types, exec, running, runningStep, nodes, edges, hoveredEdge, addAfter, removeNode, removeEdge, run, runStep, setParam, remapPorts, renameNode]
+    [types, testFiles, meta?.usage, exec, running, runningStep, nodes, edges, hoveredEdge, addAfter, removeNode, removeEdge, run, runStep, setParam, remapPorts, renameNode]
   );
 
   if (!types || !meta) {
@@ -625,12 +622,12 @@ function WorkflowEditor({ id }) {
       <div className="page editor">
         <header className="topbar">
           <Tip label="All workflows">
-            <Link to="/workflows" className="back" onClick={leave} aria-label="All workflows">
+            <Link to="/workflows" className="back" aria-label="All workflows">
               <ArrowLeft size={16} strokeWidth={1.75} />
             </Link>
           </Tip>
           <nav className="crumbs">
-            <Link to="/workflows" onClick={leave} className="crumb">
+            <Link to="/workflows" className="crumb">
               Workflows
             </Link>
             <span className="crumb-sep">/</span>
@@ -646,8 +643,17 @@ function WorkflowEditor({ id }) {
             />
           </nav>
           <span className="slug mono">/hook/{meta.slug}</span>
+          {meta.lockedBy && (
+            <Tip label={`Used by ${meta.lockedBy}, so it can't be deleted`}>
+              <span className="lock-chip">
+                <Lock size={12} strokeWidth={2} />
+                {meta.lockedBy}
+              </span>
+            </Tip>
+          )}
           <div className="spacer" />
           {dirty && <span className="unsaved">Unsaved changes</span>}
+          <UsagePicker usage={usageOf(meta)} onChange={(usage) => setMeta({ usage })} blockers={deliveryBlockers(nodes, types)} />
           <Tip label={meta.active ? "Answering /hook and /resolve" : "Not answering requests"}>
             <span>
               <Switch checked={Boolean(meta.active)} onChange={(active) => setMeta({ active })} label="Active" />
@@ -662,8 +668,8 @@ function WorkflowEditor({ id }) {
             items={[
               { label: "Duplicate", icon: Copy, onSelect: duplicate },
               "separator",
-              { label: "Delete workflow", icon: Trash2, danger: true, onSelect: deleteWorkflow },
-              "separator",
+              !meta.lockedBy && { label: "Delete workflow", icon: Trash2, danger: true, onSelect: deleteWorkflow },
+              !meta.lockedBy && "separator",
               { label: "Sign out", icon: LogOut, onSelect: signOut },
             ]}
           />

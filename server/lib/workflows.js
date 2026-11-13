@@ -20,6 +20,8 @@ function toWorkflow(row) {
     name: row.name,
     slug: row.slug,
     active: Boolean(row.is_active),
+    // Studio's "Use for" setting; workflows saved before it existed are delivery workflows.
+    usage: Array.isArray(definition.usage) && definition.usage.length ? definition.usage : ["delivery"],
     nodes: Array.isArray(definition.nodes) ? definition.nodes : [],
     connections: Array.isArray(definition.connections) ? definition.connections : [],
     updatedAt: row.updated_at,
@@ -59,6 +61,7 @@ async function run(workflow, input) {
 // Mirrors linkproxy's /resolve: the first active workflow whose Input node matches the URL.
 async function resolveUrl(url) {
   for (const workflow of await activeWorkflows()) {
+    if (!workflow.usage.includes("delivery")) continue;
     const settings = inputSettings(workflow);
     if (!matchUrl(settings.matchType, settings.matchValue, url)) continue;
 

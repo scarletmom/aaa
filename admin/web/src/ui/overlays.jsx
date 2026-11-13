@@ -30,6 +30,7 @@ const FeedbackContext = createContext(null);
 export const useFeedback = () => useContext(FeedbackContext);
 
 // Promise-based confirm and toast, so callers can `await confirm(...)` instead of window.confirm.
+// With `secondaryLabel`, a third button resolves to "secondary"; the main button resolves to true.
 export function FeedbackProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -64,6 +65,11 @@ export function FeedbackProvider({ children }) {
               <AlertDialog.Cancel asChild>
                 <Button variant="ghost">Cancel</Button>
               </AlertDialog.Cancel>
+              {dialog?.secondaryLabel && (
+                <Button variant={dialog.secondaryDanger ? "danger" : "secondary"} onClick={() => close("secondary")}>
+                  {dialog.secondaryLabel}
+                </Button>
+              )}
               <AlertDialog.Action asChild>
                 <Button variant={dialog?.danger ? "danger" : "primary"} onClick={() => close(true)}>
                   {dialog?.confirmLabel}

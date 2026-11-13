@@ -23,14 +23,21 @@ function urlParts(url) {
   }
 }
 
-// Items that reach `nodeId`: what it actually received, or what its parent sent down the connected port.
+// Items that reach `nodeId`: what its parent sends down the connected port now, so re-running an earlier
+// step shows up here at once. Falls back to what this step received when the parent has no output.
 export function incomingItems(exec, edges, nodeId) {
-  const record = exec?.nodes?.[nodeId];
-  if (record?.input?.length) return record.input;
   const edge = edges.find((e) => e.target === nodeId);
-  if (!edge) return [];
-  const port = Number(String(edge.sourceHandle || "").replace("out-", "")) || 0;
-  return exec?.nodes?.[edge.source]?.output?.[port] || [];
+  const port = Number(String(edge?.sourceHandle || "").replace("out-", "")) || 0;
+  const fromParent = edge ? exec?.nodes?.[edge.source]?.output?.[port] : null;
+  if (fromParent?.length) return fromParent;
+  return exec?.nodes?.[nodeId]?.input || [];
+}
+
+// True when this step's last output was made from different input than its parent now sends.
+export function isStale(exec, edges, nodeId) {
+  const record = exec?.nodes?.[nodeId];
+  if (!record?.input?.length || record.status === "skipped") return false;
+  return JSON.stringify(record.input) !== JSON.stringify(incomingItems(exec, edges, nodeId));
 }
 
 export function previewScope({ exec, nodes, edges, nodeId }) {
@@ -52,6 +59,8 @@ export function previewScope({ exec, nodes, edges, nodeId }) {
     $node,
     $now: new Date().toISOString(),
     $execution: { id: exec.id, mode: exec.mode },
+    $response: null,
+    $attempt: 1,
     $enc: encodeURIComponent,
     $dec: decodeURIComponent,
     $url: urlParts,

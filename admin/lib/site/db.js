@@ -65,4 +65,9 @@ async function transaction(work) {
   }
 }
 
-module.exports = { configured, getPool, transaction };
+// A separate pool for another database URL, with the same TLS settings; used by scripts that copy between databases.
+function poolFor(url) {
+  return mysql.createPool({ uri: url, ssl: sslOptions(), connectTimeout: 5000, connectionLimit: 2, charset: "utf8mb4_general_ci", timezone: "Z" });
+}
+
+module.exports = { configured, getPool, transaction, poolFor };

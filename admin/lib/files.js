@@ -1,5 +1,8 @@
 // Files travel between steps as { data: base64, mimeType, fileName, size }, so they survive JSON
-// round-trips through run records and expressions.
+// round-trips through run records and expressions. Files saved to disk travel as storage references.
+const fs = require("node:fs");
+const storage = require("./storage");
+
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
 const MIME_BY_EXT = {
@@ -78,6 +81,12 @@ async function fileFromResponse(res, url) {
 async function loadFile(value, { fileName, mimeType, timeoutMs = 15000, fetchFn = fetch } = {}) {
   if (value && typeof value === "object") {
     const record = value.file && typeof value.file === "object" ? value.file : value;
+    if (storage.isRef(record)) {
+      const { size } = await fs.promises.stat(storage.pathOf(record));
+      checkSize(size);
+      const buffer = await fs.promises.readFile(storage.pathOf(record));
+      return finish(buffer, { mimeType: mimeType || record.mimeType, fileName: fileName || record.fileName });
+    }
     if (typeof record.data !== "string") throw new Error("File object needs a base64 `data` field, like the `file` a binary response produces");
     return finish(Buffer.from(record.data, "base64"), { mimeType: mimeType || record.mimeType, fileName: fileName || record.fileName });
   }
@@ -111,4 +120,4 @@ async function loadFile(value, { fileName, mimeType, timeoutMs = 15000, fetchFn 
   return finish(Buffer.from(compact, "base64"), { mimeType, fileName });
 }
 
-module.exports = { MAX_FILE_BYTES, loadFile, fileFromResponse, isBinaryType };
+module.exports = { MAX_FILE_BYTES, EXT_BY_MIME, loadFile, fileFromResponse, isBinaryType, baseMime, mimeFromName, nameFromUrl };

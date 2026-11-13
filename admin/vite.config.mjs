@@ -9,6 +9,6 @@ export default defineConfig({
   build: { outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 1500 },
   server: {
     port: Number(process.env.WEB_PORT) || 5173,
-    proxy: { "/api": api, "/hook": api, "/resolve": api, "/healthz": api },
+    proxy: { "/api": api, "/hook": api, "/resolve": api, "/healthz": api, "/media": api },
   },
 });

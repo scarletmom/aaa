@@ -1,5 +1,6 @@
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { Readable } = require("node:stream");
 const express = require("express");
 const store = require("./lib/store");
 const {
@@ -8,11 +9,17 @@ const {
   StepUnavailable,
   inputNode,
   inputSettings,
+  configure: configureEngine,
 } = require("./lib/engine");
-const { publicTypes } = require("./lib/nodes");
+const { publicTypes, responseValue } = require("./lib/nodes");
 const { seedWorkflows } = require("./lib/seed");
 const siteRoutes = require("./lib/site/routes");
 const { run, forgetCache, resolveUrl } = require("./lib/resolver");
+const { MEDIA_DIR } = require("./lib/storage");
+const { usedFor, usageOf, deliveryProblems } = require("./lib/usage");
+const { MAX_FILE_BYTES, mimeFromName } = require("./lib/files");
+const reels = require("./lib/reels");
+const variables = require("./lib/variables");
 
 const PORT = Number(process.env.PORT) || 5678;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -38,7 +45,8 @@ const SESSION_KEY = crypto
 
 const app = express();
 app.disable("x-powered-by");
-app.use(express.json({ limit: "2mb" }));
+// Room for an image sent as base64, up to the 15 MB file limit.
+app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: false }));
 
 function safeEqual(a, b) {
@@ -134,13 +142,11 @@ function chain(workflow) {
 
 function sendResponse(res, execution) {
   if (execution.status !== "success") {
-    return res
-      .status(500)
-      .json({
-        error: execution.error?.message,
-        node: execution.error?.nodeName,
-        executionId: execution.id,
-      });
+    return res.status(500).json({
+      error: execution.error?.message,
+      node: execution.error?.nodeName,
+      executionId: execution.id,
+    });
   }
   const out = execution.response;
   if (out.mode === "redirect") return res.redirect(out.status || 302, out.url);
@@ -193,6 +199,8 @@ app.get("/api/workflows", (req, res) => {
   res.json(
     store.list().map((workflow) => {
       const { id, name, slug, active, updatedAt } = workflow;
+      const lockedBy = reels.lockReason(id);
+      const usage = usageOf(workflow);
       const { matchType, matchValue } = inputSettings(workflow);
       const run = lastRuns.get(id);
       return {
@@ -200,7 +208,9 @@ app.get("/api/workflows", (req, res) => {
         name,
         slug,
         active,
+        usage,
         updatedAt,
+        lockedBy,
         match:
           matchType === "none" ? null : { type: matchType, value: matchValue },
         steps: chain(workflow).map((node) => ({
@@ -218,7 +228,18 @@ app.get("/api/workflows", (req, res) => {
     }),
   );
 });
+// A delivery workflow also runs on the videos server, whose engine can't run pipeline-only steps.
+function deliveryError(workflow) {
+  if (!usedFor(workflow, "delivery")) return null;
+  const problems = deliveryProblems(workflow);
+  return problems.length
+    ? `Delivery workflows can't use pipeline-only steps: ${problems.join(", ")}. Remove them, or untick Delivery under Use for.`
+    : null;
+}
+
 app.post("/api/workflows", async (req, res, next) => {
+  const invalid = deliveryError(req.body || {});
+  if (invalid) return res.status(400).json({ error: invalid });
   try {
     res.status(201).json(await store.save(req.body || {}));
   } catch (err) {
@@ -229,13 +250,17 @@ app.post("/api/workflows", async (req, res, next) => {
 app.get("/api/workflows/:id", (req, res) => {
   const workflow = store.get(req.params.id);
   return workflow
-    ? res.json(workflow)
+    ? res.json({ ...workflow, lockedBy: reels.lockReason(workflow.id) })
     : res.status(404).json({ error: "Not found" });
 });
 
 app.put("/api/workflows/:id", async (req, res, next) => {
   if (!store.get(req.params.id))
     return res.status(404).json({ error: "Not found" });
+  const invalid =
+    deliveryError(req.body || {}) ||
+    reels.saveProblem(req.params.id, req.body || {});
+  if (invalid) return res.status(400).json({ error: invalid });
   forgetCache(req.params.id);
   try {
     res.json(await store.save(req.body || {}, req.params.id));
@@ -245,11 +270,132 @@ app.put("/api/workflows/:id", async (req, res, next) => {
 });
 
 app.delete("/api/workflows/:id", async (req, res, next) => {
+  const lockedBy = reels.lockReason(req.params.id);
+  if (lockedBy)
+    return res
+      .status(409)
+      .json({
+        error: `This workflow is used by ${lockedBy}, so it can't be deleted.`,
+      });
   forgetCache(req.params.id);
   try {
     res.json({ deleted: await store.remove(req.params.id) });
   } catch (err) {
     next(err);
+  }
+});
+
+// ---- Variables ----
+
+const isEnvName = (name) => name.startsWith("WF_") && process.env[name] !== undefined;
+
+// Workflows that read $env.NAME, $env['NAME'] or $env["NAME"].
+function workflowsUsing(name) {
+  // Matched against JSON text, where the quotes in $env["NAME"] arrive escaped.
+  const pattern = new RegExp(`\\$env(?:\\.${name}\\b|\\[\\s*\\\\?['"]${name}\\\\?['"]\\s*\\])`);
+  return store
+    .list()
+    .filter((workflow) => pattern.test(JSON.stringify(workflow.nodes)))
+    .map(({ id, name: workflowName }) => ({ id, name: workflowName }));
+}
+
+app.get("/api/variables", (req, res) => {
+  const saved = variables.list();
+  const inApp = new Set(saved.map((item) => item.name));
+  res.json({
+    configured: variables.configured(),
+    items: saved.map((item) => ({
+      ...item,
+      overridesEnv: isEnvName(item.name),
+      usedBy: workflowsUsing(item.name),
+    })),
+    fromEnv: Object.keys(process.env)
+      .filter((name) => name.startsWith("WF_") && !inApp.has(name))
+      .sort()
+      .map((name) => ({ name, usedBy: workflowsUsing(name) })),
+  });
+});
+
+async function saveVariable(res, name, value) {
+  try {
+    await variables.set(name, value);
+    res.json({ saved: true });
+  } catch (err) {
+    if (err instanceof variables.VariableError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+}
+
+app.put("/api/variables/:name", async (req, res, next) => {
+  saveVariable(res, req.params.name, req.body?.value).catch(next);
+});
+
+// Moves a WF_* value from the environment into the app, so it can be changed without a restart.
+app.post("/api/variables/:name/import", async (req, res, next) => {
+  const { name } = req.params;
+  if (!isEnvName(name)) return res.status(404).json({ error: `${name} isn't a WF_ variable in the environment` });
+  saveVariable(res, name, process.env[name]).catch(next);
+});
+
+app.delete("/api/variables/:name", async (req, res, next) => {
+  try {
+    res.json({ deleted: await variables.remove(req.params.name) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- Reel to post ----
+
+app.get("/api/reels", async (req, res, next) => {
+  try {
+    let steps = reels.status(store);
+    // `npm run reels:setup` writes straight to the database, so a running server picks those workflows up here.
+    if (Object.values(steps).some((step) => !step.exists)) {
+      await store.init();
+      steps = reels.status(store);
+    }
+    res.json({ steps });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/reels/run/:step", async (req, res) => {
+  const step = reels.STEPS[req.params.step];
+  if (!step) return res.status(404).json({ error: "Unknown step" });
+  const workflow = store.get(step.id);
+  if (!workflow)
+    return res.status(409).json({
+      error: `The “${step.name}” workflow doesn't exist yet. Run npm run reels:setup.`,
+      code: "not_setup",
+    });
+  const input = req.body?.input;
+  // Recorded for History, but answered untrimmed so large fields like data URLs reach the page intact.
+  const execution = await runWorkflow(
+    workflow,
+    input && typeof input === "object" && !Array.isArray(input) ? input : {},
+    { mode: "reels" },
+  );
+  store.record(execution);
+  if (execution.status !== "success")
+    return res.status(502).json({
+      error: execution.error?.message,
+      node: execution.error?.nodeName,
+      workflow: workflow.name,
+      executionId: execution.id,
+    });
+  res.json({
+    executionId: execution.id,
+    result: responseValue(execution.response),
+  });
+});
+
+app.post("/api/reels/frame", async (req, res) => {
+  try {
+    res.json(await reels.grabFrame(req.body?.video, req.body?.time));
+  } catch (err) {
+    res.status(422).json({ error: err.message });
   }
 });
 
@@ -263,8 +409,7 @@ app.post("/api/execute", async (req, res) => {
     input && typeof input === "object" ? input : {},
     { mode: "manual" },
   );
-  store.record(execution);
-  res.json(store.trimStrings(execution));
+  res.json(store.record(execution));
 });
 
 // Runs one step of the editor's graph on what its parent produced in an earlier run (`executionId`).
@@ -281,13 +426,11 @@ app.post("/api/execute-step", async (req, res, next) => {
   const isTrigger =
     workflow.nodes.find((node) => node.id === nodeId)?.type === "input";
   if (executionId && !base && !isTrigger) {
-    return res
-      .status(409)
-      .json({
-        error:
-          "The last run is no longer on the server. Run the whole workflow again.",
-        code: "needs_run",
-      });
+    return res.status(409).json({
+      error:
+        "The last run is no longer on the server. Run the whole workflow again.",
+      code: "needs_run",
+    });
   }
 
   try {
@@ -318,14 +461,57 @@ app.get("/api/executions/:id", (req, res) => {
 
 // ---- public endpoints ----
 
+// Uploaded files become the same { data, mimeType, fileName, size } records HTTP Request produces.
+async function multipartInput(req) {
+  if (Number(req.headers["content-length"]) > MAX_FILE_BYTES * 2)
+    throw Object.assign(new Error("Upload is too large"), { status: 413 });
+  const request = new Request("http://upload.local/", {
+    method: "POST",
+    headers: { "content-type": req.headers["content-type"] },
+    body: Readable.toWeb(req),
+    duplex: "half",
+  });
+  const input = {};
+  for (const [key, value] of await request.formData()) {
+    if (typeof value === "string") {
+      input[key] = value;
+      continue;
+    }
+    if (value.size > MAX_FILE_BYTES)
+      throw Object.assign(
+        new Error(
+          `${value.name} is over the ${MAX_FILE_BYTES / 1048576} MB limit`,
+        ),
+        { status: 413 },
+      );
+    const buffer = Buffer.from(await value.arrayBuffer());
+    input[key] = {
+      data: buffer.toString("base64"),
+      mimeType:
+        value.type || mimeFromName(value.name) || "application/octet-stream",
+      fileName: value.name,
+      size: buffer.length,
+    };
+  }
+  return input;
+}
+
 app.all("/hook/:slug", requireToken, async (req, res) => {
   const workflow = store.bySlug(req.params.slug);
   if (!workflow || !workflow.active)
     return res.status(404).json({ error: "No active workflow at this path" });
-  const body =
-    req.body && typeof req.body === "object" && !Array.isArray(req.body)
-      ? req.body
-      : {};
+  let body;
+  try {
+    body = req.is("multipart/form-data")
+      ? await multipartInput(req)
+      : req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? req.body
+        : {};
+  } catch (err) {
+    return res
+      .status(err.status || 400)
+      .json({ error: `Couldn't read the upload: ${err.message}` });
+  }
   sendResponse(res, await run(workflow, { ...req.query, ...body }, "webhook"));
 });
 
@@ -355,9 +541,12 @@ app.all("/resolve", requireToken, async (req, res) => {
   res.json(result);
 });
 
+// Downloaded videos and frames, behind the same login as the editor.
+app.use("/media", requireAdmin, express.static(MEDIA_DIR, { index: false }));
+
 const WEB_DIR = path.join(__dirname, "web", "dist");
 app.use("/", express.static(WEB_DIR, { index: false }));
-app.get(/^\/(?!api\/|hook\/|resolve)/, (req, res) =>
+app.get(/^\/(?!api\/|hook\/|resolve|media\/)/, (req, res) =>
   res.sendFile(
     path.join(WEB_DIR, "index.html"),
     (err) =>
@@ -374,8 +563,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+configureEngine({
+  loadWorkflow: (ref) => store.get(ref) || store.bySlug(ref),
+  onExecution: (execution) => store.record(execution),
+});
+
 async function start() {
   const storage = await store.init();
+  await variables.init();
   await seedWorkflows(store);
   app.listen(PORT, () => {
     console.log(

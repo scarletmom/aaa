@@ -798,3 +798,89 @@
   color: var(--text-3);
   font-size: 13px;
 }
+
+/* ---- workflow picker and "Use for" ---- */
+
+.workflow-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workflow-select > .select-trigger {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wf-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.usage-chips {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+.usage-chip {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.usage-chip.is-delivery {
+  background: rgb(76 195 138 / 0.12);
+  color: var(--ok);
+}
+
+.usage-chip.is-pipeline {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.usage-trigger {
+  gap: 6px;
+}
+
+.usage-pop {
+  width: 300px;
+  padding: 8px;
+}
+
+.usage-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+.usage-option + .usage-option {
+  border-top: 1px solid var(--line);
+}
+
+.usage-hint {
+  padding-left: 26px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.usage-blocked {
+  padding-left: 26px;
+  color: var(--expr);
+  font-size: 12px;
+}
+
+.picker-item.is-blocked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.step-status.is-stale,
+.step-status.is-stale span {
+  color: var(--expr);
+}

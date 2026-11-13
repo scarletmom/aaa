@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router";
 import { DropdownMenu } from "radix-ui";
-import { LogOut, Menu as MenuIcon, Plus, Search, SquarePlay, Tags, Workflow, X } from "lucide-react";
+import { Clapperboard, LogOut, Menu as MenuIcon, Plus, Search, SquarePlay, Tags, Workflow, X } from "lucide-react";
 import { signOut } from "../lib/api.js";
 import { useSite } from "../lib/site.js";
 import { createWorkflow, workflowPath } from "../lib/workflow.js";
@@ -58,6 +58,7 @@ function HeaderSearch() {
   const { pathname } = useLocation();
   const section = sectionFor(pathname);
   const query = pathname === section.to ? params.get("q") || "" : "";
+  if (!section.search) return null;
 
   // Searching from a details page jumps back to that section's list.
   const update = (value) => {
@@ -157,6 +158,7 @@ export default function StudioShell() {
             </Button>
           }
           items={[
+            { label: "Post from reel", icon: Clapperboard, onSelect: () => navigate("/reels") },
             { label: "New post", icon: SquarePlay, onSelect: () => navigate("/content/new") },
             { label: "New category", icon: Tags, onSelect: () => navigate("/categories/new") },
             "separator",

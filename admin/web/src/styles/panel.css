@@ -556,3 +556,42 @@
     border-bottom: 1px solid var(--line);
   }
 }
+
+.stale-box {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--expr-soft);
+  border: 1px solid var(--expr-line);
+  color: var(--expr);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.test-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  background: var(--bg-deep);
+  font-size: 12px;
+}
+
+.test-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.test-file-add {
+  display: flex;
+  gap: 8px;
+}
+
+.test-file-add > .text-input {
+  flex: 1;
+  min-width: 0;
+}

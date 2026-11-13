@@ -70,7 +70,24 @@ here its pages can lag for up to about 10 minutes.
 | Filter           | Keeps items that meet all/any conditions; the rest are dropped or sent to a Discarded output   |
 | Switch           | Sends each item to the output of the first matching rule (or every match), with an optional Fallback output |
 | Aggregate        | Collects all incoming items back into one item: `{ items: [...], count }`                      |
+| Run Workflow     | Runs another workflow with the input you give it and returns its Output. Calls are limited to 5 levels and a workflow can't call itself further up the chain |
+| Save File        | Downloads a URL (an `.m3u8` is copied into one MP4 with ffmpeg) or takes a file, and saves it under `data/media/<folder>/`. Output is a file reference |
+| Extract Frames   | Takes evenly spaced JPEG frames from a saved video or a video URL with ffmpeg. Output: `{ duration, count, frames: [...] }` |
+| Resize Image     | Shrinks and re-encodes an image with ffmpeg (JPEG, WebP or PNG, max width/height, quality, optional "Keep under" size in KB). Output: `file`, `dataUrl`, `width`, `height`, `size` |
+| Create Post      | Adds a post to Content with the same checks as the Content form. Category can be a name or an id |
 | Output           | Respond with JSON fields, a redirect, or text                                                  |
+
+### Polling
+
+Turn on **Repeat until a condition is met** in an HTTP Request step to send the same request again
+until **Stop when** holds, e.g. `{{ $response.body.status }}` is equal to `done`. `$response` is the
+latest response and `$attempt` the try number; the step waits **Wait between tries** between
+requests, fails after **Give up after** tries, and its output carries `attempts`. Each try is
+logged in the step's Console. Workflows that poll can't be used for Delivery.
+
+Every field of a repeating step is worked out again before each try, so a poll can send back what
+the last try returned: `{{ $response?.body.cursor ?? $json.body.cursor }}` uses the previous
+response from the second try on, and the step before it on the first (`$response` is null then).
 
 ### Files
 
@@ -79,6 +96,10 @@ returns one as `file` when the response is an image, video, audio, PDF or archiv
 **Response: File**). Anywhere a file is expected (a **File** form field, or the **File, raw bytes**
 body) you can give `{{ $json.file }}`, an `http(s)` URL to download, a `data:` URL, or plain base64.
 Files are limited to 15 MB.
+
+Save File and Extract Frames pass **file references** instead of base64:
+`{ ref: "media", path, url, fileName, mimeType, size }`, so videos of any size fit in a run. Any file
+field accepts one, and `url` (`/media/…`) opens the file behind the admin login.
 
 ### Items
 
@@ -100,11 +121,74 @@ live preview from the last run. You can drag a key from the input panel into a f
 
 A field that is exactly one `{{ }}` keeps the value's type (object, number). Mixed text becomes a string.
 
+## Use for
+
+Each workflow is set to **Delivery**, **Pipeline** or both (the **Use for** button in the editor).
+Delivery workflows answer matching URLs on `/resolve`, Visit and the videos site; Pipeline workflows
+can be run by a Run Workflow step. Delivery workflows can't use Run Workflow, Save File, Extract
+Frames, Create Post or `$env`, because the videos server's engine doesn't have them.
+
+`$env` in expressions holds only the `WF_*` variables from the environment. Save File and Extract
+Frames need ffmpeg on the server.
+
+## Variables
+
+API keys, tokens and other settings for workflows live on the **Variables** page. Workflows read them as
+`{{ $env.NAME }}` (or `$env.NAME` in a Code step), and every step panel lists them so you can drag one into a
+field. A change applies on the next run, with no restart or rebuild.
+
+- Values are encrypted with AES-256-GCM before they're saved: in the `workflow_variables` table when a
+  database is configured, otherwise in `data/variables.json`. The page shows only the last 4 characters.
+- The key is `SECRETS_KEY` in the server's environment, the one setting that stays in `.env`. Without it the
+  page shows a ready-to-paste key. Losing or changing it makes saved values unreadable.
+- Run history and error messages show `[NAME]` in place of a value, so a token inside a URL isn't recorded.
+- `WF_*` variables in `.env` still work. A variable saved in the app wins over a `WF_*` of the same name,
+  and **Move into app** copies one over so you can delete the line from `.env`.
+- Like `$env`, variables are for Pipeline workflows; Delivery workflows can't use them.
+
+## Reel to post
+
+The **Reel to post** page takes an Instagram reel link through five steps: download the .mp4, pick a
+frame (upload it as the thumbnail and/or search it with FaceDigger), choose a match, create the post,
+then send a Telegram notification. Each step runs one Pipeline workflow with a fixed id:
+
+| Workflow id       | Input                                                                          | Output step must return                                       |
+| ----------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `reel-download`   | `url`                                                                          | `{ url }`, the .mp4 (a Save File result works too)            |
+| `reel-facedigger` | `image` (a file: `{ data, mimeType, fileName, size }`)                         | `{ cams: { results: [{ url, title, thumbnail, similarity }] }, … }` |
+| `reel-thumbnail`  | `image` (same file shape)                                                      | `{ url }`, the uploaded image                                 |
+| `reel-post`       | `title`, `description`, `realUrl`, `thumbnail`, `category`, `duration`, `postTag` | the created post, with `postTag` (wired to Create Post already) |
+| `reel-notify`     | `videoUrl`, `message`, `linkName`, `linkUrl`, and `video` when the .mp4 is a saved file | anything; a successful run counts as sent              |
+
+Create them (only the missing ones; existing ones are never changed) with:
+
+```bash
+npm run reels:setup                          # the database in .env
+npm run reels:setup -- --env .env.production # the database in another env file
+```
+
+To copy them, once wired, to another database such as production (ids are kept, so they stay locked):
+
+```bash
+npm run workflows:copy -- --to DATABASE_URL_LIVE --dry-run   # show what would change
+npm run workflows:copy -- --to DATABASE_URL_LIVE             # create the ones missing there
+npm run workflows:copy -- --to DATABASE_URL_LIVE --overwrite # also replace ones already there
+```
+
+`--to` and `--from` (default `DATABASE_URL`) name variables in `.env`. Variable values are not copied; add
+them on the target's Variables page.
+
+Until you wire them, each one stops at a "Wire me" step with a clear error. These workflows are
+locked: they can't be deleted, and Pipeline must stay ticked. Similarity can be 0-1 or 0-100.
+
 ## Endpoints
 
 Only **active** workflows answer. If `API_TOKEN` is set, send `Authorization: Bearer <token>`.
 
 - `GET|POST /hook/<slug>?field=…`: runs that workflow. The query string and JSON body become the input.
+  A `multipart/form-data` body works too: each uploaded file becomes `{ data, mimeType, fileName, size }`
+  under its field name (`curl -F "image=@photo.jpg" …/hook/<slug>`), up to 15 MB. In the editor, pick a
+  test file on the Input step under **Test files**; it's used for test runs and never saved.
   The response follows the Output node: JSON, a 302, or text.
 - `GET|POST /resolve` with `{"url": "…"}`: picks the first active workflow whose Input node
   matches the URL (host, prefix or regex) and returns

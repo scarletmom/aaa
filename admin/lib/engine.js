@@ -1,10 +1,27 @@
 const vm = require("node:vm");
 const crypto = require("node:crypto");
-const { NODE_TYPES } = require("./nodes");
+const { NODE_TYPES, responseValue, objectFromRows } = require("./nodes");
 const { urlParts } = require("./helpers");
+const { usedFor } = require("./usage");
+const variables = require("./variables");
 
 const EXPRESSION = /\{\{([\s\S]+?)\}\}/g;
 const EXPRESSION_TIMEOUT_MS = 250;
+const MAX_CALL_DEPTH = 5;
+
+// The server plugs in how a workflow is found by id or slug, and where finished runs are recorded.
+const hooks = { loadWorkflow: () => null, onExecution: () => {} };
+
+function configure(options) {
+  Object.assign(hooks, options);
+}
+
+// Only WF_* variables from the environment reach expressions, so a workflow can't read the admin password
+// or database URL. Variables saved in the app are added on top and win over a WF_* of the same name.
+function workflowEnv() {
+  const fromProcess = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("WF_")));
+  return { ...fromProcess, ...variables.values() };
+}
 
 class NodeError extends Error {
   constructor(node, cause) {
@@ -53,12 +70,17 @@ function resolveValue(value, context) {
   return value;
 }
 
+function resolveWithScope(value, scope) {
+  return resolveValue(value, vm.createContext({ $env: workflowEnv(), $now: new Date().toISOString(), $enc: encodeURIComponent, $dec: decodeURIComponent, $url: urlParts, ...scope }));
+}
+
 function resolveParams(type, raw, scope) {
   const params = {};
   let context = null;
   for (const def of type.params) {
     const value = raw?.[def.name] ?? def.default;
-    if (type.noExpressions || def.type === "code" || def.type === "json") {
+    // Deferred params are resolved by the step itself, e.g. a condition checked after each request.
+    if (type.noExpressions || def.type === "code" || def.type === "json" || def.deferred) {
       params[def.name] = value;
       continue;
     }
@@ -114,18 +136,39 @@ function scopeBuilder({ items, triggerOutput, byName, execution }) {
     $node: Object.fromEntries([...byName].map(([name, all]) => [name, { json: all[index] ?? all[0], items: all }])),
     $now: new Date().toISOString(),
     $execution: { id: execution.id, mode: execution.mode },
+    // A repeating step's previous response; null on its first try and in every other step.
+    $response: null,
+    $attempt: 1,
+    $env: workflowEnv(),
     $enc: encodeURIComponent,
     $dec: decodeURIComponent,
     $url: urlParts,
   });
 }
 
+// `stack` holds the ids of the workflows that called this one, to stop A → B → A loops.
+function servicesFor(workflow, { depth, stack }) {
+  return {
+    async callWorkflow(ref, input) {
+      const child = hooks.loadWorkflow(ref);
+      if (!child) throw new Error(`Workflow "${ref}" no longer exists`);
+      if (!usedFor(child, "pipeline")) throw new Error(`"${child.name}" can't be called by other workflows. Tick Pipeline under its Use for.`);
+      const chain = [...stack, workflow.id].filter(Boolean);
+      if (chain.includes(child.id)) throw new Error(`"${child.name}" is already running earlier in this chain, so calling it again would loop forever`);
+      if (depth + 1 > MAX_CALL_DEPTH) throw new Error(`Workflows can call each other at most ${MAX_CALL_DEPTH} levels deep`);
+      const execution = await runWorkflow(child, input, { mode: "subworkflow", depth: depth + 1, stack: chain });
+      hooks.onExecution(execution);
+      return execution;
+    },
+  };
+}
+
 // Runs one step over its incoming items and returns its output as ports: an array of item lists.
-async function runStep(node, type, items, record, makeScope) {
+async function runStep(node, type, items, record, makeScope, services) {
   const resolveFor = (item, index) => resolveParams(type, node.params, makeScope(item, index));
 
   if (type.kind === "batch") {
-    const result = await type.executeBatch({ items, resolveFor, scopeFor: makeScope, logs: record.logs });
+    const result = await type.executeBatch({ items, resolveFor, scopeFor: makeScope, logs: record.logs, services });
     return [result.map(toPlain)];
   }
 
@@ -134,7 +177,9 @@ async function runStep(node, type, items, record, makeScope) {
     const item = items[index];
     const scope = makeScope(item, index);
     const params = resolveParams(type, node.params, scope);
-    const result = await type.execute(params, { json: item, scope, logs: record.logs, index });
+    const resolve = (value, extra) => resolveValue(value, vm.createContext({ ...scope, ...extra }));
+    const reresolve = (extra) => resolveParams(type, node.params, { ...scope, ...extra });
+    const result = await type.execute(params, { json: item, scope, logs: record.logs, index, services, resolve, reresolve });
     if (type.kind === "route") {
       for (const port of result) (ports[port] ||= []).push(item);
     } else if (type.kind === "expand") {
@@ -147,7 +192,7 @@ async function runStep(node, type, items, record, makeScope) {
   return ports;
 }
 
-async function runWorkflow(workflow, input, { mode = "manual" } = {}) {
+async function runWorkflow(workflow, input, { mode = "manual", depth = 0, stack = [] } = {}) {
   const started = Date.now();
   const execution = {
     id: crypto.randomUUID(),
@@ -165,6 +210,7 @@ async function runWorkflow(workflow, input, { mode = "manual" } = {}) {
 
   try {
     const { order, parent } = plan(workflow);
+    const services = servicesFor(workflow, { depth, stack });
     const outputs = new Map();
     const byName = new Map();
     let triggerOutput = {};
@@ -190,7 +236,7 @@ async function runWorkflow(workflow, input, { mode = "manual" } = {}) {
 
       const nodeStart = Date.now();
       try {
-        const ports = await runStep(node, type, items, record, makeScope);
+        const ports = await runStep(node, type, items, record, makeScope, services);
         record.output = ports;
         record.status = "success";
         outputs.set(node.id, ports);
@@ -213,7 +259,7 @@ async function runWorkflow(workflow, input, { mode = "manual" } = {}) {
     execution.status = "success";
   } catch (err) {
     execution.status = "error";
-    execution.error = { message: err.message, nodeId: err.nodeId || null, nodeName: err.nodeName || null };
+    execution.error = { message: variables.redactText(err.message), nodeId: err.nodeId || null, nodeName: err.nodeName || null };
   }
 
   execution.durationMs = Date.now() - started;
@@ -265,7 +311,8 @@ async function runSingleStep(workflow, nodeId, base, input) {
   const record = { status: "running", input: items, output: [], error: null, logs: [], durationMs: 0 };
   execution.nodes[node.id] = record;
   try {
-    const ports = await runStep(node, type, items, record, scopeBuilder({ items, triggerOutput, byName, execution }));
+    const services = servicesFor(workflow, { depth: 0, stack: [] });
+    const ports = await runStep(node, type, items, record, scopeBuilder({ items, triggerOutput, byName, execution }), services);
     record.output = ports;
     record.status = "success";
     if (node.type === "respond") execution.response = ports[0][0];
@@ -300,4 +347,15 @@ function inputSettings(workflow) {
   };
 }
 
-module.exports = { runWorkflow, runSingleStep, StepUnavailable, inputNode, inputSettings, resolveValue };
+module.exports = {
+  runWorkflow,
+  runSingleStep,
+  StepUnavailable,
+  inputNode,
+  inputSettings,
+  resolveValue,
+  resolveWithScope,
+  responseValue,
+  objectFromRows,
+  configure,
+};

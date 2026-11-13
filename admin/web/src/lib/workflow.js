@@ -1,5 +1,5 @@
 import { api, loadTypes } from "./api.js";
-import { ArrowRightLeft, Braces, Code, Filter, Globe, Group, LogIn, LogOut, ScanSearch, Split, Ungroup, Workflow } from "lucide-react";
+import { ArrowRightLeft, Braces, Code, FilePlus2, Film, ImageDown, Filter, Globe, Group, HardDriveDownload, LogIn, LogOut, ScanSearch, Split, Ungroup, Workflow } from "lucide-react";
 
 export const NODE_ICONS = {
   input: LogIn,
@@ -12,6 +12,11 @@ export const NODE_ICONS = {
   filter: Filter,
   switch: Split,
   aggregate: Group,
+  subworkflow: Workflow,
+  save: HardDriveDownload,
+  frames: Film,
+  resize: ImageDown,
+  post: FilePlus2,
   respond: LogOut,
 };
 
@@ -175,5 +180,22 @@ export async function createWorkflow(name = "New workflow") {
         { from: http, to: "out" },
       ],
     },
+  });
+}
+
+export const USAGES = [
+  { value: "delivery", label: "Delivery", hint: "Answers matching URLs on /resolve, Visit and the videos site, while Active" },
+  { value: "pipeline", label: "Pipeline", hint: "Can be run by Run Workflow steps in other workflows" },
+];
+
+export const usageOf = (workflow) => (workflow?.usage?.length ? workflow.usage : ["delivery"]);
+
+// Mirrors the server's check: the videos server can't run pipeline-only steps or $env.
+export function deliveryBlockers(nodes, types) {
+  return nodes.flatMap((node) => {
+    if (types[node.data.type]?.pipelineOnly) return [`${node.data.name} (${types[node.data.type].label})`];
+    if (node.data.type === "http" && node.data.params?.repeat) return [`${node.data.name} (Repeat until)`];
+    if (JSON.stringify(node.data.params || {}).includes("$env")) return [`${node.data.name} ($env)`];
+    return [];
   });
 }

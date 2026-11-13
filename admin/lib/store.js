@@ -2,6 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const db = require("./site/db");
+const { usageOf } = require("./usage");
+const variables = require("./variables");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 const WORKFLOW_DIR = path.join(DATA_DIR, "workflows");
@@ -68,6 +70,7 @@ function fromRow(row) {
     name: row.name,
     slug: row.slug,
     active: Boolean(row.is_active),
+    usage: definition.usage,
     nodes: definition.nodes || [],
     connections: definition.connections || [],
     createdAt: new Date(row.created_at).toISOString(),
@@ -92,7 +95,7 @@ const dbBackend = {
     return loaded;
   },
   async write(workflow) {
-    const definition = JSON.stringify({ nodes: workflow.nodes, connections: workflow.connections });
+    const definition = JSON.stringify({ nodes: workflow.nodes, connections: workflow.connections, usage: workflow.usage });
     await db.getPool().query(
       `INSERT INTO workflows (id, name, slug, is_active, definition, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name = VALUES(name), slug = VALUES(slug), is_active = VALUES(is_active),
@@ -107,9 +110,11 @@ const dbBackend = {
 
 const backend = db.configured ? dbBackend : fileBackend;
 
+// Also used to reload, so the map is swapped only once the new list has arrived.
 async function init() {
+  const loaded = await backend.load();
   workflows.clear();
-  for (const workflow of await backend.load()) workflows.set(workflow.id, workflow);
+  for (const workflow of loaded) workflows.set(workflow.id, { ...workflow, usage: usageOf(workflow) });
   return backend.name;
 }
 
@@ -147,6 +152,7 @@ async function save(input, id = crypto.randomBytes(6).toString("hex")) {
     name: String(input.name || "Untitled workflow").slice(0, 120),
     slug: uniqueSlug(input.slug || input.name, id),
     active: Boolean(input.active),
+    usage: usageOf(input),
     nodes: Array.isArray(input.nodes) ? input.nodes : [],
     connections: Array.isArray(input.connections) ? input.connections : [],
     createdAt: existing?.createdAt || new Date().toISOString(),
@@ -176,7 +182,7 @@ function trimStrings(value) {
 function record(execution) {
   fullRuns.set(execution.id, execution);
   if (fullRuns.size > MAX_FULL_RUNS) fullRuns.delete(fullRuns.keys().next().value);
-  const stored = trimStrings(execution);
+  const stored = trimStrings(variables.redact(execution));
   executions.unshift(stored);
   executions.length = Math.min(executions.length, MAX_EXECUTIONS);
   return stored;

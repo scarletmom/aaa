@@ -4,6 +4,7 @@ import { hasExpression, resolvePreview } from "../lib/expr.js";
 import { paramValue } from "../lib/workflow.js";
 import { Button, Checkbox, NumberInput, Select, Switch, TextInput } from "../ui/controls.jsx";
 import { CodeField } from "../ui/CodeField.jsx";
+import { WorkflowSelect } from "../ui/WorkflowSelect.jsx";
 
 const MONO_SELECTS = new Set(["method"]);
 const ADD_LABELS = { query: "Add parameter", headers: "Add header", fields: "Add field" };
@@ -29,7 +30,7 @@ function Preview({ value, scope }) {
   return <div className={`preview${result.ok ? "" : " is-bad"}`}>{result.text || <span className="muted">Empty string</span>}</div>;
 }
 
-function ExprField({ value, onChange, scope, multiline, placeholder }) {
+export function ExprField({ value, onChange, scope, multiline, placeholder }) {
   return (
     <div className="expr-field">
       <CodeField value={value} onChange={onChange} variant={multiline ? "text" : "expression"} placeholder={placeholder} />
@@ -198,7 +199,7 @@ function isVisible(type, params, def) {
   });
 }
 
-export function Params({ node, type, onParam, scope, onRemapPorts }) {
+export function Params({ node, type, onParam, scope, deferredScope, onRemapPorts, workflowId }) {
   const params = node.data.params;
   const plain = node.data.type === "input";
 
@@ -224,13 +225,15 @@ export function Params({ node, type, onParam, scope, onRemapPorts }) {
       } else if (def.type === "conditions") {
         const combine = type.params.find((p) => p.name === "combine");
         const joiner = combine && paramValue(params, combine) === "any" ? "Or" : "And";
-        control = <ConditionsEditor def={def} rows={value || []} onChange={set} scope={scope} joiner={joiner} onRemapPorts={onRemapPorts} />;
+        control = <ConditionsEditor def={def} rows={value || []} onChange={set} scope={def.deferred ? deferredScope : scope} joiner={joiner} onRemapPorts={onRemapPorts} />;
       } else if (def.type === "kv") {
         control = <KvEditor def={def} rows={value || []} onChange={set} plain={plain} scope={scope} />;
       } else if (def.type === "multipart") {
         control = <MultipartEditor rows={value || []} onChange={set} scope={scope} />;
       } else if (def.type === "code") {
         control = <CodeField variant="javascript" value={value} onChange={set} minHeight="300px" />;
+      } else if (def.type === "workflow") {
+        control = <WorkflowSelect value={value} onChange={set} exclude={workflowId} usage="pipeline" />;
       } else if (def.type === "json") {
         control = <JsonField value={value} onChange={set} />;
       } else if (plain) {

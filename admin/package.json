@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "build": "vite build",
-    "dev": "concurrently -k -n api,web -c gray,cyan \"node --env-file-if-exists=.env --watch server.js\" \"vite\""
+    "dev": "concurrently -k -n api,web -c gray,cyan \"node --env-file-if-exists=.env --watch server.js\" \"vite\"",
+    "reels:setup": "node scripts/reels-setup.js",
+    "workflows:copy": "node scripts/copy-workflows.js"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",

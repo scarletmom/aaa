@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog } from "radix-ui";
-import { Play, X } from "lucide-react";
-import { incomingItems, previewScope } from "../lib/expr.js";
+import { KeyRound, Paperclip, Play, X } from "lucide-react";
+import { incomingItems, isStale, previewScope } from "../lib/expr.js";
+import { maskedEnv, useVariableNames } from "../lib/variables.js";
+import { PATH_MIME } from "../ui/CodeField.jsx";
 import { iconFor, outputPorts, stepReadiness } from "../lib/workflow.js";
-import { Button, Segmented, Select, Tip } from "../ui/controls.jsx";
+import { Button, Segmented, Select, TextInput, Tip } from "../ui/controls.jsx";
+import { useFeedback } from "../ui/overlays.jsx";
 import { DataView } from "./DataView.jsx";
 import { Params } from "./Params.jsx";
 import { useEditor } from "./context.js";
@@ -19,6 +22,55 @@ function TypeIcon({ type }) {
     <span className="step-icon">
       <Icon size={18} strokeWidth={1.5} />
     </span>
+  );
+}
+
+// Variables saved under Variables (and WF_ ones from .env), ready to drag into any field.
+function VariablesShelf({ names }) {
+  const { toast } = useFeedback();
+  return (
+    <div className="var-shelf">
+      <div className="var-shelf-head">
+        <KeyRound size={14} strokeWidth={1.75} />
+        <span>Variables</span>
+        <a href="/variables" target="_blank" rel="noopener noreferrer" className="var-shelf-link">
+          Manage
+        </a>
+      </div>
+      {names.length ? (
+        <>
+          <p className="col-hint">Drag into a field, or click to copy. Values stay hidden.</p>
+          <div className="var-shelf-list">
+            {names.map((name) => {
+              const path = `$env.${name}`;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className="var-chip mono"
+                  draggable
+                  title={`{{ ${path} }}`}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", `{{ ${path} }}`);
+                    e.dataTransfer.setData(PATH_MIME, path);
+                  }}
+                  onClick={() =>
+                    navigator.clipboard
+                      .writeText(`{{ ${path} }}`)
+                      .then(() => toast(`Copied {{ ${path} }}`))
+                      .catch(() => toast("Couldn't copy", "error"))
+                  }
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="col-hint">None yet. Add API keys and tokens under Variables.</p>
+      )}
+    </div>
   );
 }
 
@@ -107,7 +159,7 @@ function InputColumn({ node, nodes, edges, exec, mode, setMode }) {
   );
 }
 
-function OutputColumn({ node, exec, mode, setMode }) {
+function OutputColumn({ node, exec, edges, mode, setMode }) {
   const [port, setPort] = useState(0);
   const record = exec?.nodes?.[node.id];
   const labels = outputPorts(node.data);
@@ -144,6 +196,7 @@ function OutputColumn({ node, exec, mode, setMode }) {
         <Empty>No items reached this step, so it did not run</Empty>
       ) : (
         <>
+          {isStale(exec, edges, node.id) && <div className="stale-box">The step before this one has new output since this step ran. Run this step again to update it.</div>}
           {record.error && <div className="error-box">{record.error}</div>}
           {record.logs?.length > 0 && (
             <div className="logs">
@@ -162,6 +215,70 @@ function OutputColumn({ node, exec, mode, setMode }) {
         </>
       )}
     </>
+  );
+}
+
+const MAX_TEST_FILE_BYTES = 15 * 1024 * 1024;
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Picks a file for test runs; it arrives in the input as { data, mimeType, fileName, size }, like an upload to /hook.
+function TestFiles({ fieldKeys }) {
+  const { testFiles, setTestFiles } = useEditor();
+  const { toast } = useFeedback();
+  const [field, setField] = useState(fieldKeys[0] || "image");
+  const inputRef = useRef(null);
+
+  const pick = async (file) => {
+    if (!file) return;
+    if (file.size > MAX_TEST_FILE_BYTES) return toast(`${file.name} is over the 15 MB limit`, "error");
+    const key = field.trim() || "image";
+    const data = await readFile(file);
+    setTestFiles((current) => ({ ...current, [key]: { data, mimeType: file.type || "application/octet-stream", fileName: file.name, size: file.size } }));
+  };
+
+  return (
+    <div className="field">
+      <span className="field-label">Test files</span>
+      <p className="col-hint">For test runs only, not saved. Real calls send files as multipart form data to /hook.</p>
+      {Object.entries(testFiles).map(([key, file]) => (
+        <div key={key} className="test-file">
+          <Paperclip size={14} strokeWidth={1.75} />
+          <span className="mono">{key}</span>
+          <span className="test-file-name">{file.fileName}</span>
+          <span className="muted mono">{Math.ceil(file.size / 1024)} KB</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={X}
+            aria-label={`Remove ${key}`}
+            onClick={() => setTestFiles(({ [key]: _, ...rest }) => rest)}
+          />
+        </div>
+      ))}
+      <div className="test-file-add">
+        <TextInput mono value={field} onChange={(e) => setField(e.target.value)} placeholder="field" aria-label="Field name" />
+        <Button icon={Paperclip} onClick={() => inputRef.current?.click()}>
+          Choose file
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          hidden
+          onChange={(e) => {
+            pick(e.target.files?.[0]).catch((err) => toast(err.message, "error"));
+            e.target.value = "";
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -187,7 +304,14 @@ export function NodePanel({ nodeId, onClose, meta, setMeta }) {
   const [mode, setMode] = useState("tree");
   const node = nodes.find((n) => n.id === nodeId);
   const type = node && types[node.data.type];
-  const scope = useMemo(() => node && previewScope({ exec, nodes, edges, nodeId: node.id }), [exec, nodes, edges, node]);
+  const variableNames = useVariableNames();
+  const scope = useMemo(() => {
+    const base = node && previewScope({ exec, nodes, edges, nodeId: node.id });
+    return base && { ...base, $env: maskedEnv(variableNames) };
+  }, [exec, nodes, edges, node, variableNames]);
+  // "Stop when" and other deferred fields preview against this step's own last response.
+  const ownResponse = exec?.nodes?.[node?.id]?.output?.[0]?.[0];
+  const deferredScope = useMemo(() => (scope && ownResponse ? { ...scope, $response: ownResponse, $attempt: ownResponse.attempts ?? 1 } : null), [scope, ownResponse]);
   const readiness = useMemo(() => (node ? stepReadiness({ exec, nodes, edges, nodeId: node.id }) : { ready: false }), [exec, nodes, edges, node]);
 
   return (
@@ -224,6 +348,7 @@ export function NodePanel({ nodeId, onClose, meta, setMeta }) {
             <div className="panel-body">
               <section className="col">
                 <InputColumn node={node} nodes={nodes} edges={edges} exec={exec} mode={mode} setMode={setMode} />
+                <VariablesShelf names={variableNames} />
               </section>
               <section className="col col-params">
                 <div className="col-head">
@@ -239,10 +364,11 @@ export function NodePanel({ nodeId, onClose, meta, setMeta }) {
                     </div>
                   </div>
                 )}
-                <Params node={node} type={type} scope={scope} onParam={(name, value) => setParam(node.id, name, value)} onRemapPorts={(map) => remapPorts(node.id, map)} />
+                {node.data.type === "input" && <TestFiles fieldKeys={(node.data.params.fields || []).map((f) => f.key).filter(Boolean)} />}
+                <Params node={node} type={type} scope={scope} deferredScope={deferredScope} workflowId={meta.id} onParam={(name, value) => setParam(node.id, name, value)} onRemapPorts={(map) => remapPorts(node.id, map)} />
               </section>
               <section className="col">
-                <OutputColumn node={node} exec={exec} mode={mode} setMode={setMode} />
+                <OutputColumn node={node} exec={exec} edges={edges} mode={mode} setMode={setMode} />
               </section>
             </div>
           </Dialog.Content>

@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Copy, Ellipsis, PencilLine, Plus, Trash2 } from "lucide-react";
+import { Copy, Ellipsis, Lock, PencilLine, Plus, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
-import { createWorkflow, iconFor, relativeTime, workflowPath } from "../lib/workflow.js";
+import { USAGES, createWorkflow, iconFor, relativeTime, usageOf, workflowPath } from "../lib/workflow.js";
 import { Button, Switch, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 
@@ -11,7 +11,28 @@ const TABS = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "inactive", label: "Paused" },
+  { value: "delivery", label: "Delivery" },
+  { value: "pipeline", label: "Pipeline" },
 ];
+
+const inTab = (workflow, tab) => {
+  if (tab === "active") return workflow.active;
+  if (tab === "inactive") return !workflow.active;
+  if (tab === "delivery" || tab === "pipeline") return usageOf(workflow).includes(tab);
+  return true;
+};
+
+function UsageChips({ usage }) {
+  return (
+    <span className="usage-chips">
+      {USAGES.filter((option) => usage.includes(option.value)).map((option) => (
+        <span key={option.value} className={`usage-chip is-${option.value}`}>
+          {option.label}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function Route({ steps }) {
   const shown = steps.slice(0, MAX_STEPS);
@@ -67,8 +88,7 @@ export default function Workflows() {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (workflows || []).filter((w) => {
-      if (filter === "active" && !w.active) return false;
-      if (filter === "inactive" && w.active) return false;
+      if (!inTab(w, filter)) return false;
       return !q || w.name.toLowerCase().includes(q) || w.slug.includes(q) || w.match?.value.toLowerCase().includes(q);
     });
   }, [workflows, query, filter]);
@@ -127,7 +147,7 @@ export default function Workflows() {
   };
 
   const activeCount = workflows?.filter((w) => w.active).length ?? 0;
-  const counts = { all: workflows?.length ?? 0, active: activeCount, inactive: (workflows?.length ?? 0) - activeCount };
+  const counts = Object.fromEntries(TABS.map((tab) => [tab.value, (workflows || []).filter((w) => inTab(w, tab.value)).length]));
   const open = (row) => navigate(workflowPath(row.id));
 
   return (
@@ -197,8 +217,18 @@ export default function Workflows() {
                   </Tip>
                 </span>
                 <span className="wf-name">
-                  <span className="wf-title">{row.name}</span>
-                  <span className="wf-slug mono">/hook/{row.slug}</span>
+                  <span className="wf-title">
+                    {row.name}
+                    {row.lockedBy && (
+                      <Tip label={`Used by ${row.lockedBy}, so it can't be deleted`} side="top">
+                        <Lock size={13} strokeWidth={2} className="wf-lock" aria-label="Locked" />
+                      </Tip>
+                    )}
+                  </span>
+                  <span className="wf-meta">
+                    <UsageChips usage={usageOf(row)} />
+                    <span className="wf-slug mono">/hook/{row.slug}</span>
+                  </span>
                 </span>
                 <span className="col-steps">
                   <Route steps={row.steps} />
@@ -218,8 +248,8 @@ export default function Workflows() {
                     items={[
                       { label: "Open", icon: PencilLine, onSelect: () => open(row) },
                       { label: "Duplicate", icon: Copy, onSelect: () => duplicate(row) },
-                      "separator",
-                      { label: "Delete", icon: Trash2, danger: true, onSelect: () => remove(row) },
+                      !row.lockedBy && "separator",
+                      !row.lockedBy && { label: "Delete", icon: Trash2, danger: true, onSelect: () => remove(row) },
                     ]}
                   />
                 </span>

@@ -1,7 +1,12 @@
 const vm = require("node:vm");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const helpers = require("./helpers");
 const conditions = require("./conditions");
-const { loadFile, fileFromResponse, isBinaryType } = require("./files");
+const { loadFile, fileFromResponse, isBinaryType, baseMime, mimeFromName, nameFromUrl, EXT_BY_MIME } = require("./files");
+const storage = require("./storage");
+const ffmpeg = require("./ffmpeg");
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
@@ -157,86 +162,121 @@ const http = {
     { name: "redirect", label: "Redirects", type: "select", options: ["follow", "manual"], default: "follow" },
     { name: "failOnError", label: "Fail on error status", type: "boolean", default: true },
     { name: "timeoutMs", label: "Timeout (ms)", type: "number", default: 10000 },
+    { name: "repeat", label: "Repeat until a condition is met (polling)", type: "boolean", default: false },
+    {
+      name: "until",
+      label: "Stop when",
+      type: "conditions",
+      unit: "condition",
+      operators: conditions.OPERATORS,
+      deferred: true,
+      default: [{ left: "{{ $response.body.status }}", op: "equals", right: "done" }],
+      show: { repeat: [true] },
+    },
+    { name: "intervalMs", label: "Wait between tries (ms)", type: "number", default: 3000, show: { repeat: [true] } },
+    { name: "maxAttempts", label: "Give up after (tries)", type: "number", default: 20, show: { repeat: [true] } },
   ],
-  async execute(params) {
-    const timeoutMs = Number(params.timeoutMs) || 10000;
-    let target;
-    try {
-      target = new URL(String(params.url).trim());
-    } catch {
-      throw new Error(`Invalid URL: ${params.url}`);
-    }
-    if (!/^https?:$/.test(target.protocol)) throw new Error(`URL must be http(s): ${target}`);
-    for (const [key, value] of Object.entries(helpers.kvToObject(params.query))) target.searchParams.set(key, value);
-
-    const headers = helpers.kvToObject(params.headers);
-    const hasHeader = (name) => Object.keys(headers).some((key) => key.toLowerCase() === name);
-    const options = { method: params.method, headers, redirect: params.redirect === "manual" ? "manual" : "follow" };
-
-    if (params.method !== "GET" && params.method !== "HEAD" && params.bodyType !== "none") {
-      if (params.bodyType === "json") {
-        options.body = typeof params.body === "string" ? params.body : JSON.stringify(params.body);
-        if (!hasHeader("content-type")) headers["Content-Type"] = "application/json";
-      } else if (params.bodyType === "form") {
-        options.body = new URLSearchParams(lines(params.body)).toString();
-        if (!hasHeader("content-type")) headers["Content-Type"] = "application/x-www-form-urlencoded";
-      } else if (params.bodyType === "multipart") {
-        options.body = await multipartBody(params.multipart, timeoutMs);
-        // fetch writes the multipart boundary into Content-Type; a hand-set one would break the upload.
-        for (const key of Object.keys(headers)) if (key.toLowerCase() === "content-type") delete headers[key];
-      } else if (params.bodyType === "file") {
-        const file = await loadFile(params.file, { mimeType: params.fileContentType, timeoutMs });
-        options.body = file.buffer;
-        if (!hasHeader("content-type")) headers["Content-Type"] = file.mimeType;
-      } else {
-        options.body = String(params.body ?? "");
+  // With Repeat on, sends the request until "Stop when" holds. From the second try, every field is
+  // resolved again with $response (the previous try's response) and $attempt, so a poll can send back what it got.
+  async execute(params, ctx) {
+    if (!params.repeat) return sendRequest(params);
+    let current = params;
+    const maxAttempts = Math.min(Math.max(Number(params.maxAttempts) || 20, 1), 500);
+    const intervalMs = Math.min(Math.max(Number(params.intervalMs) || 0, 0), 10 * 60 * 1000);
+    for (let attempt = 1; ; attempt += 1) {
+      const output = { ...(await sendRequest(current)), attempts: attempt };
+      const rows = ctx.resolve(params.until, { $response: output, $attempt: attempt });
+      if (conditions.matches(rows, "all")) return output;
+      ctx.logs.push(`Try ${attempt}: not done yet`);
+      if (attempt >= maxAttempts) {
+        const error = new Error(`"Stop when" still wasn't met after ${attempt} tries`);
+        error.output = output;
+        throw error;
       }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      current = ctx.reresolve({ $response: output, $attempt: attempt + 1 });
     }
-
-    const res = await helpers.fetchWithTimeout(target.toString(), options, timeoutMs);
-    const contentType = res.headers.get("content-type") || "";
-    const asFile = params.method !== "HEAD" && (params.responseFormat === "binary" || (params.responseFormat === "auto" && res.ok && isBinaryType(contentType)));
-    const file = asFile ? await fileFromResponse(res, res.url || target.toString()) : null;
-    const text = file || params.method === "HEAD" ? "" : (await res.text()).slice(0, MAX_BODY_BYTES);
-
-    let body = text;
-    if (file) {
-      body = "";
-    } else if (params.responseFormat === "json") {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        throw new Error(`Response is not JSON: ${text.slice(0, 200)}`);
-      }
-    } else if (params.responseFormat === "auto" && (contentType.includes("json") || /^\s*[[{]/.test(text))) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = text;
-      }
-    }
-
-    const cookies = helpers.setCookies(res);
-    const output = {
-      status: res.status,
-      ok: res.ok,
-      url: res.url || target.toString(),
-      location: res.headers.get("location") || "",
-      headers: Object.fromEntries(res.headers),
-      cookies,
-      cookieHeader: helpers.cookieHeader(cookies),
-      body,
-      ...(file ? { file } : {}),
-    };
-    const isRedirect = res.status >= 300 && res.status < 400;
-    if (params.failOnError && !res.ok && !(isRedirect && params.redirect === "manual")) {
-      const error = new Error(`HTTP ${res.status} from ${target.host}: ${text.slice(0, 200)}`);
-      error.output = output;
-      throw error;
-    }
-    return output;
   },
 };
+
+async function sendRequest(params) {
+  const timeoutMs = Number(params.timeoutMs) || 10000;
+  let target;
+  try {
+    target = new URL(String(params.url).trim());
+  } catch {
+    throw new Error(`Invalid URL: ${params.url}`);
+  }
+  if (!/^https?:$/.test(target.protocol)) throw new Error(`URL must be http(s): ${target}`);
+  for (const [key, value] of Object.entries(helpers.kvToObject(params.query))) target.searchParams.set(key, value);
+
+  const headers = helpers.kvToObject(params.headers);
+  const hasHeader = (name) => Object.keys(headers).some((key) => key.toLowerCase() === name);
+  const options = { method: params.method, headers, redirect: params.redirect === "manual" ? "manual" : "follow" };
+
+  if (params.method !== "GET" && params.method !== "HEAD" && params.bodyType !== "none") {
+    if (params.bodyType === "json") {
+      options.body = typeof params.body === "string" ? params.body : JSON.stringify(params.body);
+      if (!hasHeader("content-type")) headers["Content-Type"] = "application/json";
+    } else if (params.bodyType === "form") {
+      options.body = new URLSearchParams(lines(params.body)).toString();
+      if (!hasHeader("content-type")) headers["Content-Type"] = "application/x-www-form-urlencoded";
+    } else if (params.bodyType === "multipart") {
+      options.body = await multipartBody(params.multipart, timeoutMs);
+      // fetch writes the multipart boundary into Content-Type; a hand-set one would break the upload.
+      for (const key of Object.keys(headers)) if (key.toLowerCase() === "content-type") delete headers[key];
+    } else if (params.bodyType === "file") {
+      const file = await loadFile(params.file, { mimeType: params.fileContentType, timeoutMs });
+      options.body = file.buffer;
+      if (!hasHeader("content-type")) headers["Content-Type"] = file.mimeType;
+    } else {
+      options.body = String(params.body ?? "");
+    }
+  }
+
+  const res = await helpers.fetchWithTimeout(target.toString(), options, timeoutMs);
+  const contentType = res.headers.get("content-type") || "";
+  const asFile = params.method !== "HEAD" && (params.responseFormat === "binary" || (params.responseFormat === "auto" && res.ok && isBinaryType(contentType)));
+  const file = asFile ? await fileFromResponse(res, res.url || target.toString()) : null;
+  const text = file || params.method === "HEAD" ? "" : (await res.text()).slice(0, MAX_BODY_BYTES);
+
+  let body = text;
+  if (file) {
+    body = "";
+  } else if (params.responseFormat === "json") {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new Error(`Response is not JSON: ${text.slice(0, 200)}`);
+    }
+  } else if (params.responseFormat === "auto" && (contentType.includes("json") || /^\s*[[{]/.test(text))) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+
+  const cookies = helpers.setCookies(res);
+  const output = {
+    status: res.status,
+    ok: res.ok,
+    url: res.url || target.toString(),
+    location: res.headers.get("location") || "",
+    headers: Object.fromEntries(res.headers),
+    cookies,
+    cookieHeader: helpers.cookieHeader(cookies),
+    body,
+    ...(file ? { file } : {}),
+  };
+  const isRedirect = res.status >= 300 && res.status < 400;
+  if (params.failOnError && !res.ok && !(isRedirect && params.redirect === "manual")) {
+    const error = new Error(`HTTP ${res.status} from ${target.host}: ${text.slice(0, 200)}`);
+    error.output = output;
+    throw error;
+  }
+  return output;
+}
 
 const MAX_MATCHES = 1000;
 
@@ -379,19 +419,7 @@ const set = {
     { name: "keepInput", label: "Keep incoming fields", type: "boolean", default: false },
   ],
   execute(params, ctx) {
-    const out = params.keepInput && ctx.json && typeof ctx.json === "object" ? { ...ctx.json } : {};
-    for (const row of params.fields || []) {
-      const key = String(row.key || "").trim();
-      if (!key) continue;
-      const path = key.split(".");
-      let target = out;
-      path.slice(0, -1).forEach((part) => {
-        if (!target[part] || typeof target[part] !== "object") target[part] = {};
-        target = target[part];
-      });
-      target[path.at(-1)] = row.value;
-    }
-    return out;
+    return objectFromRows(params.fields, params.keepInput && ctx.json && typeof ctx.json === "object" ? ctx.json : {});
   },
 };
 
@@ -608,7 +636,268 @@ const aggregate = {
   },
 };
 
-const NODE_TYPES = { input, http, extract, code, set, redirects, split, filter, switch: route, aggregate, respond };
+// What a finished run hands to whoever called it: the JSON body, or the redirect/text wrapped in an object.
+function responseValue(response) {
+  if (!response) return {};
+  if (response.mode === "redirect") return { url: response.url };
+  if (response.mode === "text") return { text: response.body };
+  const body = response.body;
+  return isPlainObject(body) ? body : { result: body };
+}
+
+// Builds an object from key/value rows; "a.b" keys nest. Values keep their type (objects, files).
+function objectFromRows(rows, base = {}) {
+  const out = { ...base };
+  for (const row of rows || []) {
+    const key = String(row.key || "").trim();
+    if (!key) continue;
+    const path = key.split(".");
+    let target = out;
+    path.slice(0, -1).forEach((part) => {
+      if (!target[part] || typeof target[part] !== "object") target[part] = {};
+      target = target[part];
+    });
+    target[path.at(-1)] = row.value;
+  }
+  return out;
+}
+
+const subworkflow = {
+  pipelineOnly: true,
+  label: "Run Workflow",
+  description: "Runs another workflow with the input you give it. Output is what that workflow responds with.",
+  color: "#6366f1",
+  icon: "RUN",
+  params: [
+    { name: "workflow", label: "Workflow", type: "workflow", default: "" },
+    { name: "passItem", label: "Send the incoming item as its input", type: "boolean", default: false },
+    { name: "input", label: "Input fields", type: "kv", default: [{ key: "url", value: "{{ $json.url }}" }], show: { passItem: [false] } },
+  ],
+  async execute(params, ctx) {
+    if (!params.workflow) throw new Error("Pick the workflow to run");
+    const input = params.passItem ? (isPlainObject(ctx.json) ? { ...ctx.json } : {}) : objectFromRows(params.input);
+    const execution = await ctx.services.callWorkflow(params.workflow, input);
+    if (execution.status !== "success") {
+      const at = execution.error?.nodeName ? ` at ${execution.error.nodeName}` : "";
+      throw new Error(`"${execution.workflowName}" failed${at}: ${execution.error?.message}`);
+    }
+    return responseValue(execution.response);
+  },
+};
+
+const HLS_URL = /\.m3u8(\?|#|$)/i;
+const DEFAULT_FOLDER = "{{ $input.folder || 'files/' + $execution.id }}";
+
+function fileNameFor(res, url, wanted) {
+  if (wanted) return wanted;
+  const disposition = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(res.headers.get("content-disposition") || "")?.[1];
+  const name = disposition || nameFromUrl(res.url || url);
+  const ext = EXT_BY_MIME[baseMime(res.headers.get("content-type"))];
+  if (name && /\.[a-z0-9]{2,5}$/i.test(name)) return name;
+  return `${name || "download"}${ext ? `.${ext}` : ""}`;
+}
+
+const save = {
+  pipelineOnly: true,
+  label: "Save File",
+  description: "Downloads a URL (video, image, .m3u8 stream) or takes a file and saves it to a folder on the server. Output is a small file reference other steps accept.",
+  color: "#0ea5e9",
+  icon: "SAVE",
+  subtitle: "{source}",
+  params: [
+    { name: "source", label: "File or URL", type: "string", default: "{{ $json.url }}", placeholder: "https://…/video.mp4, .m3u8, or {{ $json.file }}" },
+    { name: "folder", label: "Folder", type: "string", default: DEFAULT_FOLDER },
+    { name: "fileName", label: "File name", type: "string", default: "", placeholder: "Taken from the URL" },
+    { name: "headers", label: "Headers", type: "kv", default: [] },
+    { name: "maxMB", label: "Size limit (MB)", type: "number", default: 2048 },
+    { name: "timeoutMs", label: "Timeout (ms)", type: "number", default: 600000 },
+  ],
+  async execute(params) {
+    const source = params.source;
+    const folder = params.folder;
+    const wanted = String(params.fileName || "").trim();
+    const timeoutMs = Number(params.timeoutMs) || 600000;
+    const headers = helpers.kvToObject(params.headers);
+
+    if (storage.isRef(source) || storage.isRef(source?.file)) return storage.isRef(source) ? source : source.file;
+
+    const text = typeof source === "string" ? source.trim() : "";
+    if (/^https?:\/\//i.test(text) && HLS_URL.test(text)) {
+      const relative = storage.reservePath(folder, wanted || `${nameFromUrl(text).replace(/\.m3u8$/i, "") || "video"}.mp4`);
+      await ffmpeg.remux(text, storage.absolutePath(relative), { headers, timeoutMs });
+      return storage.refForExisting(relative, "video/mp4");
+    }
+    if (/^https?:\/\//i.test(text)) {
+      const res = await helpers.fetchWithTimeout(text, { headers, redirect: "follow" }, timeoutMs);
+      if (!res.ok) throw new Error(`Downloading ${text} answered HTTP ${res.status}`);
+      const fileName = fileNameFor(res, text, wanted);
+      const mimeType = baseMime(res.headers.get("content-type"));
+      return storage.saveStream(folder, fileName, res, {
+        mimeType: mimeType && mimeType !== "application/octet-stream" ? mimeType : mimeFromName(fileName),
+        maxBytes: (Number(params.maxMB) || 2048) * 1048576,
+      });
+    }
+    const file = await loadFile(source, { fileName: wanted, timeoutMs });
+    return storage.saveBuffer(folder, file.fileName, file.buffer, file.mimeType);
+  },
+};
+
+function videoSource(value) {
+  if (storage.isRef(value)) return storage.pathOf(value);
+  if (storage.isRef(value?.file)) return storage.pathOf(value.file);
+  const text = typeof value === "string" ? value.trim() : "";
+  if (/^https?:\/\//i.test(text)) return text;
+  throw new Error("Video must be a saved file (from Save File) or an http(s) URL");
+}
+
+const frames = {
+  pipelineOnly: true,
+  label: "Extract Frames",
+  description: "Takes evenly spaced still frames from a video with ffmpeg and saves them as JPEGs. Output: duration and a frames list.",
+  color: "#d946ef",
+  icon: "FRM",
+  subtitle: "{count} frames",
+  params: [
+    { name: "video", label: "Video", type: "string", default: "{{ $json }}", placeholder: "{{ $json }} from Save File, or a video URL" },
+    { name: "count", label: "Number of frames", type: "number", default: 8 },
+    { name: "width", label: "Max width (px)", type: "number", default: 960 },
+    { name: "folder", label: "Folder", type: "string", default: DEFAULT_FOLDER },
+    { name: "headers", label: "Headers", type: "kv", default: [] },
+    { name: "timeoutMs", label: "Timeout per frame (ms)", type: "number", default: 60000 },
+  ],
+  async execute(params) {
+    const source = videoSource(params.video);
+    const headers = helpers.kvToObject(params.headers);
+    const timeoutMs = Number(params.timeoutMs) || 60000;
+    const count = Math.min(Math.max(Number(params.count) || 8, 1), 48);
+    const width = Math.min(Math.max(Number(params.width) || 960, 64), 3840);
+
+    const duration = await ffmpeg.duration(source, { headers, timeoutMs });
+    if (!duration) throw new Error("Couldn't read the video's length, so frames can't be spaced out");
+
+    const list = [];
+    for (let i = 0; i < count; i += 1) {
+      const time = (duration * (i + 0.5)) / count;
+      const relative = storage.reservePath(params.folder, `frame-${String(i + 1).padStart(2, "0")}.jpg`);
+      await ffmpeg.frame(source, storage.absolutePath(relative), { time, width, headers, timeoutMs });
+      list.push({ ...storage.refForExisting(relative, "image/jpeg"), time: Math.round(time * 10) / 10 });
+    }
+    return { duration: Math.round(duration), count: list.length, frames: list };
+  },
+};
+
+const MAX_RESIZE_ATTEMPTS = 15;
+const IMAGE_FORMATS = { jpeg: { ext: "jpg", mime: "image/jpeg" }, webp: { ext: "webp", mime: "image/webp" }, png: { ext: "png", mime: "image/png" } };
+
+const resize = {
+  pipelineOnly: true,
+  label: "Resize Image",
+  description: "Shrinks and re-encodes an image with ffmpeg, e.g. for a thumbnail. Output: file, dataUrl, width, height and size.",
+  color: "#06b6d4",
+  icon: "IMG",
+  subtitle: "{format} {maxWidth}×{maxHeight}",
+  params: [
+    { name: "image", label: "Image", type: "string", default: "{{ $json.image }}", placeholder: "A file like {{ $json.image }}, an image URL, data: URL or base64" },
+    { name: "maxWidth", label: "Max width (px)", type: "number", default: 400 },
+    { name: "maxHeight", label: "Max height (px)", type: "number", default: 400 },
+    { name: "format", label: "Format", type: "select", options: ["jpeg", "webp", "png"], default: "jpeg" },
+    { name: "quality", label: "Quality (1-100)", type: "number", default: 75, show: { format: ["jpeg", "webp"] } },
+    { name: "maxKB", label: "Keep under (KB, 0 = no limit)", type: "number", default: 0, show: { format: ["jpeg", "webp"] } },
+  ],
+  // With "Keep under", lowers the quality first (down to 40), then the dimensions, until the file fits.
+  async execute(params) {
+    const source = await loadFile(params.image);
+    const format = IMAGE_FORMATS[params.format] ? params.format : "jpeg";
+    const { ext, mime } = IMAGE_FORMATS[format];
+    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "resize-"));
+    try {
+      const input = path.join(dir, "input");
+      const output = path.join(dir, `output.${ext}`);
+      await fs.promises.writeFile(input, source.buffer);
+      const limit = format === "png" ? 0 : Math.max(Number(params.maxKB) || 0, 0) * 1024;
+      const original = await ffmpeg.imageSize(input);
+      let width = Math.min(Math.max(Number(params.maxWidth) || 400, 1), 8000, original.width || Infinity);
+      let height = Math.min(Math.max(Number(params.maxHeight) || 400, 1), 8000, original.height || Infinity);
+      let quality = Math.min(Math.max(Number(params.quality) || 75, 1), 100);
+      let buffer;
+      for (let attempt = 1; ; attempt += 1) {
+        await ffmpeg.resizeImage(input, output, { maxWidth: width, maxHeight: height, format, quality });
+        buffer = await fs.promises.readFile(output);
+        if (!limit || buffer.length <= limit) break;
+        if (attempt >= MAX_RESIZE_ATTEMPTS) throw new Error(`Couldn't get the image under ${params.maxKB} KB (smallest try was ${Math.ceil(buffer.length / 1024)} KB)`);
+        if (quality > 40) quality = Math.max(40, quality - 10);
+        else {
+          width = Math.max(32, Math.round(width * 0.8));
+          height = Math.max(32, Math.round(height * 0.8));
+        }
+      }
+      const data = buffer.toString("base64");
+      const stem = String(source.fileName || "image").replace(/\.[^.]+$/, "");
+      return {
+        file: { data, mimeType: mime, fileName: `${stem}.${ext}`, size: buffer.length },
+        dataUrl: `data:${mime};base64,${data}`,
+        ...(await ffmpeg.imageSize(output)),
+        size: buffer.length,
+        originalSize: source.buffer.length,
+        ...(format === "png" ? {} : { quality }),
+      };
+    } finally {
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    }
+  },
+};
+
+async function categoryIdFor(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  if (/^\d+$/.test(text)) return text;
+  const categories = require("./site/categories");
+  const match = (await categories.list()).find((category) => category.name.toLowerCase() === text.toLowerCase());
+  if (!match) throw new Error(`No category is named "${text}"`);
+  return String(match.id);
+}
+
+const post = {
+  pipelineOnly: true,
+  label: "Create Post",
+  description: "Adds a post to the website's Content, with the same checks as the Content form. Output is the new post.",
+  color: "#10b981",
+  icon: "POST",
+  subtitle: "{title}",
+  params: [
+    { name: "title", label: "Title", type: "string", default: "{{ $json.title }}" },
+    { name: "description", label: "Description", type: "text", default: "{{ $json.description }}" },
+    { name: "realUrl", label: "Real URL", type: "string", default: "{{ $json.realUrl }}" },
+    { name: "thumbnail", label: "Thumbnail URL", type: "string", default: "{{ $json.thumbnail }}" },
+    { name: "category", label: "Category (name or id)", type: "string", default: "" },
+    { name: "duration", label: "Video length", type: "string", default: "", placeholder: "Blank reads it from the .m3u8" },
+    { name: "postTag", label: "Post tag", type: "string", default: "", placeholder: "Built from the title" },
+  ],
+  async execute(params) {
+    // Loaded here because the site modules reach back into the workflow engine.
+    const db = require("./site/db");
+    const { createPost, InputError, SITE_URL } = require("./site/inputs");
+    if (!db.configured) throw new Error("The website database is not configured, so posts can't be created");
+    const text = (value) => (value == null ? "" : String(value));
+    try {
+      const created = await createPost({
+        title: text(params.title),
+        description: text(params.description),
+        realUrl: text(params.realUrl),
+        thumbnail: text(params.thumbnail),
+        categoryId: await categoryIdFor(params.category),
+        duration: text(params.duration),
+        postTag: text(params.postTag),
+      });
+      return { ...created, viewUrl: SITE_URL ? `${SITE_URL}/r/${encodeURIComponent(created.postTag)}` : "" };
+    } catch (err) {
+      if (err instanceof InputError) throw new Error(Object.entries(err.errors).map(([field, message]) => `${field}: ${message}`).join("; "));
+      throw err;
+    }
+  },
+};
+
+const NODE_TYPES = { input, http, extract, code, set, redirects, split, filter, switch: route, aggregate, subworkflow, save, frames, resize, post, respond };
 
 function publicTypes() {
   return Object.fromEntries(
@@ -624,10 +913,11 @@ function publicTypes() {
         inputs: def.inputs !== false,
         outputs: def.outputs !== false,
         kind: def.kind || "each",
+        pipelineOnly: Boolean(def.pipelineOnly),
         params: def.params,
       },
     ])
   );
 }
 
-module.exports = { NODE_TYPES, publicTypes };
+module.exports = { NODE_TYPES, publicTypes, responseValue, objectFromRows };

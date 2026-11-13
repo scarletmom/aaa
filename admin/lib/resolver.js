@@ -1,6 +1,7 @@
 const store = require("./store");
 const { runWorkflow, inputSettings } = require("./engine");
 const { matchUrl } = require("./helpers");
+const { usedFor } = require("./usage");
 
 const MAX_CACHE_ENTRIES = 2000;
 const cache = new Map();
@@ -27,7 +28,7 @@ async function run(workflow, input, mode) {
 // `failed` means the workflow errored and its Input node is not set to fall back to the original.
 async function resolveUrl(url, input = { url }, mode = "resolve") {
   for (const workflow of store.list()) {
-    if (!workflow.active) continue;
+    if (!workflow.active || !usedFor(workflow, "delivery")) continue;
     const settings = inputSettings(workflow);
     if (!matchUrl(settings.matchType, settings.matchValue, url)) continue;
 

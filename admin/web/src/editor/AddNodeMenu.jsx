@@ -5,7 +5,8 @@ import { iconFor } from "../lib/workflow.js";
 import { useEditor } from "./context.js";
 
 export function AddNodeMenu({ onPick, children, side = "right", align = "start" }) {
-  const { types } = useEditor();
+  const { types, usage } = useEditor();
+  const isBlocked = (type) => type.pipelineOnly && usage.includes("delivery");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -32,6 +33,7 @@ export function AddNodeMenu({ onPick, children, side = "right", align = "start" 
   }, [types, query]);
 
   const pick = (type) => {
+    if (isBlocked(type)) return;
     setOpen(false);
     onPick(type.type);
   };
@@ -89,11 +91,13 @@ export function AddNodeMenu({ onPick, children, side = "right", align = "start" 
           <div className="picker-list">
             {options.map((type, index) => {
               const Icon = iconFor(type.type);
+              const blocked = isBlocked(type);
               return (
                 <button
                   key={type.type}
                   type="button"
-                  className={`picker-item${index === active ? " is-active" : ""}`}
+                  className={`picker-item${index === active ? " is-active" : ""}${blocked ? " is-blocked" : ""}`}
+                  aria-disabled={blocked}
                   onMouseEnter={() => setActive(index)}
                   onClick={() => pick(type)}
                 >
@@ -102,7 +106,7 @@ export function AddNodeMenu({ onPick, children, side = "right", align = "start" 
                   </span>
                   <span className="picker-text">
                     <span>{type.label}</span>
-                    <span className="picker-desc">{type.description.replace(/\.$/, "")}</span>
+                    <span className="picker-desc">{blocked ? "Pipeline only. Untick Delivery under Use for to add it" : type.description.replace(/\.$/, "")}</span>
                   </span>
                 </button>
               );

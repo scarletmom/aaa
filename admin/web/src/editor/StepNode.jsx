@@ -2,6 +2,7 @@ import { memo, useEffect } from "react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import { CircleAlert, Check, LoaderCircle, Play, Plus, SquarePen, Trash2 } from "lucide-react";
 import { iconFor, outputPorts, portOf, stepReadiness, subtitle } from "../lib/workflow.js";
+import { isStale } from "../lib/expr.js";
 import { Tip } from "../ui/controls.jsx";
 import { AddNodeMenu } from "./AddNodeMenu.jsx";
 import { useEditor } from "./context.js";
@@ -35,6 +36,7 @@ function StepNode({ id, data, selected }) {
   const usedPorts = new Set(edges.filter((edge) => edge.source === id).map((edge) => portOf(edge.sourceHandle)));
   const firstFree = ports ? Math.max(0, ports.findIndex((_, i) => !usedPorts.has(i))) : 0;
   const outCount = record?.output?.flat().length ?? 0;
+  const stale = status === "success" && isStale(exec, edges, id);
   const readiness = stepReadiness({ exec, nodes, edges, nodeId: id });
   const runLabel = readiness.ready ? (data.type === "input" ? "Run this step with the test input" : "Run only this step") : readiness.reason;
 
@@ -75,10 +77,10 @@ function StepNode({ id, data, selected }) {
       )}
 
       {status && status !== "skipped" && (
-        <span className="step-status">
+        <span className={`step-status${stale ? " is-stale" : ""}`} title={stale ? "The step before has new output. Run this step again." : undefined}>
           {status === "error" ? <CircleAlert size={12} strokeWidth={2} /> : <Check size={12} strokeWidth={2.25} />}
           <span>
-            {status === "success" && outCount !== 1 ? `${itemsLabel(outCount)} · ` : ""}
+            {stale ? "Out of date · " : status === "success" && outCount !== 1 ? `${itemsLabel(outCount)} · ` : ""}
             {record.durationMs} ms
           </span>
         </span>
