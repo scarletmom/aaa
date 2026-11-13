@@ -1,6 +1,7 @@
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { Readable } = require("node:stream");
+const { pipeline } = require("node:stream/promises");
 const express = require("express");
 const store = require("./lib/store");
 const {
@@ -399,6 +400,36 @@ app.post("/api/reels/run/:step", async (req, res) => {
     executionId: execution.id,
     result: responseValue(execution.response),
   });
+});
+
+const PASSED_VIDEO_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges", "last-modified", "etag"];
+
+// Streams a video from another site through the admin, so the page can read its frames in the browser
+// (a cross-origin video taints the canvas). Range requests pass through, so seeking works.
+app.get("/api/reels/video", async (req, res) => {
+  const url = String(req.query.url || "");
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "url must be an http(s) URL" });
+  const controller = new AbortController();
+  res.on("close", () => controller.abort());
+  try {
+    const upstream = await fetch(url, {
+      headers: req.headers.range ? { Range: req.headers.range } : {},
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    res.status(upstream.status);
+    for (const name of PASSED_VIDEO_HEADERS) {
+      const value = upstream.headers.get(name);
+      if (value) res.setHeader(name, value);
+    }
+    res.setHeader("Cache-Control", "private, max-age=600");
+    if (!upstream.body) return res.end();
+    await pipeline(Readable.fromWeb(upstream.body), res);
+  } catch (err) {
+    if (controller.signal.aborted) return;
+    if (!res.headersSent) res.status(502).json({ error: `Couldn't load the video: ${err.cause?.message || err.message}` });
+    else res.destroy();
+  }
 });
 
 app.post("/api/reels/frame", async (req, res) => {

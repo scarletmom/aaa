@@ -1,6 +1,9 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+const { Readable, Transform } = require("node:stream");
+const { pipeline } = require("node:stream/promises");
 
 // FFMPEG_PATH/FFPROBE_PATH win; then the binaries from ffmpeg-static/ffprobe-static, for hosts like Render
 // where ffmpeg can't be installed system-wide; then whatever is on PATH.
@@ -89,6 +92,36 @@ async function imageSize(file) {
   return { width: width || null, height: height || null };
 }
 
+const HLS_URL = /\.m3u8(\?|#|$)/i;
+const MAX_DOWNLOAD_BYTES = 500 * 1048576;
+
+function byteLimit(maxBytes) {
+  let seen = 0;
+  return new Transform({
+    transform(chunk, encoding, done) {
+      seen += chunk.length;
+      done(seen > maxBytes ? new Error(`Video is over the ${Math.round(maxBytes / 1048576)} MB limit`) : null, chunk);
+    },
+  });
+}
+
+// Static Linux ffmpeg builds (ffmpeg-static on Render) segfault when they look up a hostname, so Node fetches
+// remote videos to a temp file and ffmpeg only ever reads local files. HLS playlists still go to ffmpeg directly.
+async function withLocalSource(source, { headers, timeoutMs = 120000 } = {}, work) {
+  const text = String(source);
+  if (!/^https?:\/\//i.test(text) || HLS_URL.test(text)) return work(source);
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ffmpeg-src-"));
+  try {
+    const res = await fetch(text, { headers, redirect: "follow", signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok || !res.body) throw new Error(`Downloading the video answered HTTP ${res.status}`);
+    const file = path.join(dir, "source");
+    await pipeline(Readable.fromWeb(res.body), byteLimit(MAX_DOWNLOAD_BYTES), fs.createWriteStream(file));
+    return await work(file);
+  } finally {
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  }
+}
+
 // Runs `-version` on both binaries, for checking a server's setup from the admin.
 async function check() {
   const probe = async (bin) => {
@@ -104,4 +137,4 @@ async function check() {
   return { ffmpeg: await probe(FFMPEG), ffprobe: await probe(FFPROBE) };
 }
 
-module.exports = { FFMPEG, FFPROBE, check, duration, remux, frame, resizeImage, imageSize };
+module.exports = { FFMPEG, FFPROBE, check, withLocalSource, duration, remux, frame, resizeImage, imageSize };

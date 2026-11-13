@@ -774,17 +774,21 @@ const frames = {
     const count = Math.min(Math.max(Number(params.count) || 8, 1), 48);
     const width = Math.min(Math.max(Number(params.width) || 960, 64), 3840);
 
-    const duration = await ffmpeg.duration(source, { headers, timeoutMs });
-    if (!duration) throw new Error("Couldn't read the video's length, so frames can't be spaced out");
+    return ffmpeg.withLocalSource(source, { headers, timeoutMs: Math.max(timeoutMs, 120000) }, async (local) => {
+      // Request headers only mean something while ffmpeg still reads the URL itself (HLS).
+      const urlHeaders = local === source ? headers : undefined;
+      const duration = await ffmpeg.duration(local, { headers: urlHeaders, timeoutMs });
+      if (!duration) throw new Error("Couldn't read the video's length, so frames can't be spaced out");
 
-    const list = [];
-    for (let i = 0; i < count; i += 1) {
-      const time = (duration * (i + 0.5)) / count;
-      const relative = storage.reservePath(params.folder, `frame-${String(i + 1).padStart(2, "0")}.jpg`);
-      await ffmpeg.frame(source, storage.absolutePath(relative), { time, width, headers, timeoutMs });
-      list.push({ ...storage.refForExisting(relative, "image/jpeg"), time: Math.round(time * 10) / 10 });
-    }
-    return { duration: Math.round(duration), count: list.length, frames: list };
+      const list = [];
+      for (let i = 0; i < count; i += 1) {
+        const time = (duration * (i + 0.5)) / count;
+        const relative = storage.reservePath(params.folder, `frame-${String(i + 1).padStart(2, "0")}.jpg`);
+        await ffmpeg.frame(local, storage.absolutePath(relative), { time, width, headers: urlHeaders, timeoutMs });
+        list.push({ ...storage.refForExisting(relative, "image/jpeg"), time: Math.round(time * 10) / 10 });
+      }
+      return { duration: Math.round(duration), count: list.length, frames: list };
+    });
   },
 };
 

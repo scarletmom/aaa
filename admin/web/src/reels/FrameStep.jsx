@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ImageUp, Pause, Play, ScanFace, SkipForward, Volume2, VolumeX } from "lucide-react";
-import { captureFrame, failureMessage, formatClock, matchGroups, runReelStep } from "../lib/reels.js";
+import { captureFrame, failureMessage, formatClock, matchGroups, playableUrl, runReelStep } from "../lib/reels.js";
 import { formatDuration } from "../lib/content.js";
 import { Button, Tip } from "../ui/controls.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
@@ -96,7 +96,7 @@ export default function FrameStep({ draft, update, go, back }) {
           ) : (
             <video
               ref={videoRef}
-              src={src}
+              src={playableUrl(src)}
               playsInline
               muted={muted}
               preload="auto"

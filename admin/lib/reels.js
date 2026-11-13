@@ -186,7 +186,7 @@ async function grabFrame(video, time) {
   const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "reel-frame-"));
   try {
     const target = path.join(dir, "frame.jpg");
-    await ffmpeg.frame(source, target, { time: seconds, width: MAX_FRAME_WIDTH, timeoutMs: 60000 });
+    await ffmpeg.withLocalSource(source, {}, (local) => ffmpeg.frame(local, target, { time: seconds, width: MAX_FRAME_WIDTH, timeoutMs: 60000 }));
     const buffer = await fs.promises.readFile(target);
     return { data: buffer.toString("base64"), mimeType: "image/jpeg", fileName: `frame-${seconds.toFixed(1)}s.jpg`, size: buffer.length };
   } finally {

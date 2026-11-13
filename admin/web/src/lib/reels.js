@@ -61,6 +61,12 @@ export function mediaRef(result) {
 
 export const absoluteUrl = (url) => (url ? new URL(url, window.location.origin).href : "");
 
+// Videos from other sites go through the admin, so the browser can read their frames.
+export function playableUrl(url) {
+  if (!/^https?:\/\//i.test(url || "")) return url;
+  return new URL(url).origin === window.location.origin ? url : `/api/reels/video?url=${encodeURIComponent(url)}`;
+}
+
 // Accepts 0-1, 0-100, or text like "87.5%"; text with % is already a percentage.
 function percent(value) {
   const isText = typeof value === "string";
