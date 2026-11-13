@@ -274,7 +274,7 @@
       : '';
   }
 
-  // Shown on a visitor's first open only; joining or dismissing both count as seen.
+  // Shown on a visitor's first open only. It can't be dismissed: the visitor either joins or says they already have.
   function showTelegramPrompt(site) {
     const href = httpUrl(site.telegram);
     if (!href || storage.get(TELEGRAM_PROMPT_KEY)) return;
@@ -284,20 +284,28 @@
     dialog.tabIndex = -1;
     dialog.setAttribute('aria-labelledby', 'tg-modal-title');
     dialog.innerHTML = `
-      <button class="icon-btn tg-modal__close" type="button" data-close aria-label="Close">${icons.close}</button>
       <span class="gate__icon tg-modal__icon">${icons.telegram}</span>
       <span class="kicker">Telegram</span>
       <h2 class="gate__title" id="tg-modal-title">Join our channel</h2>
       <p class="gate__text">New videos land on our Telegram channel first. Join ${esc(site.name)} so you never miss one.</p>
-      <a class="btn btn--solid btn--block" href="${esc(href)}" target="_blank" rel="noopener" data-join>${icons.telegram}<span>Join Telegram</span></a>
-      <button class="tg-modal__later" type="button" data-close>Maybe later</button>`;
+      <a class="btn btn--solid btn--block" href="${esc(href)}" target="_blank" rel="noopener" data-choice>${icons.telegram}<span>Join Telegram</span></a>
+      <button class="tg-modal__joined" type="button" data-choice>I’ve already joined</button>`;
 
+    let answered = false;
+    dialog.addEventListener('cancel', (event) => event.preventDefault());
+    // Browsers may still close it (a repeated Esc, the Android back gesture), so it reopens until answered.
     dialog.addEventListener('close', () => {
+      if (!answered) {
+        dialog.showModal();
+        return;
+      }
       storage.set(TELEGRAM_PROMPT_KEY, '1');
       dialog.remove();
     });
     dialog.addEventListener('click', (event) => {
-      if (event.target === dialog || event.target.closest('[data-close], [data-join]')) dialog.close();
+      if (!event.target.closest('[data-choice]')) return;
+      answered = true;
+      dialog.close();
     });
 
     document.body.appendChild(dialog);
