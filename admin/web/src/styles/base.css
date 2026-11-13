@@ -9,12 +9,35 @@ body,
   margin: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  background: var(--bg-deep);
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font: 400 14px/20px var(--font);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "tnum" 0;
+}
+
+/* Home-screen app on iPhone: the page runs under the status bar and home indicator, so keep content clear of them. */
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+@media (display-mode: standalone) {
+  body {
+    background: var(--bg-deep);
+  }
 }
 
 button,
