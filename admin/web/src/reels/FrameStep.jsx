@@ -17,11 +17,25 @@ export default function FrameStep({ draft, update, go, back }) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [direct, setDirect] = useState(false);
   const [searching, setSearching] = useState(false);
   const { uploading, upload, uploadFile } = useThumbnailUpload(update);
   const busy = searching ? "details" : uploading;
   const elapsed = useElapsed(Boolean(busy));
   const src = draft.video.url;
+  const passedThrough = playableUrl(src);
+  const playingSrc = direct ? src : passedThrough;
+
+  // Some hosts refuse the admin server; then play the video straight from the host like before.
+  // Frames from it are grabbed on the server, which may be refused too, so say why.
+  const onVideoError = async () => {
+    if (direct || passedThrough === src) return setFailed(true);
+    setDirect(true);
+    const reason = await fetch(passedThrough, { headers: { Range: "bytes=0-0" } })
+      .then((res) => (res.ok ? null : res.json().then((body) => body.error, () => `HTTP ${res.status}`)))
+      .catch(() => null);
+    if (reason) toast(`Playing the video directly, because ${reason.charAt(0).toLowerCase()}${reason.slice(1)}. Grabbing a frame may fail; upload an image from your device if it does.`, "error");
+  };
 
   const onLoaded = (e) => {
     const video = e.currentTarget;
@@ -62,8 +76,10 @@ export default function FrameStep({ draft, update, go, back }) {
   const findDetails = async () => {
     setSearching(true);
     try {
-      const frame = await capture();
-      const result = await runReelStep("facedigger", { image: frame.file });
+      const frame = await captureFrame(videoRef.current, src, { variants: [700, 350] });
+      update({ frameTime: frame.time });
+      // image700/image350 are the same JPEGs FaceDigger's own site sends, so the workflow needs no resize steps.
+      const result = await runReelStep("facedigger", { image: frame.file, image700: frame.variants[700], image350: frame.variants[350] });
       update({ matches: matchGroups(result), chosen: null, searchedFrame: frame.dataUrl, searchedTime: frame.time });
       go("details");
     } catch (err) {
@@ -96,7 +112,7 @@ export default function FrameStep({ draft, update, go, back }) {
           ) : (
             <video
               ref={videoRef}
-              src={playableUrl(src)}
+              src={playingSrc}
               playsInline
               muted={muted}
               preload="auto"
@@ -109,7 +125,7 @@ export default function FrameStep({ draft, update, go, back }) {
                 update({ frameTime: e.currentTarget.currentTime });
               }}
               onSeeked={(e) => update({ frameTime: e.currentTarget.currentTime })}
-              onError={() => setFailed(true)}
+              onError={onVideoError}
             />
           )}
           {busy && (

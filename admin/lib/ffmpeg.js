@@ -105,6 +105,42 @@ function byteLimit(maxBytes) {
   });
 }
 
+// Video hosts often refuse Node's default request ("node" user agent), so ask like a browser would,
+// and uncompressed, so Content-Length still matches what's streamed on.
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  Accept: "*/*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "identity",
+};
+
+const hostOf = (url) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+// fetch() only says "fetch failed"; the reason (DNS, refused, reset, TLS) sits in err.cause, so name it and the host.
+function connectionError(url, err) {
+  if (err.name === "TimeoutError") return new Error(`${hostOf(url)} didn't answer in time`);
+  const cause = err.cause?.cause || err.cause;
+  const code = cause?.code ? `${cause.code}: ` : "";
+  return new Error(`The admin server couldn't connect to ${hostOf(url)} (${code}${cause?.message || err.message})`);
+}
+
+async function fetchVideo(url, { headers, signal } = {}) {
+  try {
+    return await fetch(url, { headers: { ...BROWSER_HEADERS, ...headers }, redirect: "follow", signal });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    const described = connectionError(url, err);
+    console.error(`video fetch: ${described.message}`);
+    throw described;
+  }
+}
+
 // Static Linux ffmpeg builds (ffmpeg-static on Render) segfault when they look up a hostname, so Node fetches
 // remote videos to a temp file and ffmpeg only ever reads local files. HLS playlists still go to ffmpeg directly.
 async function withLocalSource(source, { headers, timeoutMs = 120000 } = {}, work) {
@@ -112,8 +148,8 @@ async function withLocalSource(source, { headers, timeoutMs = 120000 } = {}, wor
   if (!/^https?:\/\//i.test(text) || HLS_URL.test(text)) return work(source);
   const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ffmpeg-src-"));
   try {
-    const res = await fetch(text, { headers, redirect: "follow", signal: AbortSignal.timeout(timeoutMs) });
-    if (!res.ok || !res.body) throw new Error(`Downloading the video answered HTTP ${res.status}`);
+    const res = await fetchVideo(text, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok || !res.body) throw new Error(`${hostOf(text)} answered HTTP ${res.status} to the admin server`);
     const file = path.join(dir, "source");
     await pipeline(Readable.fromWeb(res.body), byteLimit(MAX_DOWNLOAD_BYTES), fs.createWriteStream(file));
     return await work(file);
@@ -137,4 +173,4 @@ async function check() {
   return { ffmpeg: await probe(FFMPEG), ffprobe: await probe(FFPROBE) };
 }
 
-module.exports = { FFMPEG, FFPROBE, check, withLocalSource, duration, remux, frame, resizeImage, imageSize };
+module.exports = { FFMPEG, FFPROBE, check, fetchVideo, withLocalSource, duration, remux, frame, resizeImage, imageSize };

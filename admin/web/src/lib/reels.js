@@ -121,7 +121,8 @@ export function formatClock(seconds) {
 const JPEG_QUALITY = 0.92;
 
 // Reads the frame in the browser when it can; a cross-origin video taints the canvas, so the server grabs it with ffmpeg instead.
-export async function captureFrame(video, src) {
+// `variants` lists extra JPEG sizes to make from the full-size frame, e.g. [700, 350] for FaceDigger.
+export async function captureFrame(video, src, { variants = [] } = {}) {
   if (!video || !video.videoWidth) throw new Error("The video isn't ready yet. Wait for it to load, then try again.");
   const time = video.currentTime;
   const fileName = `frame-${time.toFixed(1)}s.jpg`;
@@ -132,13 +133,44 @@ export async function captureFrame(video, src) {
     canvas.getContext("2d").drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
     const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    return { time, dataUrl, file: { data, mimeType: "image/jpeg", fileName, size: Math.floor((data.length * 3) / 4) } };
+    const file = { data, mimeType: "image/jpeg", fileName, size: Math.floor((data.length * 3) / 4) };
+    return { time, dataUrl, file, variants: jpegVariants(canvas, canvas.width, canvas.height, variants) };
   } catch (err) {
     if (err.name !== "SecurityError") throw err;
     const file = await api("/api/reels/frame", { method: "POST", body: { video: src, time } });
-    return { time, dataUrl: `data:${file.mimeType};base64,${file.data}`, file: { ...file, fileName } };
+    const dataUrl = `data:${file.mimeType};base64,${file.data}`;
+    const image = await loadImage(dataUrl);
+    return { time, dataUrl, file: { ...file, fileName }, variants: jpegVariants(image, image.naturalWidth, image.naturalHeight, variants) };
   }
 }
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Couldn't read the captured frame"));
+    image.src = src;
+  });
+}
+
+const VARIANT_QUALITY = 0.9;
+
+// Sized like FaceDigger's own site (Compressor.js "contain"): fits inside size × size keeping the aspect ratio,
+// never enlarges, rounds down, and draws once onto white, then encodes JPEG at 0.9.
+function jpegVariant(source, sourceWidth, sourceHeight, size) {
+  const aspect = sourceWidth / sourceHeight;
+  const fitted = size < size * aspect ? { width: size, height: size / aspect } : { width: size * aspect, height: size };
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(Math.min(sourceWidth, fitted.width));
+  canvas.height = Math.floor(Math.min(sourceHeight, fitted.height));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", VARIANT_QUALITY);
+}
+
+const jpegVariants = (source, width, height, sizes) => Object.fromEntries(sizes.map((size) => [size, jpegVariant(source, width, height, size)]));
 
 const MAX_IMAGE_SIDE = 2048;
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;

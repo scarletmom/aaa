@@ -412,13 +412,19 @@ app.get("/api/reels/video", async (req, res) => {
   const controller = new AbortController();
   res.on("close", () => controller.abort());
   try {
-    const upstream = await fetch(url, {
+    const upstream = await require("./lib/ffmpeg").fetchVideo(url, {
       headers: req.headers.range ? { Range: req.headers.range } : {},
-      redirect: "follow",
       signal: controller.signal,
     });
+    // The page reads this status to explain why it fell back to playing the video directly.
+    if (!upstream.ok) {
+      await upstream.body?.cancel();
+      return res.status(502).json({ error: `${new URL(url).host} answered HTTP ${upstream.status} to the admin server`, upstreamStatus: upstream.status });
+    }
     res.status(upstream.status);
+    const decoded = Boolean(upstream.headers.get("content-encoding"));
     for (const name of PASSED_VIDEO_HEADERS) {
+      if (decoded && name === "content-length") continue;
       const value = upstream.headers.get(name);
       if (value) res.setHeader(name, value);
     }
@@ -427,7 +433,7 @@ app.get("/api/reels/video", async (req, res) => {
     await pipeline(Readable.fromWeb(upstream.body), res);
   } catch (err) {
     if (controller.signal.aborted) return;
-    if (!res.headersSent) res.status(502).json({ error: `Couldn't load the video: ${err.cause?.message || err.message}` });
+    if (!res.headersSent) res.status(502).json({ error: err.message });
     else res.destroy();
   }
 });
