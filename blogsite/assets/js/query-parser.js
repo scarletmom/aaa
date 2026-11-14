@@ -15,6 +15,9 @@
     set(key, value) {
       try { sessionStorage.setItem(key, value); return true; } catch { return false; }
     },
+    remove(key) {
+      try { sessionStorage.removeItem(key); } catch { /* storage blocked: nothing was kept */ }
+    },
   };
 
   function splitSearch(search) {
@@ -30,12 +33,18 @@
   const { hasLinkKeys, visible } = splitSearch(search);
   const storageKey = STORAGE_PREFIX + pathname + visible;
 
+  const navigation = performance.getEntriesByType?.('navigation')[0]?.type;
+  // Only a reload or Back/Forward returns to the shortened URL of the same visit; a link to it (New stream) starts fresh.
+  const revisit = navigation === 'reload' || navigation === 'back_forward';
+
   let query = search;
   if (hasLinkKeys) {
     // Only shorten the URL once the full query is safely stored, or a reload would lose it.
     if (session.set(storageKey, search)) history.replaceState(history.state, '', pathname + visible + hash);
-  } else {
+  } else if (revisit) {
     query = session.get(storageKey) ?? search;
+  } else {
+    session.remove(storageKey);
   }
 
   window.LedgerQuery = query;
