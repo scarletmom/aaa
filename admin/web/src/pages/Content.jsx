@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ChevronDown, ChevronUp, CopyPlus, Ellipsis, ExternalLink, Eye, EyeOff, PencilLine, Plus, Search, SquareArrowOutUpRight, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, CopyPlus, Ellipsis, ExternalLink, Eye, EyeOff, PencilLine, Plus, Search, SquareArrowOutUpRight, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { duplicatePath, formatCount, formatDate, loadSite, postPath, publicPostUrl } from "../lib/content.js";
 import { Button, Select, Switch, TextInput, Tip } from "../ui/controls.jsx";
@@ -40,6 +40,15 @@ function Stat({ label, value, note }) {
 export default function Content() {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
+
+  const copyLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Video link copied");
+    } catch {
+      toast("Couldn't copy the link", "error");
+    }
+  };
   const [params, setParams] = useSearchParams();
   const rawQuery = params.get("q") || "";
   const query = rawQuery.trim().toLowerCase();
@@ -287,6 +296,13 @@ export default function Content() {
                         </button>
                       </Tip>
                       {url && (
+                        <Tip label="Copy video link">
+                          <button type="button" className="row-icon" aria-label="Copy video link" onClick={() => copyLink(url)}>
+                            <Copy size={16} strokeWidth={1.5} />
+                          </button>
+                        </Tip>
+                      )}
+                      {url && (
                         <Tip label="View on site">
                           <a className="row-icon" href={url} target="_blank" rel="noopener noreferrer" aria-label="View on site">
                             <ExternalLink size={16} strokeWidth={1.5} />
@@ -324,6 +340,7 @@ export default function Content() {
                       { label: "Edit details", icon: PencilLine, onSelect: open },
                       { label: "Duplicate", icon: CopyPlus, onSelect: () => navigate(duplicatePath(post.postTag)) },
                       { label: "Visit final URL", icon: SquareArrowOutUpRight, onSelect: () => visit(post) },
+                      url && { label: "Copy video link", icon: Copy, onSelect: () => copyLink(url) },
                       url && { label: "View on site", icon: ExternalLink, onSelect: () => window.open(url, "_blank", "noopener") },
                       { label: post.enabled ? "Disable" : "Enable", icon: post.enabled ? EyeOff : Eye, onSelect: () => setEnabled(post, !post.enabled) },
                       "separator",
