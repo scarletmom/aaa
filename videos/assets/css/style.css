@@ -647,32 +647,72 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
 }
 
 /* ---------- Telegram prompt ---------- */
+/* Always dark, whatever the site theme, so it reads as a separate card over the page. */
 .tg-modal {
-  width: min(400px, calc(100% - 2 * var(--gutter)));
-  padding: 32px 24px 16px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--bg);
-  color: var(--text);
-  box-shadow: var(--shadow);
+  width: min(380px, calc(100% - 2 * var(--gutter)));
+  padding: 32px 22px 22px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 24px;
+  background: #1b1c20;
+  color: #f4f4f6;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+  font-family: "Plus Jakarta Sans", var(--sans);
   text-align: center;
 }
 .tg-modal[open] { animation: tg-modal-in .2s ease-out; }
 .tg-modal:focus-visible { outline: none; }
-.tg-modal::backdrop { background: rgba(0, 0, 0, .55); }
-.tg-modal__icon { color: #229ed9; }
-.tg-modal__icon svg { width: 26px; height: 26px; }
-.tg-modal__joined {
-  margin-top: 6px;
-  padding: 10px 16px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
+.tg-modal::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(4px); }
+.tg-modal__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 64px; height: 64px;
+  margin-bottom: 22px;
+  border-radius: 50%;
+  background: #4a9fd8;
+  color: #fff;
 }
-.tg-modal__joined:hover { color: var(--text); }
+.tg-modal__icon svg { width: 30px; height: 30px; transform: translate(-1px, 1px); }
+.tg-modal__title {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+.tg-modal__text {
+  margin: 12px auto 22px;
+  max-width: 300px;
+  color: #8f939e;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.tg-modal__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter .15s, background-color .15s, transform .1s;
+}
+.tg-modal__btn:active { transform: scale(.98); }
+.tg-modal__btn:focus-visible { outline: 2px solid #9db4ff; outline-offset: 3px; }
+.tg-modal__btn--join {
+  background: linear-gradient(90deg, #7357f6, #6b8cf7);
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(190, 206, 255, .85), 0 10px 28px rgba(110, 100, 246, .35);
+}
+.tg-modal__btn--join:hover { filter: brightness(1.08); }
+.tg-modal__btn--joined {
+  margin-top: 10px;
+  background: #2a2b30;
+  color: #f4f4f6;
+}
+.tg-modal__btn--joined:hover { background: #33343a; }
 @keyframes tg-modal-in {
   from { opacity: 0; transform: translateY(8px) scale(.98); }
   to { opacity: 1; transform: none; }

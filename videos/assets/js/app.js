@@ -17,6 +17,7 @@
     moon: '<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
     sun: '<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     shield: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    send: '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M14.54 21.69a.5.5 0 0 0 .94-.03l6.5-19a.5.5 0 0 0-.64-.63l-19 6.5a.5.5 0 0 0-.02.93l7.93 3.18a2 2 0 0 1 1.11 1.11zM21.85 2.15 10.91 13.09" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     telegram: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 4L3 11.2l6 2.2L11.4 20l3.2-4 4.4 3.3z M9 13.4L18 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>',
   };
 
@@ -284,12 +285,11 @@
     dialog.tabIndex = -1;
     dialog.setAttribute('aria-labelledby', 'tg-modal-title');
     dialog.innerHTML = `
-      <span class="gate__icon tg-modal__icon">${icons.telegram}</span>
-      <span class="kicker">Telegram</span>
-      <h2 class="gate__title" id="tg-modal-title">Join our channel</h2>
-      <p class="gate__text">New videos land on our Telegram channel first. Join ${esc(site.name)} so you never miss one.</p>
-      <a class="btn btn--solid btn--block" href="${esc(href)}" target="_blank" rel="noopener" data-choice>${icons.telegram}<span>Join Telegram</span></a>
-      <button class="tg-modal__joined" type="button" data-choice>I’ve already joined</button>`;
+      <span class="tg-modal__icon">${icons.send}</span>
+      <h2 class="tg-modal__title" id="tg-modal-title">Join our Telegram</h2>
+      <p class="tg-modal__text">Get new videos first and never lose access to the channel.</p>
+      <a class="tg-modal__btn tg-modal__btn--join" href="${esc(href)}" target="_blank" rel="noopener" data-choice>Join now</a>
+      <button class="tg-modal__btn tg-modal__btn--joined" type="button" data-choice>Already joined</button>`;
 
     let answered = false;
     dialog.addEventListener('cancel', (event) => event.preventDefault());
