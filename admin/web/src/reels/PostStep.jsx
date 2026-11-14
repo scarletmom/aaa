@@ -3,14 +3,14 @@ import { ArrowLeft, ImageUp, RefreshCw, Save } from "lucide-react";
 import { api } from "../lib/api.js";
 import { loadSite, publicPostUrl, uniqueTag } from "../lib/content.js";
 import { failureMessage, fieldErrors, runReelStep } from "../lib/reels.js";
-import { Button, Select, TextInput, Tip } from "../ui/controls.jsx";
+import { Button, TextInput, Tip } from "../ui/controls.jsx";
 import { Field, TextArea } from "../ui/form.jsx";
+import { CategorySelect, NO_CATEGORY } from "../ui/categories.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
 import { Thumb } from "../ui/site.jsx";
 import { useElapsed } from "./useElapsed.js";
 import { DeviceImageButton, ThumbnailChooser, useThumbnailUpload } from "./thumbnails.jsx";
 
-const NO_CATEGORY = "none";
 const REQUIRED = { title: "Title is required.", description: "Description is required.", realUrl: "Real URL is required." };
 
 export default function PostStep({ draft, update, go, back }) {
@@ -137,13 +137,8 @@ export default function PostStep({ draft, update, go, back }) {
             <TextInput id="thumbnail" mono value={form.thumbnail} onChange={(e) => set({ thumbnail: e.target.value })} placeholder="https://" />
           </Field>
 
-          <Field label="Category" error={errors.category} hint={categories.length ? "Optional" : "No categories yet. Add one under Categories."}>
-            <Select
-              value={form.categoryId}
-              onChange={(value) => set({ categoryId: value })}
-              aria-label="Category"
-              options={[{ value: NO_CATEGORY, label: "None" }, ...categories.map((c) => ({ value: String(c.id), label: c.name }))]}
-            />
+          <Field label="Category" error={errors.category} hint={categories.length ? "Optional" : "No categories yet. Pick New category… to add one."}>
+            <CategorySelect value={form.categoryId} onChange={(value) => set({ categoryId: value })} categories={categories} onCategoriesChange={setCategories} />
           </Field>
 
           <Field

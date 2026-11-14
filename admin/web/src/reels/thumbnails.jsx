@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Check, ImagePlus } from "lucide-react";
-import { THUMBNAIL_KEYS, failureMessage, imageFromDevice, pickUrl, runReelStep } from "../lib/reels.js";
+import { failureMessage, imageFromDevice, uploadImage } from "../lib/reels.js";
 import { Button } from "../ui/controls.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
 
@@ -13,9 +13,7 @@ export function useThumbnailUpload(update) {
     setUploading(kind);
     try {
       const image = await getImage();
-      const result = await runReelStep("thumbnail", { image: image.file });
-      const url = pickUrl(result, THUMBNAIL_KEYS);
-      if (!url) throw new Error("The thumbnail workflow finished but returned no image URL. Its Output step must return { url }.");
+      const url = await uploadImage(image);
       const entry = { url, label: labelFor(image) };
       update((current) => ({
         thumbnails: [...current.thumbnails.filter((t) => t.url !== url), entry],

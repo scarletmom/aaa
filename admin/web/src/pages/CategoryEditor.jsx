@@ -4,9 +4,9 @@ import { ArrowLeft, Ellipsis, Search, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { categoryPath } from "../lib/content.js";
 import { Button, Checkbox, Switch, TextInput } from "../ui/controls.jsx";
-import { Field } from "../ui/form.jsx";
+import { CategoryIdentity } from "../ui/categories.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
-import { CategoryAvatar, SetupNotice, isSetupError } from "../ui/site.jsx";
+import { SetupNotice, isSetupError } from "../ui/site.jsx";
 
 const EMPTY = { name: "", avatar: "", postTags: [] };
 const sameForm = (a, b) => a.name === b.name && a.avatar === b.avatar && [...a.postTags].sort().join() === [...b.postTags].sort().join();
@@ -156,17 +156,7 @@ export default function CategoryEditor() {
         }}
       >
         <div className="details-form">
-          <div className="cat-identity">
-            <CategoryAvatar key={form.avatar} name={form.name} src={form.avatar} size={72} />
-            <div className="cat-identity-fields">
-              <Field label="Name" htmlFor="name" error={errors.name}>
-                <TextInput id="name" value={form.name} maxLength={100} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Jane Doe, Web, App" />
-              </Field>
-              <Field label="Picture URL" htmlFor="avatar" error={errors.avatar} hint="Optional. Without one, /r shows the first letter.">
-                <TextInput id="avatar" mono value={form.avatar} onChange={(e) => set({ avatar: e.target.value })} placeholder="https://" />
-              </Field>
-            </div>
-          </div>
+          <CategoryIdentity form={form} errors={errors} set={set} />
 
           <section className="post-picker">
             <div className="post-picker-head">

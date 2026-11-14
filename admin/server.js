@@ -438,6 +438,37 @@ app.get("/api/reels/video", async (req, res) => {
   }
 });
 
+// Fetches an image from another site, so the page can read and re-encode it (cross-origin images taint the canvas).
+app.get("/api/reels/image", async (req, res) => {
+  const url = String(req.query.url || "");
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "The link must start with http:// or https://" });
+  try {
+    const upstream = await require("./lib/ffmpeg").fetchVideo(url, { signal: AbortSignal.timeout(30000) });
+    const host = new URL(url).host;
+    if (!upstream.ok) {
+      await upstream.body?.cancel();
+      return res.status(502).json({ error: `${host} answered HTTP ${upstream.status} to the admin server` });
+    }
+    const type = String(upstream.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!type.startsWith("image/")) {
+      await upstream.body?.cancel();
+      return res.status(422).json({ error: `That link isn't an image (${host} sent ${type || "no content type"})` });
+    }
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of upstream.body) {
+      size += chunk.length;
+      if (size > MAX_FILE_BYTES) return res.status(413).json({ error: `That image is over ${MAX_FILE_BYTES / 1048576} MB` });
+      chunks.push(chunk);
+    }
+    res.setHeader("Content-Type", type);
+    res.setHeader("Cache-Control", "private, max-age=600");
+    res.end(Buffer.concat(chunks));
+  } catch (err) {
+    if (!res.headersSent) res.status(502).json({ error: err.message });
+  }
+});
+
 app.post("/api/reels/frame", async (req, res) => {
   try {
     res.json(await reels.grabFrame(req.body?.video, req.body?.time));

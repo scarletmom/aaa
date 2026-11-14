@@ -214,13 +214,6 @@
   font-size: 16px;
 }
 
-.site-avatar-lg {
-  width: 96px;
-  height: 96px;
-  font-size: 40px;
-  transition: width var(--menu) var(--ease), height var(--menu) var(--ease), font-size var(--menu) var(--ease);
-}
-
 /* ---- sidebar ---- */
 
 .studio-sidebar {
@@ -233,41 +226,10 @@
   background: var(--bg-deep);
 }
 
-.site-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 24px 16px 20px;
-  text-align: center;
-}
-
-.site-card-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.site-card-label {
-  color: var(--text-2);
-  font-size: 13px;
-}
-
-.site-card-name {
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .studio-nav {
   display: flex;
   flex-direction: column;
   padding: 8px 0;
-  border-top: 1px solid var(--line);
 }
 
 .nav-item {
@@ -308,19 +270,8 @@
   flex: none;
 }
 
-/* mini: icons only, smaller avatar */
+/* mini: icons only */
 
-.studio[data-sidebar="mini"] .site-card {
-  padding: 16px 0 12px;
-}
-
-.studio[data-sidebar="mini"] .site-avatar-lg {
-  width: 32px;
-  height: 32px;
-  font-size: 14px;
-}
-
-.studio[data-sidebar="mini"] .site-card-text,
 .studio[data-sidebar="mini"] .nav-label {
   display: none;
 }

@@ -4,12 +4,12 @@ import { Popover } from "radix-ui";
 import { ArrowLeft, Copy, CopyPlus, Ellipsis, ExternalLink, Eye, EyeOff, History, RefreshCw, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { duplicatePath, formatCount, formatDate, formatDuration, loadSite, postPath, publicPostUrl, uniqueTag } from "../lib/content.js";
-import { Button, Select, TextInput, Tip } from "../ui/controls.jsx";
+import { Button, TextInput, Tip } from "../ui/controls.jsx";
 import { Field, TextArea } from "../ui/form.jsx";
+import { CategorySelect, NO_CATEGORY } from "../ui/categories.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError } from "../ui/site.jsx";
 
-const NO_CATEGORY = "none";
 const EMPTY = { postTag: "", title: "", description: "", thumbnail: "", realUrl: "", categoryId: NO_CATEGORY, duration: "" };
 
 function toForm(post) {
@@ -289,14 +289,9 @@ export default function PostEditor() {
           <Field
             label="Category"
             error={errors.categoryId}
-            hint={categories.length ? "Optional. The model, author or type this belongs to." : "No categories yet. Add one under Categories."}
+            hint={categories.length ? "Optional. The model, author or type this belongs to." : "No categories yet. Pick New category… to add one."}
           >
-            <Select
-              value={form.categoryId}
-              onChange={(value) => set({ categoryId: value })}
-              aria-label="Category"
-              options={[{ value: NO_CATEGORY, label: "None" }, ...categories.map((c) => ({ value: String(c.id), label: c.name }))]}
-            />
+            <CategorySelect value={form.categoryId} onChange={(value) => set({ categoryId: value })} categories={categories} onCategoriesChange={setCategories} />
           </Field>
 
           <Field

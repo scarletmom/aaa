@@ -209,6 +209,27 @@ export async function imageFromDevice(file) {
   }
 }
 
+export async function imageFromUrl(url) {
+  const link = url.trim();
+  if (!/^https?:\/\//i.test(link)) throw new Error("The link must start with http:// or https://");
+  const res = await fetch(`/api/reels/image?url=${encodeURIComponent(link)}`, { credentials: "same-origin" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Couldn't fetch that image (HTTP ${res.status})`);
+  }
+  const blob = await res.blob();
+  const name = decodeURIComponent(new URL(link).pathname.split("/").pop() || "") || "image";
+  return imageFromDevice(new File([blob], name, { type: blob.type }));
+}
+
+// Runs the "Upload thumbnail" workflow, the same one Reel to post uses, and returns the hosted URL.
+export async function uploadImage(image) {
+  const result = await runReelStep("thumbnail", { image: image.file });
+  const url = pickUrl(result, THUMBNAIL_KEYS);
+  if (!url) throw new Error("The upload workflow finished but returned no image URL. Its Output step must return { url }.");
+  return url;
+}
+
 export function failureMessage(err) {
   if (err.name === "AbortError") return "";
   return err.node ? `${err.node}: ${err.message}` : err.message;

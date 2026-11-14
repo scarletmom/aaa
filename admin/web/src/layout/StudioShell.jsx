@@ -158,8 +158,8 @@ export default function StudioShell() {
             </Button>
           }
           items={[
-            { label: "Post from reel", icon: Clapperboard, onSelect: () => navigate("/reels") },
             { label: "New post", icon: SquarePlay, onSelect: () => navigate("/content/new") },
+            { label: "Post from reel", icon: Clapperboard, onSelect: () => navigate("/reels") },
             { label: "New category", icon: Tags, onSelect: () => navigate("/categories/new") },
             "separator",
             { label: "New workflow", icon: Workflow, onSelect: newWorkflow },
@@ -169,13 +169,6 @@ export default function StudioShell() {
       </header>
 
       <aside className="studio-sidebar" aria-label="Studio navigation">
-        <div className="site-card">
-          <SiteAvatar name={site} size="lg" />
-          <div className="site-card-text">
-            <span className="site-card-label">Your website</span>
-            <span className="site-card-name">{site}</span>
-          </div>
-        </div>
         <nav className="studio-nav">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className="nav-item" title={mode === "mini" ? label : undefined}>
