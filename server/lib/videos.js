@@ -2,10 +2,31 @@ const { getPool } = require("./db");
 
 const TAG_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
 const LIST_TTL_MS = 60 * 1000;
-const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.views, r.duration_seconds,
+const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.real_url_type, r.views, r.duration_seconds,
   r.created_at, r.category_id, c.name AS category_name, c.avatar AS category_avatar`;
 
 const isValidTag = (tag) => typeof tag === "string" && TAG_PATTERN.test(tag);
+
+let schemaReady = null;
+
+// linkproxy adds this column too; whichever starts first on an older database creates it, as Player for every post.
+function ensureSchema() {
+  schemaReady ||= (async () => {
+    const [rows] = await getPool().query(
+      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'resources' AND COLUMN_NAME = 'real_url_type'"
+    );
+    if (rows.length) return;
+    await getPool()
+      .query("ALTER TABLE resources ADD COLUMN real_url_type VARCHAR(8) NOT NULL DEFAULT 'player' AFTER real_url")
+      .catch((err) => {
+        if (err.code !== "ER_DUP_FIELDNAME") throw err;
+      });
+  })().catch((err) => {
+    schemaReady = null;
+    throw err;
+  });
+  return schemaReady;
+}
 
 function slugify(value) {
   return String(value ?? "")
@@ -24,6 +45,7 @@ function toVideo(row) {
     thumbnail: row.thumbnail || "",
     description: row.description || "",
     realUrl: row.real_url,
+    realUrlType: row.real_url_type === "iframe" ? "iframe" : "player",
     views: Number(row.views) || 0,
     durationSeconds: row.duration_seconds || null,
     createdAt: row.created_at,
@@ -34,7 +56,7 @@ function toVideo(row) {
 }
 
 // The real URL never leaves the server; everything else is safe to hand to the browser.
-function publicVideo({ realUrl, ...video }) {
+function publicVideo({ realUrl, realUrlType, ...video }) {
   return video;
 }
 
@@ -43,6 +65,7 @@ let cached = null;
 let loading = null;
 
 async function loadEnabled() {
+  await ensureSchema();
   const [rows] = await getPool().query(
     `SELECT ${COLUMNS} FROM resources r LEFT JOIN categories c ON c.id = r.category_id
      WHERE r.is_enabled = 1 ORDER BY r.sort_order ASC, r.created_at DESC`

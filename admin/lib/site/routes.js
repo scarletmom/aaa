@@ -6,7 +6,7 @@ const { probeDuration } = require("./media");
 const { resolveVisit } = require("./visit");
 const visits = require("./visits");
 
-const { HTTP_URL, SITE_URL, AD_SITE, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
+const { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
 
 function categoryInput(body) {
   const values = {
@@ -28,8 +28,6 @@ router.get("/site", (req, res) =>
   res.json({
     database: db.configured,
     siteUrl: SITE_URL,
-    playerPrefix: AD_SITE ? `${AD_SITE}/player/?url=` : "",
-    embedPrefix: AD_SITE ? `${AD_SITE}/embed/?url=` : "",
   })
 );
 
@@ -89,7 +87,7 @@ router.post(
     if (!post) return res.status(404).json({ error: "Post not found" });
     if (!HTTP_URL.test(post.realUrl || "")) return res.status(422).json({ error: "This post's Real URL is not an http(s) link." });
 
-    const { url, data, ...visit } = await resolveVisit(post.realUrl);
+    const { url, data, ...visit } = await resolveVisit(post.realUrl, post.realUrlType);
     if (visit.failed) return res.status(502).json({ ...visit, error: `Workflow “${visit.workflow}” failed${visit.node ? ` at ${visit.node}` : ""}: ${visit.error}` });
     res.json({ realUrl: post.realUrl, ...visit });
   })

@@ -186,7 +186,7 @@ app.get(
 
     let media;
     try {
-      media = await playable(video.realUrl);
+      media = await playable(video.realUrl, video.realUrlType);
     } catch (err) {
       console.error(`play ${video.tag}: ${err.message}`);
       return res.status(502).json({ error: "The video host did not respond. Please try again in a moment." });
@@ -252,7 +252,7 @@ app.post(
     const video = await videos.get(tag);
     if (!video) return res.status(404).json({ error: "This video has been removed." });
     try {
-      const media = await playable(video.realUrl);
+      const media = await playable(video.realUrl, video.realUrlType);
       res.json({ url: media.embed || media.source });
     } catch (err) {
       console.error(`app claim ${tag}: ${err.message}`);

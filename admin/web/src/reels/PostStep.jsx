@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ImageUp, RefreshCw, Save } from "lucide-react";
 import { api } from "../lib/api.js";
 import { loadSite, publicPostUrl, uniqueTag } from "../lib/content.js";
@@ -6,6 +6,7 @@ import { failureMessage, fieldErrors, runReelStep } from "../lib/reels.js";
 import { Button, TextInput, Tip } from "../ui/controls.jsx";
 import { Field, TextArea } from "../ui/form.jsx";
 import { CategorySelect, NO_CATEGORY } from "../ui/categories.jsx";
+import { RealUrlField } from "../ui/RealUrlField.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
 import { Thumb } from "../ui/site.jsx";
 import { useElapsed } from "./useElapsed.js";
@@ -51,13 +52,6 @@ export default function PostStep({ draft, update, go, back }) {
     });
   }
 
-  const prefixes = useMemo(() => [site.playerPrefix, site.embedPrefix].filter(Boolean), [site]);
-  const applyPrefix = (prefix) => {
-    let value = form.realUrl.trim();
-    for (const other of prefixes) if (value.startsWith(other)) value = value.slice(other.length);
-    set({ realUrl: value ? prefix + value : value });
-  };
-
   const save = async () => {
     const missing = Object.fromEntries(Object.entries(REQUIRED).filter(([key]) => !String(form[key] || "").trim()));
     if (Object.keys(missing).length) {
@@ -70,6 +64,7 @@ export default function PostStep({ draft, update, go, back }) {
         title: form.title.trim(),
         description: form.description.trim(),
         realUrl: form.realUrl.trim(),
+        realUrlType: form.realUrlType || "player",
         thumbnail: form.thumbnail.trim(),
         category: form.categoryId === NO_CATEGORY ? "" : form.categoryId,
         duration: form.duration.trim(),
@@ -141,34 +136,7 @@ export default function PostStep({ draft, update, go, back }) {
             <CategorySelect value={form.categoryId} onChange={(value) => set({ categoryId: value })} categories={categories} onCategoriesChange={setCategories} />
           </Field>
 
-          <Field
-            label="Real URL"
-            htmlFor="realUrl"
-            error={errors.realUrl}
-            hint="Where the visitor lands after the last step. Filled from the match you chose."
-            actions={
-              prefixes.length > 0 && (
-                <>
-                  {site.playerPrefix && (
-                    <Tip label={`Prefix ${site.playerPrefix} for a video file`}>
-                      <Button variant="ghost" size="sm" onClick={() => applyPrefix(site.playerPrefix)}>
-                        Player
-                      </Button>
-                    </Tip>
-                  )}
-                  {site.embedPrefix && (
-                    <Tip label={`Prefix ${site.embedPrefix} for a page that embeds the video`}>
-                      <Button variant="ghost" size="sm" onClick={() => applyPrefix(site.embedPrefix)}>
-                        Iframe
-                      </Button>
-                    </Tip>
-                  )}
-                </>
-              )
-            }
-          >
-            <TextInput id="realUrl" mono inputMode="url" value={form.realUrl} onChange={(e) => set({ realUrl: e.target.value })} placeholder="https://" />
-          </Field>
+          <RealUrlField url={form.realUrl} type={form.realUrlType || "player"} onChange={set} error={errors.realUrl} note="Filled from the match you chose." />
 
           <div className="form-grid">
             <Field label="Video length" htmlFor="duration" error={errors.duration} hint="e.g. 12:34. Blank reads it from an .m3u8.">

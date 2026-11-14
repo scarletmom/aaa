@@ -822,6 +822,10 @@ a.kicker:hover { text-decoration: underline; text-underline-offset: 3px; }
   background: #000;
 }
 
+.player-frame--embed {
+  --vp-fg: #f4f3ef;
+  --vp-muted: rgba(244, 243, 239, .68);
+}
 .player-frame--embed iframe {
   position: absolute;
   inset: 0;

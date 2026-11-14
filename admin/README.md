@@ -40,13 +40,14 @@ tables (`resources`, `categories`) directly; link-gate still creates and migrate
 never changes those two tables.
 
 Copy `DATABASE_URL` (or the `MYSQL_*` variables) and `MYSQL_CA_CERT` from link-gate's
-`server/.env` into this app's `.env`. Set `SITE_URL` to the videos site for the **View** links (`/watch.html?v=<tag>`) and
-`AD_SITE_URL` to the ad site for the **Player** / **Iframe** prefixes. Without a database the two
+`server/.env` into this app's `.env`. Set `SITE_URL` to the videos site for the **View** links (`/watch.html?v=<tag>`). Without a database the two
 sections show a setup notice and Workflows keep working.
 
 - **Content**: posts in `/r` order with views, length, category and visibility. Arrows reorder
   (only with no filter or search), the eye icon disables or re-enables a post, and the details page
-  edits it. A blank video length is read from the `.m3u8` on save. **Visit** runs the post's Real
+  edits it. A blank video length is read from the `.m3u8` on save. The Real URL is a plain link marked
+  **Player** (a stream the news player plays, the default) or **Iframe** (a page shown in an iframe inside
+  the news player), saved in the `real_url_type` column that the app adds on first use. **Visit** runs the post's Real
   URL through the active workflows the way link-gate's `/final` did with signers (iframe
   `/embed/` links pass through, a `/player/?url=` link has its inner URL resolved and re-wrapped)
   and opens where a visitor would land, skipping the gate. Runs show in the workflow's History.

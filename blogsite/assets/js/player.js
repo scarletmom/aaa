@@ -29,6 +29,7 @@
   const DESCRIPTION_LIMIT = 5000;
 
   const ENGINE_TYPES = ['native', 'hls', 'dash', 'flv', 'ts'];
+  const EMBED_TYPE = 'iframe';
   const FALLBACK_ORDER = ['native', 'hls', 'dash'];
   const NATIVE_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'ogv', 'ogg', 'oga', 'mkv', 'mp3', 'm4a', 'aac', 'wav', 'opus', 'flac']);
   const GENERIC_NAMES = /^(master|index|playlist|manifest|stream|live|chunklist|mono|video)$/i;
@@ -113,7 +114,7 @@
     return {
       url: isEndpoint ? '' : raw,
       endpoint: isEndpoint ? raw : '',
-      type: ENGINE_TYPES.includes(type) ? type : '',
+      type: ENGINE_TYPES.includes(type) || type === EMBED_TYPE ? type : '',
       start,
     };
   }
@@ -671,6 +672,15 @@
       </aside>`;
   }
 
+  function formatCountdown(ms) {
+    const total = Math.ceil(ms / 1000);
+    const days = Math.floor(total / 86400);
+    const clock = [Math.floor((total % 86400) / 3600), Math.floor((total % 3600) / 60), total % 60]
+      .map((n) => String(n).padStart(2, '0'))
+      .join(':');
+    return days ? `${days}d ${clock}` : clock;
+  }
+
   const countdownView = (meta, esc, title) => `
     <div class="vp-countdown" data-countdown>
       ${meta.poster ? `<img src="${esc(meta.poster)}" alt="">` : ''}
@@ -846,30 +856,75 @@
       </div>`;
   }
 
-  // A page the endpoint wants shown as-is (an embed player), with the same info and Up next as a stream.
+  // A page shown in an iframe (an embed player) inside the same frame, info and Up next as a stream.
   function embedView(config, esc, meta, title) {
+    const page = new URL(meta.embed);
+    const startsLater = Boolean(meta.startsAt && meta.startsAt > Date.now());
+    const src = ` ${startsLater ? 'data-src' : 'src'}="${esc(page.href)}"`;
     return `
       <section class="player-hero">
         <div class="player-frame player-frame--embed">
-          <iframe src="${esc(meta.embed)}" title="${esc(title)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="no-referrer"></iframe>
+          <iframe${src} title="${esc(title)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="no-referrer"></iframe>
+          ${startsLater ? countdownView(meta, esc, title) : ''}
         </div>
       </section>
       <div class="layout watch-layout${meta.related.length ? '' : ' watch-layout--single'}">
         <div class="watch-main">
           <div class="player-info">
             <div>
+              <div class="player-tags">
+                <span class="format-tag">Embed</span>
+              </div>
               <h1 class="player-title">${esc(title)}</h1>
               <p class="player-meta">
                 ${meta.channel ? `<strong>${esc(meta.channel)}</strong>` : ''}
                 ${meta.publishedAt ? `<span>${esc(dateFormat.format(meta.publishedAt))}</span>` : ''}
+                <span title="${esc(page.href)}">${esc(page.hostname)}</span>
               </p>
+            </div>
+            <div class="player-actions">
+              <button class="btn" type="button" data-copy-link>Copy link</button>
+              <a class="btn" href="player/">New stream</a>
             </div>
           </div>
           ${descriptionView(meta, esc)}
+          ${meta.tags.length ? `<div class="watch-tags">${meta.tags.map((tag) => `<a class="pill" href="section.html?q=${encodeURIComponent(tag)}">${esc(tag)}</a>`).join('')}</div>` : ''}
           <p class="player-note">${inline(config.playNote, esc)}</p>
         </div>
         ${relatedView(meta, esc)}
       </div>`;
+  }
+
+  function mountEmbed(main, { request, meta }) {
+    bindDescription(main);
+
+    main.querySelector('[data-copy-link]')?.addEventListener('click', async (event) => {
+      const link = new URL('player/', document.baseURI);
+      link.search = `?${new URLSearchParams(request.endpoint ? { endpoint: request.endpoint } : { type: 'iframe', url: request.url })}`;
+      try {
+        await navigator.clipboard.writeText(link.href);
+        event.currentTarget.textContent = 'Link copied';
+      } catch {
+        window.prompt('Copy this link:', link.href);
+      }
+    });
+
+    const countdown = main.querySelector('[data-countdown]');
+    if (!countdown) return;
+    const iframe = main.querySelector('iframe[data-src]');
+    const time = countdown.querySelector('[data-countdown-time]');
+    const tick = () => {
+      const remaining = meta.startsAt - Date.now();
+      if (remaining > 0) {
+        time.textContent = formatCountdown(remaining);
+        return;
+      }
+      clearInterval(timer);
+      countdown.remove();
+      iframe.src = iframe.dataset.src;
+    };
+    const timer = setInterval(tick, 1000);
+    tick();
   }
 
   // ---------- Player controller ----------
@@ -1355,15 +1410,6 @@
         cancelUpNext();
         location.href = new URL(next.href, document.baseURI).href;
       }, 1000);
-    }
-
-    function formatCountdown(ms) {
-      const total = Math.ceil(ms / 1000);
-      const days = Math.floor(total / 86400);
-      const clock = [Math.floor((total % 86400) / 3600), Math.floor((total % 3600) / 60), total % 60]
-        .map((n) => String(n).padStart(2, '0'))
-        .join(':');
-      return days ? `${days}d ${clock}` : clock;
     }
 
     function startWhenScheduled() {
@@ -1979,6 +2025,10 @@
     const fail = (notice) => page(startView(config, esc, notice));
 
     if (!request.url && !request.endpoint) return page(startView(config, esc));
+    const embedPage = (embedMeta) => {
+      const title = embedMeta.title || new URL(embedMeta.embed).hostname;
+      return page(embedView(config, esc, embedMeta, title), `${title} · Player`, (main) => mountEmbed(main, { request, meta: embedMeta }));
+    };
 
     let meta;
     if (request.endpoint) {
@@ -1999,10 +2049,7 @@
         const title = meta.title || 'Video';
         return page(externalPageView(config, esc, meta, title), `${title} · Player`, bindDescription);
       }
-      if (!meta.sources.length && meta.embed) {
-        const title = meta.title || new URL(meta.embed).hostname;
-        return page(embedView(config, esc, meta, title), `${title} · Player`, bindDescription);
-      }
+      if (!meta.sources.length && meta.embed) return embedPage(meta);
       if (!meta.sources.length) {
         const unplayable = meta.rejected.some((u) => /^(rtmps?|rtsp|udp|rtp|srt|mms):/i.test(u));
         return fail(unplayable
@@ -2012,6 +2059,7 @@
     } else {
       const parsed = parseStreamUrl(request.url);
       if (parsed.error) return fail(parsed.error);
+      if (request.type === EMBED_TYPE) return embedPage(normalizeMeta({ embed: parsed.url.href }, document.baseURI));
       meta = normalizeMeta({ source: { url: parsed.url.href, type: request.type } }, document.baseURI);
     }
 

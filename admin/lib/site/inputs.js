@@ -16,7 +16,6 @@ function origin(raw) {
 }
 
 const SITE_URL = origin(process.env.SITE_URL);
-const AD_SITE = origin(process.env.AD_SITE_URL);
 
 const trim = (value, max) => String(value ?? "").trim().slice(0, max);
 
@@ -39,6 +38,7 @@ function postInput(body, { isEdit }) {
     thumbnail: trim(body.thumbnail, 1000),
     description: trim(body.description, 2000),
     realUrl: trim(body.realUrl, 2000),
+    realUrlType: posts.realUrlTypeOf(trim(body.realUrlType, 8).toLowerCase()),
     categoryId: categories.parseId(body.categoryId),
     durationSeconds: parseDuration(trim(body.duration, 12)),
   };
@@ -77,4 +77,4 @@ async function createPost(body) {
   return posts.get(values.postTag);
 }
 
-module.exports = { HTTP_URL, SITE_URL, AD_SITE, InputError, checked, trim, postInput, checkCategory, createPost };
+module.exports = { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost };

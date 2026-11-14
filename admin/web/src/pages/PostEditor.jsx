@@ -7,10 +7,11 @@ import { duplicatePath, formatCount, formatDate, formatDuration, loadSite, postP
 import { Button, TextInput, Tip } from "../ui/controls.jsx";
 import { Field, TextArea } from "../ui/form.jsx";
 import { CategorySelect, NO_CATEGORY } from "../ui/categories.jsx";
+import { RealUrlField } from "../ui/RealUrlField.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError } from "../ui/site.jsx";
 
-const EMPTY = { postTag: "", title: "", description: "", thumbnail: "", realUrl: "", categoryId: NO_CATEGORY, duration: "" };
+const EMPTY = { postTag: "", title: "", description: "", thumbnail: "", realUrl: "", realUrlType: "player", categoryId: NO_CATEGORY, duration: "" };
 
 function toForm(post) {
   return {
@@ -19,6 +20,7 @@ function toForm(post) {
     description: post.description,
     thumbnail: post.thumbnail || "",
     realUrl: post.realUrl || "",
+    realUrlType: post.realUrlType || "player",
     categoryId: post.categoryId ? String(post.categoryId) : NO_CATEGORY,
     duration: formatDuration(post.durationSeconds),
   };
@@ -148,13 +150,6 @@ export default function PostEditor() {
       for (const key of Object.keys(patch)) delete next[key];
       return next;
     });
-  };
-
-  const prefixes = [site.playerPrefix, site.embedPrefix].filter(Boolean);
-  const applyPrefix = (prefix) => {
-    let value = form.realUrl.trim();
-    for (const other of prefixes) if (value.startsWith(other)) value = value.slice(other.length);
-    set({ realUrl: value ? prefix + value : value });
   };
 
   const save = async () => {
@@ -294,34 +289,7 @@ export default function PostEditor() {
             <CategorySelect value={form.categoryId} onChange={(value) => set({ categoryId: value })} categories={categories} onCategoriesChange={setCategories} />
           </Field>
 
-          <Field
-            label="Real URL"
-            htmlFor="realUrl"
-            error={errors.realUrl}
-            hint="Where the visitor lands after the last step. It never appears in any page."
-            actions={
-              prefixes.length > 0 && (
-                <>
-                  {site.playerPrefix && (
-                    <Tip label={`Prefix ${site.playerPrefix} for a video file`}>
-                      <Button variant="ghost" size="sm" onClick={() => applyPrefix(site.playerPrefix)}>
-                        Player
-                      </Button>
-                    </Tip>
-                  )}
-                  {site.embedPrefix && (
-                    <Tip label={`Prefix ${site.embedPrefix} for a page that embeds the video`}>
-                      <Button variant="ghost" size="sm" onClick={() => applyPrefix(site.embedPrefix)}>
-                        Iframe
-                      </Button>
-                    </Tip>
-                  )}
-                </>
-              )
-            }
-          >
-            <TextInput id="realUrl" mono value={form.realUrl} onChange={(e) => set({ realUrl: e.target.value })} placeholder="https://" />
-          </Field>
+          <RealUrlField url={form.realUrl} type={form.realUrlType} onChange={set} error={errors.realUrl} note="It never appears in any page." />
 
           <div className="form-grid">
             <Field label="Video length" htmlFor="duration" error={errors.duration} hint="e.g. 12:34. Leave blank to read it from the .m3u8 on save.">

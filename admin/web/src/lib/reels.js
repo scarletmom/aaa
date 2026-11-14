@@ -8,7 +8,7 @@ export const STEPS = [
   { key: "share", label: "Share" },
 ];
 
-export const EMPTY_FORM = { title: "", description: "", thumbnail: "", realUrl: "", categoryId: "none", duration: "", postTag: "" };
+export const EMPTY_FORM = { title: "", description: "", thumbnail: "", realUrl: "", realUrlType: "player", categoryId: "none", duration: "", postTag: "" };
 
 export const EMPTY_DRAFT = {
   reelUrl: "",

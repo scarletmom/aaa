@@ -100,8 +100,9 @@ function isEmbedLink(target) {
 }
 
 // What the news player needs for a post: a stream to play, or a page to show in an iframe.
-async function playable(realUrl) {
+async function playable(realUrl, realUrlType = "player") {
   if (isEmbedLink(realUrl)) return { embed: innerUrl(realUrl) || realUrl };
+  if (realUrlType === "iframe") return { embed: realUrl };
   const stream = innerUrl(realUrl) || realUrl;
   return { source: await resolveUrl(stream) };
 }

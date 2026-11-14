@@ -23,8 +23,8 @@ function isEmbedLink(target) {
 
 // Mirrors link-gate's /final: iframe links are loaded by the visitor's browser as they are,
 // a player link has the stream inside it resolved and re-wrapped, anything else is resolved whole.
-async function resolveVisit(realUrl) {
-  if (isEmbedLink(realUrl)) return { kind: "embed", resolved: realUrl, matched: false, finalUrl: realUrl };
+async function resolveVisit(realUrl, realUrlType = "player") {
+  if (realUrlType === "iframe" || isEmbedLink(realUrl)) return { kind: "embed", resolved: realUrl, matched: false, finalUrl: realUrl };
 
   const stream = playerStream(realUrl);
   if (stream) {
