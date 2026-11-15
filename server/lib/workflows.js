@@ -1,6 +1,6 @@
 const { getPool } = require("./db");
 const { runWorkflow, inputSettings } = require("./engine/engine");
-const { matchUrl } = require("./engine/helpers");
+const { matchUrl, qualitiesOf } = require("./engine/helpers");
 
 const LIST_TTL_MS = 30 * 1000;
 const MAX_CACHE_ENTRIES = 2000;
@@ -59,7 +59,9 @@ async function run(workflow, input) {
 }
 
 // Mirrors linkproxy's /resolve: the first active workflow whose Input node matches the URL.
+// Resolves to { url, qualities }; qualities is empty unless the workflow listed some.
 async function resolveUrl(url) {
+  const unchanged = { url, qualities: [] };
   for (const workflow of await activeWorkflows()) {
     if (!workflow.usage.includes("delivery")) continue;
     const settings = inputSettings(workflow);
@@ -69,14 +71,15 @@ async function resolveUrl(url) {
     if (execution.status !== "success") {
       const message = execution.error?.message;
       console.error(`workflow "${workflow.name}" failed for ${url}: ${message}`);
-      if (settings.onError === "original") return url;
+      if (settings.onError === "original") return unchanged;
       throw new Error(`Workflow "${workflow.name}" failed: ${message}`);
     }
     const response = execution.response;
-    const result = response.mode === "redirect" ? response.url : response.body?.url ?? response.url;
-    return typeof result === "string" && result ? result : url;
+    if (response.mode === "redirect") return { url: response.url || url, qualities: [] };
+    const result = response.body?.url ?? response.url;
+    return { url: typeof result === "string" && result ? result : url, qualities: qualitiesOf(response.body?.qualities) };
   }
-  return url;
+  return unchanged;
 }
 
 // Old ad-site links: "/player/?url=<stream>" carries the stream, "/embed/?url=<page>" an iframe page.
@@ -103,9 +106,9 @@ function isEmbedLink(target) {
 // An Iframe post's page goes through the Delivery workflows only when the post has Run workflow on.
 async function playable({ realUrl, realUrlType = "player", runWorkflow = false }) {
   if (isEmbedLink(realUrl)) return { embed: innerUrl(realUrl) || realUrl };
-  if (realUrlType === "iframe") return { embed: runWorkflow ? await resolveUrl(realUrl) : realUrl };
-  const stream = innerUrl(realUrl) || realUrl;
-  return { source: await resolveUrl(stream) };
+  if (realUrlType === "iframe") return { embed: runWorkflow ? (await resolveUrl(realUrl)).url : realUrl };
+  const { url, qualities } = await resolveUrl(innerUrl(realUrl) || realUrl);
+  return { source: url, qualities };
 }
 
 module.exports = { playable, resolveUrl };

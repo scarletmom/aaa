@@ -185,6 +185,8 @@
       getQuality: () => -1,
       activeQuality: () => null,
       setQuality() {},
+      autoQuality: true,
+      recoverQuality: () => false,
       audioTracks: () => [],
       getAudioTrack: () => 0,
       setAudioTrack() {},
@@ -210,6 +212,55 @@
     };
   }
 
+  // Separate files per quality (video_720p.mp4, video_1080p.mp4): switching swaps the file and keeps
+  // the position. There is no Auto, and a file that fails to load sends the viewer back to the last one.
+  function fileQualities(video, startUrl, listed) {
+    const list = listed.some((q) => q.url === startUrl) ? [...listed] : [{ url: startUrl, label: '' }, ...listed];
+    if (list.length < 2) return {};
+    const levels = list.map((q, i) => {
+      const height = q.height || heightFromText(q.label) || heightFromText(q.url);
+      return { id: i, url: q.url, height, label: q.label || (height ? `${height}p` : `Quality ${i + 1}`) };
+    });
+    let current = list.findIndex((q) => q.url === startUrl);
+    let pending = null;
+
+    function load(index, resume, fallback) {
+      if (pending) video.removeEventListener('loadedmetadata', pending.onReady);
+      const onReady = () => {
+        pending = null;
+        video.currentTime = resume.time;
+        video.playbackRate = resume.rate;
+        if (!resume.paused) video.play().catch(() => {});
+      };
+      pending = { onReady, resume, fallback };
+      current = index;
+      video.addEventListener('loadedmetadata', onReady, { once: true });
+      video.src = levels[index].url;
+    }
+
+    return {
+      qualities: () => levels,
+      getQuality: () => current,
+      activeQuality: () => levels[current] || null,
+      setQuality(id) {
+        if (!levels[id] || id === current) return;
+        const resume = pending?.resume || { time: video.currentTime, paused: video.paused, rate: video.playbackRate };
+        load(id, resume, pending ? pending.fallback : current);
+      },
+      autoQuality: false,
+      recoverQuality() {
+        if (!pending || pending.fallback < 0) return false;
+        load(pending.fallback, pending.resume, -1);
+        return true;
+      },
+    };
+  }
+
+  function heightFromText(text) {
+    const match = /(?:^|[^0-9])(\d{3,4})p(?![a-z])/i.exec(text || '');
+    return match ? Number(match[1]) : 0;
+  }
+
   function mediaErrorMessage(error) {
     switch (error?.code) {
       case 1: return 'Playback was stopped before the stream loaded.';
@@ -231,10 +282,10 @@
   const trackLabel = (track, index) => track.name || track.labels?.[0]?.text || track.label || track.lang || `Track ${index + 1}`;
 
   const engines = {
-    async native(url, video, hooks) {
+    async native(url, video, hooks, qualities = []) {
       video.src = url;
       video.textTracks.addEventListener?.('addtrack', hooks.onTracks);
-      return withDefaults({ name: 'Browser', ...nativeTextTracks(video) });
+      return withDefaults({ name: 'Browser', ...nativeTextTracks(video), ...fileQualities(video, url, qualities) });
     },
 
     async hls(url, video, hooks) {
@@ -450,12 +501,16 @@
   function normalizeMeta(raw, base) {
     const outer = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
     const m = outer.source || outer.sources || outer.url || !outer.data || typeof outer.data !== 'object' ? outer : outer.data;
-    const sources = [].concat(m.sources ?? m.source ?? (m.url ? { url: m.url, type: m.type } : []))
+    const sources = [].concat(m.sources ?? m.source ?? (m.url ? { url: m.url, type: m.type, qualities: m.qualities } : []))
       .map((s) => (typeof s === 'string' ? { url: s } : s || {}))
       .map((s) => ({
         url: safeUrl(s.url, base),
         raw: asText(s.url, 2000),
         type: ENGINE_TYPES.includes(s.type) ? s.type : '',
+        qualities: asList(s.qualities)
+          .map((q) => ({ url: safeUrl(q?.url, base), label: asText(q?.label, 20), height: Number(q?.height) || 0 }))
+          .filter((q) => q.url)
+          .slice(0, 10),
       }));
 
     return {
@@ -1456,6 +1511,7 @@
     function setQuality(id) {
       state.session.setQuality(id);
       const level = state.session.qualities().find((q) => q?.id === id);
+      if (level?.url) url = new URL(level.url);
       osd(id < 0 ? 'Quality: Auto' : `Quality: ${level?.label || id}`);
     }
 
@@ -1513,7 +1569,7 @@
         return {
           title: 'Quality',
           options: [
-            { value: -1, label: active ? `Auto (${active.label})` : 'Auto', selected: selected < 0 },
+            ...(session.autoQuality ? [{ value: -1, label: active ? `Auto (${active.label})` : 'Auto', selected: selected < 0 }] : []),
             ...uniqueQualities().map((q) => ({ value: q.id, label: q.label, tag: qualityTag(q.height), selected: selected === q.id })),
           ],
         };
@@ -1632,7 +1688,7 @@
         ['Engine', session.name],
         ['Format', el.formatTag.textContent],
         ['Resolution', video.videoWidth ? `${video.videoWidth}×${video.videoHeight}` : 'Audio only'],
-        ['Quality', active ? `${active.label} · ${formatBitrate(active.bitrate || 0)}` : '—'],
+        ['Quality', active ? [active.label, active.bitrate && formatBitrate(active.bitrate)].filter(Boolean).join(' · ') : '—'],
         ['Connection', bandwidth ? formatBitrate(bandwidth) : '—'],
         ['Buffer', `${bufferedAhead().toFixed(1)} s`],
         ['Dropped frames', quality ? `${quality.droppedVideoFrames} of ${quality.totalVideoFrames}` : '—'],
@@ -1728,7 +1784,7 @@
 
           let attempt = null;
           try {
-            attempt = await engines[engineName](url.href, video, hooks);
+            attempt = await engines[engineName](url.href, video, hooks, source.qualities);
             await Promise.race([waitUntilReady(video, START_TIMEOUT_MS), fatal]);
             state.session = attempt;
             state.started = true;
@@ -1855,6 +1911,7 @@
       el.bigPlay.setAttribute('aria-label', 'Play');
     });
     video.addEventListener('waiting', () => setBuffering(true));
+    video.addEventListener('loadstart', () => { if (state.started) setBuffering(true); });
     video.addEventListener('seeking', () => setBuffering(true));
     video.addEventListener('seeked', () => setBuffering(false));
     video.addEventListener('canplay', () => setBuffering(false));
@@ -1884,7 +1941,16 @@
       updateMediaInfo();
       renderChapterMarkers();
     });
-    video.addEventListener('error', () => { if (state.started) showError(mediaErrorMessage(video.error)); });
+    video.addEventListener('error', () => {
+      if (!state.started) return;
+      if (state.session.recoverQuality()) {
+        url = new URL(state.session.activeQuality().url);
+        osd('That quality couldn’t be played');
+        renderTracks();
+        return;
+      }
+      showError(mediaErrorMessage(video.error));
+    });
     video.addEventListener('enterpictureinpicture', () => el.pipButton.setAttribute('aria-pressed', 'true'));
     video.addEventListener('leavepictureinpicture', () => el.pipButton.setAttribute('aria-pressed', 'false'));
     document.addEventListener('fullscreenchange', renderFullscreen);

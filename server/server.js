@@ -196,7 +196,8 @@ app.get(
     // to the Telegram Mini App instead, which opens it in the browser after an ad.
     const external = telegram.enabled() ? { url: telegram.appLink(video.tag) } : null;
     const blocked = Boolean(external && media.source && (await telegram.blocksNewsSite(media.source)));
-    const playback = media.embed ? { embed: media.embed } : blocked ? {} : { source: { url: media.source } };
+    const source = { url: media.source, ...(media.qualities?.length ? { qualities: media.qualities } : {}) };
+    const playback = media.embed ? { embed: media.embed } : blocked ? {} : { source };
 
     const { same, others } = videos.related(video, await videos.listEnabled());
     res.json({

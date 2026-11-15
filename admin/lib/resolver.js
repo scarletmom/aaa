@@ -1,6 +1,6 @@
 const store = require("./store");
 const { runWorkflow, inputSettings } = require("./engine");
-const { matchUrl } = require("./helpers");
+const { matchUrl, qualitiesOf } = require("./helpers");
 const { usedFor } = require("./usage");
 
 const MAX_CACHE_ENTRIES = 2000;
@@ -42,7 +42,8 @@ async function resolveUrl(url, input = { url }, mode = "resolve") {
     }
     const response = execution.response;
     const result = response.mode === "redirect" ? response.url : response.body?.url ?? response.url;
-    return { ...meta, url: result || url, data: response.body ?? null, cached: Boolean(execution.cached) };
+    const qualities = response.mode === "redirect" ? [] : qualitiesOf(response.body?.qualities);
+    return { ...meta, url: result || url, qualities, data: response.body ?? null, cached: Boolean(execution.cached) };
   }
   return { matched: false, url };
 }

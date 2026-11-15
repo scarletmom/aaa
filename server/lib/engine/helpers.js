@@ -154,6 +154,29 @@ async function resolveRedirects(url, { headers = {}, cookie = "", maxHops = 5, t
   throw new Error(`More than ${maxHops} redirects`);
 }
 
+const MAX_QUALITIES = 10;
+
+// A Delivery workflow can list extra qualities next to its url: [{ label, url }], or { "1080p": url }
+// which the Output node builds from fields named like "qualities.1080p".
+function qualitiesOf(value) {
+  if (typeof value === "string" && /^\s*[[{]/.test(value)) {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  const entries = Array.isArray(value)
+    ? value.map((item) => (typeof item === "string" ? { url: item } : item))
+    : value && typeof value === "object"
+      ? Object.entries(value).map(([label, url]) => ({ label, url }))
+      : [];
+  return entries
+    .filter((item) => typeof item?.url === "string" && /^https?:\/\//i.test(item.url.trim()))
+    .map((item) => ({ label: String(item.label ?? "").trim().slice(0, 20), url: item.url.trim() }))
+    .slice(0, MAX_QUALITIES);
+}
+
 module.exports = {
   VIDEO_URL,
   compileRegex,
@@ -167,4 +190,5 @@ module.exports = {
   kvToObject,
   fetchWithTimeout,
   resolveRedirects,
+  qualitiesOf,
 };

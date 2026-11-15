@@ -21,7 +21,8 @@ function describeVisit(result) {
   if (!result.matched) return "No active workflow matches this URL, so it opened unchanged";
   if (result.fallback) return `“${result.workflow}” failed (${result.error}), so it opened the original URL`;
   const where = { player: "stream inside the player link", iframe: "iframe page" }[result.kind] || "Real URL";
-  return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}`;
+  const qualities = result.qualities?.length ? `, with ${result.qualities.length} qualities (${result.qualities.map((q) => q.label || "unlabelled").join(", ")})` : "";
+  return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}${qualities}`;
 }
 
 function matchesSearch(post, query) {
