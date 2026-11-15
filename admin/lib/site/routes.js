@@ -87,7 +87,7 @@ router.post(
     if (!post) return res.status(404).json({ error: "Post not found" });
     if (!HTTP_URL.test(post.realUrl || "")) return res.status(422).json({ error: "This post's Real URL is not an http(s) link." });
 
-    const { url, data, ...visit } = await resolveVisit(post.realUrl, post.realUrlType);
+    const { url, data, ...visit } = await resolveVisit(post);
     if (visit.failed) return res.status(502).json({ ...visit, error: `Workflow “${visit.workflow}” failed${visit.node ? ` at ${visit.node}` : ""}: ${visit.error}` });
     res.json({ realUrl: post.realUrl, ...visit });
   })

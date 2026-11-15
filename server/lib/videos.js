@@ -2,25 +2,34 @@ const { getPool } = require("./db");
 
 const TAG_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
 const LIST_TTL_MS = 60 * 1000;
-const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.real_url_type, r.views, r.duration_seconds,
+const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.real_url_type, r.run_workflow, r.views, r.duration_seconds,
   r.created_at, r.category_id, c.name AS category_name, c.avatar AS category_avatar`;
 
 const isValidTag = (tag) => typeof tag === "string" && TAG_PATTERN.test(tag);
 
+// linkproxy adds these columns too; whichever starts first on an older database creates them. The defaults
+// keep existing posts as they were: Player posts, and Iframe posts shown without running a workflow.
+const ADDED_COLUMNS = [
+  ["real_url_type", "VARCHAR(8) NOT NULL DEFAULT 'player' AFTER real_url"],
+  ["run_workflow", "TINYINT(1) NOT NULL DEFAULT 0 AFTER real_url_type"],
+];
+
 let schemaReady = null;
 
-// linkproxy adds this column too; whichever starts first on an older database creates it, as Player for every post.
 function ensureSchema() {
   schemaReady ||= (async () => {
     const [rows] = await getPool().query(
-      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'resources' AND COLUMN_NAME = 'real_url_type'"
+      "SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'resources'"
     );
-    if (rows.length) return;
-    await getPool()
-      .query("ALTER TABLE resources ADD COLUMN real_url_type VARCHAR(8) NOT NULL DEFAULT 'player' AFTER real_url")
-      .catch((err) => {
-        if (err.code !== "ER_DUP_FIELDNAME") throw err;
-      });
+    const present = new Set(rows.map((row) => row.name));
+    for (const [name, definition] of ADDED_COLUMNS) {
+      if (present.has(name)) continue;
+      await getPool()
+        .query(`ALTER TABLE resources ADD COLUMN ${name} ${definition}`)
+        .catch((err) => {
+          if (err.code !== "ER_DUP_FIELDNAME") throw err;
+        });
+    }
   })().catch((err) => {
     schemaReady = null;
     throw err;
@@ -46,6 +55,7 @@ function toVideo(row) {
     description: row.description || "",
     realUrl: row.real_url,
     realUrlType: row.real_url_type === "iframe" ? "iframe" : "player",
+    runWorkflow: Boolean(row.run_workflow),
     views: Number(row.views) || 0,
     durationSeconds: row.duration_seconds || null,
     createdAt: row.created_at,
@@ -56,7 +66,7 @@ function toVideo(row) {
 }
 
 // The real URL never leaves the server; everything else is safe to hand to the browser.
-function publicVideo({ realUrl, realUrlType, ...video }) {
+function publicVideo({ realUrl, realUrlType, runWorkflow, ...video }) {
   return video;
 }
 

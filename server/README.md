@@ -17,8 +17,10 @@ post's Real URL is read.
 
 Only step 6 reads `real_url`. It runs the URL through linkproxy's active workflows, read straight
 from the database, the same way linkproxy's `/resolve` does (first active workflow, by name, whose
-Input node matches). Old ad-site links still work: `…/player/?url=<stream>` has the inner stream
-resolved, and `…/embed/?url=<page>` becomes an iframe on the news player.
+Input node matches). An Iframe post (`real_url_type = 'iframe'`) is shown as is unless its
+`run_workflow` is on; then its page URL goes through the workflows too. Old ad-site links still work:
+`…/player/?url=<stream>` has the inner stream resolved, and `…/embed/?url=<page>` becomes an iframe
+on the news player.
 
 ## Telegram fallback for blocked hosts
 

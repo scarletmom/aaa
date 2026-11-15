@@ -21,10 +21,16 @@ function isEmbedLink(target) {
   }
 }
 
-// Mirrors link-gate's /final: iframe links are loaded by the visitor's browser as they are,
-// a player link has the stream inside it resolved and re-wrapped, anything else is resolved whole.
-async function resolveVisit(realUrl, realUrlType = "player") {
-  if (realUrlType === "iframe" || isEmbedLink(realUrl)) return { kind: "embed", resolved: realUrl, matched: false, finalUrl: realUrl };
+// Mirrors the videos server: /embed/ links open as they are, an Iframe post's page is resolved only
+// when the post has Run workflow on, a player link has the stream inside it resolved and re-wrapped,
+// and anything else is resolved whole.
+async function resolveVisit({ realUrl, realUrlType = "player", runWorkflow = false }) {
+  if (isEmbedLink(realUrl)) return { kind: "embed", resolved: realUrl, matched: false, finalUrl: realUrl };
+  if (realUrlType === "iframe") {
+    if (!runWorkflow) return { kind: "iframe", skipped: true, resolved: realUrl, matched: false, finalUrl: realUrl };
+    const result = await resolveUrl(realUrl, { url: realUrl }, "visit");
+    return { kind: "iframe", resolved: realUrl, ...result, finalUrl: result.failed ? null : result.url };
+  }
 
   const stream = playerStream(realUrl);
   if (stream) {

@@ -47,9 +47,11 @@ sections show a setup notice and Workflows keep working.
   (only with no filter or search), the eye icon disables or re-enables a post, and the details page
   edits it. A blank video length is read from the `.m3u8` on save. The Real URL is a plain link marked
   **Player** (a stream the news player plays, the default) or **Iframe** (a page shown in an iframe inside
-  the news player), saved in the `real_url_type` column that the app adds on first use. **Visit** runs the post's Real
-  URL through the active workflows the way link-gate's `/final` did with signers (iframe
-  `/embed/` links pass through, a `/player/?url=` link has its inner URL resolved and re-wrapped)
+  the news player), saved in the `real_url_type` column that the app adds on first use. Delivery workflows
+  always run on Player URLs. An Iframe URL is shown as is unless the post's **Run workflow** box is ticked
+  (the `run_workflow` column, off by default); then the iframe shows what the matching workflow returns.
+  **Visit** runs the post's Real URL through the active workflows the way link-gate's `/final` did with
+  signers (`/embed/` links pass through, a `/player/?url=` link has its inner URL resolved and re-wrapped)
   and opens where a visitor would land, skipping the gate. Runs show in the workflow's History.
 - **Categories**: name, picture and the posts in each. Picking a post that is already in another
   category moves it.

@@ -1,7 +1,7 @@
 const { getPool, transaction } = require("./db");
 
 const TAG_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
-const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.real_url_type, r.sort_order, r.is_enabled,
+const COLUMNS = `r.post_tag, r.title, r.thumbnail, r.description, r.real_url, r.real_url_type, r.run_workflow, r.sort_order, r.is_enabled,
   r.views, r.duration_seconds, r.created_at, r.updated_at, r.category_id, c.name AS category_name, c.avatar AS category_avatar`;
 const FROM = "resources r LEFT JOIN categories c ON c.id = r.category_id";
 const ORDER = "ORDER BY r.sort_order ASC, r.created_at DESC";
@@ -12,20 +12,29 @@ const isValidTag = (postTag) => typeof postTag === "string" && TAG_PATTERN.test(
 const REAL_URL_TYPES = ["player", "iframe"];
 const realUrlTypeOf = (value) => (REAL_URL_TYPES.includes(value) ? value : "player");
 
+// Columns link-gate's table lacks. The defaults keep existing posts as they were: Player posts,
+// and Iframe posts shown as is without running a workflow. The videos server adds the same ones.
+const ADDED_COLUMNS = [
+  ["real_url_type", "VARCHAR(8) NOT NULL DEFAULT 'player' AFTER real_url"],
+  ["run_workflow", "TINYINT(1) NOT NULL DEFAULT 0 AFTER real_url_type"],
+];
+
 let schemaReady = null;
 
-// Databases from before Player/Iframe lack the column; adding it makes every existing post a Player post.
 function ensureSchema() {
   schemaReady ||= (async () => {
     const [rows] = await getPool().query(
-      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'resources' AND COLUMN_NAME = 'real_url_type'"
+      "SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'resources'"
     );
-    if (rows.length) return;
-    await getPool()
-      .query("ALTER TABLE resources ADD COLUMN real_url_type VARCHAR(8) NOT NULL DEFAULT 'player' AFTER real_url")
-      .catch((err) => {
-        if (err.code !== "ER_DUP_FIELDNAME") throw err;
-      });
+    const present = new Set(rows.map((row) => row.name));
+    for (const [name, definition] of ADDED_COLUMNS) {
+      if (present.has(name)) continue;
+      await getPool()
+        .query(`ALTER TABLE resources ADD COLUMN ${name} ${definition}`)
+        .catch((err) => {
+          if (err.code !== "ER_DUP_FIELDNAME") throw err;
+        });
+    }
   })().catch((err) => {
     schemaReady = null;
     throw err;
@@ -50,7 +59,7 @@ function toPost(row, { withUrl = false } = {}) {
     title: row.title,
     thumbnail: row.thumbnail,
     description: row.description,
-    ...(withUrl ? { realUrl: row.real_url, realUrlType: realUrlTypeOf(row.real_url_type) } : {}),
+    ...(withUrl ? { realUrl: row.real_url, realUrlType: realUrlTypeOf(row.real_url_type), runWorkflow: Boolean(row.run_workflow) } : {}),
     sortOrder: row.sort_order,
     enabled: Boolean(row.is_enabled),
     views: Number(row.views) || 0,
@@ -93,22 +102,23 @@ async function uniqueTag(source) {
 }
 
 // New posts go above everything else, matching link-gate's admin.
-async function create({ postTag, title, thumbnail, description, realUrl, realUrlType, categoryId = null, durationSeconds = null }) {
+async function create({ postTag, title, thumbnail, description, realUrl, realUrlType, runWorkflow = false, categoryId = null, durationSeconds = null }) {
   await ensureSchema();
   const [[{ nextOrder }]] = await getPool().query("SELECT COALESCE(MIN(sort_order), 1) - 1 AS nextOrder FROM resources");
   await getPool().query(
-    `INSERT INTO resources (post_tag, title, thumbnail, description, real_url, real_url_type, sort_order, category_id, duration_seconds)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [postTag, title, thumbnail, description, realUrl, realUrlTypeOf(realUrlType), nextOrder, categoryId, durationSeconds]
+    `INSERT INTO resources (post_tag, title, thumbnail, description, real_url, real_url_type, run_workflow, sort_order, category_id, duration_seconds)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [postTag, title, thumbnail, description, realUrl, realUrlTypeOf(realUrlType), runWorkflow ? 1 : 0, nextOrder, categoryId, durationSeconds]
   );
 }
 
-async function update(postTag, { title, thumbnail, description, realUrl, realUrlType, categoryId = null, durationSeconds = null }) {
+async function update(postTag, { title, thumbnail, description, realUrl, realUrlType, runWorkflow = false, categoryId = null, durationSeconds = null }) {
   await ensureSchema();
   const [result] = await getPool().query(
-    `UPDATE resources SET title = ?, thumbnail = ?, description = ?, real_url = ?, real_url_type = ?, category_id = ?, duration_seconds = ?
+    `UPDATE resources SET title = ?, thumbnail = ?, description = ?, real_url = ?, real_url_type = ?, run_workflow = ?, category_id = ?,
+       duration_seconds = ?
      WHERE post_tag = ?`,
-    [title, thumbnail, description, realUrl, realUrlTypeOf(realUrlType), categoryId, durationSeconds, postTag]
+    [title, thumbnail, description, realUrl, realUrlTypeOf(realUrlType), runWorkflow ? 1 : 0, categoryId, durationSeconds, postTag]
   );
   return result.affectedRows > 0;
 }

@@ -100,9 +100,10 @@ function isEmbedLink(target) {
 }
 
 // What the news player needs for a post: a stream to play, or a page to show in an iframe.
-async function playable(realUrl, realUrlType = "player") {
+// An Iframe post's page goes through the Delivery workflows only when the post has Run workflow on.
+async function playable({ realUrl, realUrlType = "player", runWorkflow = false }) {
   if (isEmbedLink(realUrl)) return { embed: innerUrl(realUrl) || realUrl };
-  if (realUrlType === "iframe") return { embed: realUrl };
+  if (realUrlType === "iframe") return { embed: runWorkflow ? await resolveUrl(realUrl) : realUrl };
   const stream = innerUrl(realUrl) || realUrl;
   return { source: await resolveUrl(stream) };
 }

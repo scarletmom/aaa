@@ -18,6 +18,7 @@ function origin(raw) {
 const SITE_URL = origin(process.env.SITE_URL);
 
 const trim = (value, max) => String(value ?? "").trim().slice(0, max);
+const isOn = (value) => value === true || value === 1 || /^(true|1|yes|on)$/i.test(trim(value, 8));
 
 class InputError extends Error {
   constructor(errors) {
@@ -39,6 +40,7 @@ function postInput(body, { isEdit }) {
     description: trim(body.description, 2000),
     realUrl: trim(body.realUrl, 2000),
     realUrlType: posts.realUrlTypeOf(trim(body.realUrlType, 8).toLowerCase()),
+    runWorkflow: isOn(body.runWorkflow),
     categoryId: categories.parseId(body.categoryId),
     durationSeconds: parseDuration(trim(body.duration, 12)),
   };

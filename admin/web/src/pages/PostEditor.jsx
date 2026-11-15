@@ -11,7 +11,7 @@ import { RealUrlField } from "../ui/RealUrlField.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError } from "../ui/site.jsx";
 
-const EMPTY = { postTag: "", title: "", description: "", thumbnail: "", realUrl: "", realUrlType: "player", categoryId: NO_CATEGORY, duration: "" };
+const EMPTY = { postTag: "", title: "", description: "", thumbnail: "", realUrl: "", realUrlType: "player", runWorkflow: false, categoryId: NO_CATEGORY, duration: "" };
 
 function toForm(post) {
   return {
@@ -21,6 +21,7 @@ function toForm(post) {
     thumbnail: post.thumbnail || "",
     realUrl: post.realUrl || "",
     realUrlType: post.realUrlType || "player",
+    runWorkflow: Boolean(post.runWorkflow),
     categoryId: post.categoryId ? String(post.categoryId) : NO_CATEGORY,
     duration: formatDuration(post.durationSeconds),
   };
@@ -289,7 +290,7 @@ export default function PostEditor() {
             <CategorySelect value={form.categoryId} onChange={(value) => set({ categoryId: value })} categories={categories} onCategoriesChange={setCategories} />
           </Field>
 
-          <RealUrlField url={form.realUrl} type={form.realUrlType} onChange={set} error={errors.realUrl} note="It never appears in any page." />
+          <RealUrlField url={form.realUrl} type={form.realUrlType} runWorkflow={form.runWorkflow} onChange={set} error={errors.realUrl} note="It never appears in any page." />
 
           <div className="form-grid">
             <Field label="Video length" htmlFor="duration" error={errors.duration} hint="e.g. 12:34. Leave blank to read it from the .m3u8 on save.">

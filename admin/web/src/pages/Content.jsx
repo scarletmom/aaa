@@ -16,10 +16,11 @@ const ANY_CATEGORY = "any";
 const NO_CATEGORY = "none";
 
 function describeVisit(result) {
-  if (result.kind === "embed") return "Iframe link, so it opened as is (workflows don't run on iframe pages)";
+  if (result.kind === "embed") return "/embed/ link, so it opened as is (workflows don't run on these)";
+  if (result.skipped) return "Iframe post with Run workflow off, so it opened as is";
   if (!result.matched) return "No active workflow matches this URL, so it opened unchanged";
   if (result.fallback) return `“${result.workflow}” failed (${result.error}), so it opened the original URL`;
-  const where = result.kind === "player" ? "stream inside the player link" : "Real URL";
+  const where = { player: "stream inside the player link", iframe: "iframe page" }[result.kind] || "Real URL";
   return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}`;
 }
 
