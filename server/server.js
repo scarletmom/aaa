@@ -208,6 +208,7 @@ app.get(
       poster: video.thumbnail,
       ...playback,
       ...(external ? { external } : {}),
+      ...(media.episodes?.length ? { episodes: media.episodes } : {}),
       related: [...same, ...others].map((item) => ({
         title: item.title,
         href: watchUrl(item.tag),

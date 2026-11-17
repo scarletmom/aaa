@@ -155,10 +155,10 @@ async function resolveRedirects(url, { headers = {}, cookie = "", maxHops = 5, t
 }
 
 const MAX_QUALITIES = 10;
+const MAX_EPISODES = 300;
 
-// A Delivery workflow can list extra qualities next to its url: [{ label, url }], or { "1080p": url }
-// which the Output node builds from fields named like "qualities.1080p".
-function qualitiesOf(value) {
+// [{ label, url }], [url], { label: url }, or any of these as JSON text (Output fields arrive as text).
+function labelledUrls(value) {
   if (typeof value === "string" && /^\s*[[{]/.test(value)) {
     try {
       value = JSON.parse(value);
@@ -171,10 +171,32 @@ function qualitiesOf(value) {
     : value && typeof value === "object"
       ? Object.entries(value).map(([label, url]) => ({ label, url }))
       : [];
-  return entries
-    .filter((item) => typeof item?.url === "string" && /^https?:\/\//i.test(item.url.trim()))
-    .map((item) => ({ label: String(item.label ?? "").trim().slice(0, 20), url: item.url.trim() }))
+  return entries.filter((item) => typeof item?.url === "string" && /^https?:\/\//i.test(item.url.trim()));
+}
+
+const text = (value, max) => (typeof value === "string" || typeof value === "number" ? String(value).trim().slice(0, max) : "");
+
+// A Delivery workflow can list extra qualities next to its url: [{ label, url }], or { "1080p": url }
+// which the Output node builds from fields named like "qualities.1080p".
+function qualitiesOf(value) {
+  return labelledUrls(value)
+    .map((item) => ({ label: text(item.label, 20), url: item.url.trim() }))
     .slice(0, MAX_QUALITIES);
+}
+
+// A Delivery workflow can list a series' episodes next to its url: [url], [{ title, url, poster }],
+// or { "1": url } from Output fields named like "episodes.1". Untitled episodes show their number.
+function episodesOf(value) {
+  return labelledUrls(value)
+    .map((item) => {
+      const poster = text(item.poster ?? item.thumbnail, 2000);
+      return {
+        title: text(item.title ?? item.label ?? item.name, 120),
+        url: item.url.trim(),
+        ...(/^https?:\/\//i.test(poster) ? { poster } : {}),
+      };
+    })
+    .slice(0, MAX_EPISODES);
 }
 
 module.exports = {
@@ -191,4 +213,5 @@ module.exports = {
   fetchWithTimeout,
   resolveRedirects,
   qualitiesOf,
+  episodesOf,
 };

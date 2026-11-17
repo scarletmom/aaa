@@ -26,6 +26,7 @@
   const ENDPOINT_TIMEOUT_MS = 15000;
   const UP_NEXT_S = 8;
   const MAX_RELATED = 24;
+  const MAX_EPISODES = 300;
   const DESCRIPTION_LIMIT = 5000;
 
   const ENGINE_TYPES = ['native', 'hls', 'dash', 'flv', 'ts'];
@@ -97,14 +98,16 @@
     const params = new URLSearchParams(search);
     let type = (params.get('type') || '').toLowerCase();
     let start = Number(params.get('t')) || 0;
+    let ep = episodeNumber(params.get('ep'));
     const match = search.match(/[?&](endpoint|url)=([^]*)$/);
-    if (!match) return { url: '', endpoint: '', type, start };
+    if (!match) return { url: '', endpoint: '', type, start, ep };
 
     let raw = match[2];
     let trailing;
-    while ((trailing = raw.match(/&(type|t|token)=([\w.-]+)$/i))) {
+    while ((trailing = raw.match(/&(type|t|token|ep)=([\w.-]+)$/i))) {
       if (trailing[1] === 'type') type = trailing[2].toLowerCase();
       else if (trailing[1] === 't') start = Number(trailing[2]) || 0;
+      else if (trailing[1] === 'ep') ep = episodeNumber(trailing[2]);
       raw = raw.slice(0, trailing.index);
     }
     try { raw = decodeURIComponent(raw.replace(/\+/g, '%20')); } catch { /* keep raw value */ }
@@ -116,8 +119,11 @@
       endpoint: isEndpoint ? raw : '',
       type: ENGINE_TYPES.includes(type) || type === EMBED_TYPE ? type : '',
       start,
+      ep,
     };
   }
+
+  const episodeNumber = (value) => (/^\d{1,4}$/.test(value || '') ? Number(value) : 0);
 
   function parseStreamUrl(value) {
     let url;
@@ -540,8 +546,37 @@
         .sort((a, b) => a.time - b.time)
         .slice(0, 100),
       related: asList(m.related).map((r) => relatedItem(r, base)).filter(Boolean).slice(0, MAX_RELATED),
+      episodes: asList(m.episodes)
+        .map((e) => (typeof e === 'string' ? { url: e } : e || {}))
+        .map((e) => ({ url: safeUrl(e.url, base), title: asText(e.title, 120), poster: safeUrl(e.poster, base) }))
+        .filter((e) => e.url)
+        .slice(0, MAX_EPISODES),
+      episodeIndex: -1,
     };
   }
+
+  // ep=N (from 1) plays that episode instead of the endpoint's url; each episode links back to this
+  // page with its own ep, so switching reloads the endpoint and gets fresh signed links.
+  function selectEpisode(meta, request) {
+    if (!meta.episodes.length || !request.endpoint) return;
+    const chosen = meta.episodes[request.ep - 1];
+    if (chosen && meta.sources.length) meta.sources = [{ url: chosen.url, raw: chosen.url, type: '', qualities: [] }];
+    else if (chosen && meta.embed) meta.embed = chosen.url;
+    const playing = meta.sources[0]?.url || meta.embed;
+    meta.episodeIndex = chosen && playing === chosen.url ? request.ep - 1 : meta.episodes.findIndex((e) => e.url === playing);
+    const endpoint = new URL(request.endpoint, document.baseURI).href;
+    meta.episodes.forEach((e, i) => {
+      e.label = e.title || String(i + 1);
+      e.href = `${playerHref('endpoint', endpoint)}&ep=${i + 1}`;
+    });
+  }
+
+  const withEpisode = (meta, title) => (meta.episodeIndex >= 0 ? `${title} · ${episodeName(meta, meta.episodeIndex)}` : title);
+
+  const episodeName = (meta, index) => {
+    const episode = meta.episodes[index];
+    return episode && /^\d+$/.test(episode.label) ? `Episode ${episode.label}` : episode?.label || '';
+  };
 
   function endpointAllowed(url, config) {
     const allowed = asList(config.allowedEndpoints);
@@ -702,6 +737,20 @@
       </section>`;
   }
 
+  function episodesView(meta, esc) {
+    if (!meta.episodes.length) return '';
+    return `
+      <section class="watch-episodes" aria-labelledby="episodes-title">
+        <h2 class="block-title" id="episodes-title">Episodes</h2>
+        <ol class="episode-list">
+          ${meta.episodes.map((e, i) => `
+            <li>
+              <a class="episode-list__item" href="${esc(e.href)}" title="${esc(episodeName(meta, i))}"${i === meta.episodeIndex ? ' aria-current="page"' : ''}>${esc(e.label)}</a>
+            </li>`).join('')}
+        </ol>
+      </section>`;
+  }
+
   function relatedView(meta, esc) {
     if (!meta.related.length) return '';
     return `
@@ -847,6 +896,7 @@
               <a class="btn" href="player/">New stream</a>
             </div>
           </div>
+          ${episodesView(meta, esc)}
           ${descriptionView(meta, esc)}
           ${meta.tags.length ? `<div class="watch-tags">${meta.tags.map((tag) => `<a class="pill" href="section.html?q=${encodeURIComponent(tag)}">${esc(tag)}</a>`).join('')}</div>` : ''}
           ${chaptersView(meta, esc)}
@@ -942,6 +992,7 @@
               <a class="btn" href="player/">New stream</a>
             </div>
           </div>
+          ${episodesView(meta, esc)}
           ${descriptionView(meta, esc)}
           ${meta.tags.length ? `<div class="watch-tags">${meta.tags.map((tag) => `<a class="pill" href="section.html?q=${encodeURIComponent(tag)}">${esc(tag)}</a>`).join('')}</div>` : ''}
           <p class="player-note">${inline(config.playNote, esc)}</p>
@@ -955,7 +1006,7 @@
 
     main.querySelector('[data-copy-link]')?.addEventListener('click', async (event) => {
       const link = new URL('player/', document.baseURI);
-      link.search = `?${new URLSearchParams(request.endpoint ? { endpoint: request.endpoint } : { type: 'iframe', url: request.url })}`;
+      link.search = `?${new URLSearchParams(request.endpoint ? { endpoint: request.endpoint, ...(request.ep ? { ep: String(request.ep) } : {}) } : { type: 'iframe', url: request.url })}`;
       try {
         await navigator.clipboard.writeText(link.href);
         event.currentTarget.textContent = 'Link copied';
@@ -1048,7 +1099,7 @@
       chapterIndex: -2,
       upNextTimer: 0,
     };
-    const positionKey = POSITION_KEY + (request.endpoint || url.href);
+    const positionKey = POSITION_KEY + (request.endpoint || url.href) + (request.ep ? `#ep${request.ep}` : '');
 
     const showInfo = (node, text) => {
       node.textContent = text;
@@ -1439,13 +1490,20 @@
       el.upnext.hidden = true;
     }
 
+    function nextEpisode() {
+      const index = meta.episodeIndex + 1;
+      const episode = meta.episodes[index];
+      return episode && { href: episode.href, poster: episode.poster || meta.poster, title: episodeName(meta, index) };
+    }
+
     function showUpNext() {
-      const next = meta.related[0];
+      const episode = nextEpisode();
+      const next = episode || meta.related[0];
       if (!next) return;
       let remaining = UP_NEXT_S;
       el.upnext.innerHTML = `
         <div class="vp-upnext__card">
-          <span class="vp-upnext__label">Up next in <span data-upnext-count>${remaining}</span></span>
+          <span class="vp-upnext__label">${episode ? 'Next episode' : 'Up next'} in <span data-upnext-count>${remaining}</span></span>
           <a class="vp-upnext__item" href="${esc(next.href)}">
             ${next.poster ? `<img src="${esc(next.poster)}" alt="">` : ''}
             <strong>${esc(next.title)}</strong>
@@ -1662,8 +1720,10 @@
     async function copyTimeLink() {
       const link = new URL('player/', document.baseURI);
       const params = new URLSearchParams({ t: String(Math.floor(video.currentTime)) });
-      if (request.endpoint) params.set('endpoint', request.endpoint);
-      else {
+      if (request.endpoint) {
+        params.set('endpoint', request.endpoint);
+        if (request.ep) params.set('ep', String(request.ep));
+      } else {
         if (request.type) params.set('type', request.type);
         params.set('url', request.url);
       }
@@ -2092,7 +2152,7 @@
 
     if (!request.url && !request.endpoint) return page(startView(config, esc));
     const embedPage = (embedMeta) => {
-      const title = embedMeta.title || new URL(embedMeta.embed).hostname;
+      const title = withEpisode(embedMeta, embedMeta.title || new URL(embedMeta.embed).hostname);
       return page(embedView(config, esc, embedMeta, title), `${title} · Player`, (main) => mountEmbed(main, { request, meta: embedMeta }));
     };
 
@@ -2111,6 +2171,7 @@
       } catch (error) {
         return fail(error.message);
       }
+      selectEpisode(meta, request);
       if (!meta.sources.length && !meta.embed && meta.external) {
         const title = meta.title || 'Video';
         return page(externalPageView(config, esc, meta, title), `${title} · Player`, bindDescription);
@@ -2129,7 +2190,7 @@
       meta = normalizeMeta({ source: { url: parsed.url.href, type: request.type } }, document.baseURI);
     }
 
-    const title = meta.title || streamTitle(new URL(meta.sources[0].url));
+    const title = withEpisode(meta, meta.title || streamTitle(new URL(meta.sources[0].url)));
     return page(
       playView(config, esc, meta, title),
       `${title} · Player`,

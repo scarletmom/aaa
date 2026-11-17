@@ -57,7 +57,7 @@ scripts/build-pages.js  writes pages.json
 
 Custom controls: seek bar with buffer and hover time, live edge button with DVR scrubbing, volume (remembered), settings menu (quality with Auto, speed, audio track, subtitles, copy link at current time, stats for nerds), picture-in-picture, fullscreen, resume where you left off, `t=<seconds>` start time, double-tap to skip on touch, and keyboard shortcuts (press `?` on the player).
 
-An endpoint can also return `embed` (a page URL) instead of a source; the player then shows that page in an iframe with the same title, description and Up next list. A `related` item may carry `href`: a page to open as-is instead of playing it here. The videos server uses this to send Up next back to each video's own page.
+An endpoint can also return `embed` (a page URL) instead of a source; the player then shows that page in an iframe with the same title, description and Up next list. A `related` item may carry `href`: a page to open as-is instead of playing it here. An `episodes` list (`["url", …]` or `[{ "title", "url", "poster" }]`) shows numbered episodes under the video; each opens the same endpoint with `&ep=N`, which plays that episode instead of `source` (or `embed`), and at the end Up next goes to the next episode. The videos server uses this to send Up next back to each video's own page.
 
 Engines are loaded from jsDelivr only when needed. Links without a known extension are tried natively, then as HLS, then DASH; `?type=hls|dash|flv|ts|native&url=…` forces one. The stream's server must allow cross-origin playback (CORS); RTMP/RTSP can't play in browsers.
 

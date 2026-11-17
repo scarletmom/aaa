@@ -1604,6 +1604,36 @@ kbd {
 
 .watch-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 
+.watch-episodes { margin: 24px 0 8px; }
+.episode-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 232px;
+  overflow-y: auto;
+}
+.episode-list li { max-width: 100%; }
+.episode-list__item {
+  display: block;
+  min-width: 48px;
+  max-width: 100%;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color .15s, color .15s;
+}
+.episode-list__item:hover { border-color: var(--text); }
+.episode-list__item[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 .watch-chapters { margin-top: 36px; }
 .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 28px; }
 .chapter-list button {

@@ -131,6 +131,15 @@ Delivery workflows answer matching URLs on `/resolve`, Visit and the videos site
 can be run by a Run Workflow step. Delivery workflows can't use Run Workflow, Save File, Extract
 Frames, Create Post or `$env`, because the videos server's engine doesn't have them.
 
+A Delivery workflow's Output can return more than `url`:
+
+- `qualities`: separate MP4 files per quality, as `[{ "label": "1080p", "url": "…" }]` or fields named
+  `qualities.1080p`. The player's Quality menu switches between them. HLS and DASH read their qualities
+  from the playlist instead.
+- `episodes`: a series, as `["url1", "url2"]`, `[{ "title": "Pilot", "url": "…", "poster": "…" }]`, a
+  `{{ $json.episodes }}` field, or fields named `episodes.1`, `episodes.2`. The news player lists them under
+  the video and plays the one clicked; `url` is what plays first. Up to 300.
+
 `$env` in expressions holds only the `WF_*` variables from the environment. Save File and Extract
 Frames need ffmpeg on the server.
 

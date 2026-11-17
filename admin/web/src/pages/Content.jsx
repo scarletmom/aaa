@@ -22,7 +22,8 @@ function describeVisit(result) {
   if (result.fallback) return `“${result.workflow}” failed (${result.error}), so it opened the original URL`;
   const where = { player: "stream inside the player link", iframe: "iframe page" }[result.kind] || "Real URL";
   const qualities = result.qualities?.length ? `, with ${result.qualities.length} qualities (${result.qualities.map((q) => q.label || "unlabelled").join(", ")})` : "";
-  return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}${qualities}`;
+  const episodes = result.episodes?.length ? `, with ${result.episodes.length} episode${result.episodes.length === 1 ? "" : "s"}` : "";
+  return `Resolved the ${where} with “${result.workflow}” in ${result.durationMs} ms${result.cached ? " (cached)" : ""}${qualities}${episodes}`;
 }
 
 function matchesSearch(post, query) {
