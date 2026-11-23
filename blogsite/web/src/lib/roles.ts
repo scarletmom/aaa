@@ -11,7 +11,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const isRole = (value: unknown): value is Role => ROLES.includes(value as Role);
 
-/** Member Lite comes only from an account created through the videos site; Member Pro is set by an admin. */
+/** Member Lite comes from an account created through the videos site; Member Pro is bought. An admin can set any of them in Studio. */
 export const canWatchVideos = (role: Role) => role !== 'member';
 
 /** Pro that ends (a bought week or month) can be extended; Pro with no end date (lifetime, or set by an admin) can't. */

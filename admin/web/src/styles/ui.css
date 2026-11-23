@@ -711,3 +711,119 @@
 .category-empty {
   padding: 8px 8px 0;
 }
+
+/* ---- plan dialog ---- */
+
+.dialog.plan-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.plan-dialog .dialog-text {
+  margin-top: 2px;
+}
+
+.plan-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+}
+
+.plan-option:hover {
+  border-color: var(--line-strong);
+}
+
+.plan-option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.plan-option input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.plan-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plan-option-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.plan-option-perk {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.plan-current {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.plan-length {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.plan-length .segmented {
+  align-self: flex-start;
+}
+
+.plan-until {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-until .text-input {
+  width: auto;
+}
+
+.plan-quick {
+  display: flex;
+  gap: 2px;
+}
+
+.plan-warning {
+  margin-top: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--expr-line);
+  border-radius: var(--r-md);
+  background: var(--expr-soft);
+  color: var(--expr);
+  font-size: 13px;
+}
+
+.plan-dialog .form-error {
+  margin-top: 12px;
+}
+
+.plan-hint {
+  margin-top: 16px;
+}
+

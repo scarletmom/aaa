@@ -5,6 +5,7 @@ const categories = require("./categories");
 const { probeDuration } = require("./media");
 const { resolveVisit } = require("./visit");
 const visits = require("./visits");
+const accounts = require("./accounts");
 
 const { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
 
@@ -31,7 +32,7 @@ router.get("/site", (req, res) =>
   })
 );
 
-router.use(["/posts", "/categories", "/visits"], (req, res, next) => {
+router.use(["/posts", "/categories", "/visits", "/users"], (req, res, next) => {
   if (db.configured) return next();
   res.status(503).json({ error: "The website database is not configured.", code: "no_database" });
 });
@@ -138,7 +139,20 @@ router.delete(
   })
 );
 
+router.get("/users", handle(async (req, res) => res.json(await accounts.list(req.query))));
+
+router.get(
+  "/users/:key",
+  handle(async (req, res) => {
+    const account = await accounts.get(req.params.key);
+    return account ? res.json(account) : res.status(404).json({ error: "Member not found" });
+  })
+);
+
+router.put("/users/:key/plan", handle(async (req, res) => res.json(await accounts.setPlan(req.params.key, req.body))));
+
 router.use((err, req, res, next) => {
+  if (err instanceof accounts.AccountError) return res.status(err.status).json({ error: err.message });
   if (err instanceof InputError) return res.status(400).json({ error: err.message, errors: err.errors });
   next(err);
 });

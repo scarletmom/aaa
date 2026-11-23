@@ -25,6 +25,7 @@ import Categories from "./pages/Categories.jsx";
 import CategoryEditor from "./pages/CategoryEditor.jsx";
 import Editor from "./pages/Editor.jsx";
 import Visits from "./pages/Visits.jsx";
+import Users from "./pages/Users.jsx";
 import { AuthGate } from "./pages/Login.jsx";
 import StudioShell from "./layout/StudioShell.jsx";
 
@@ -45,6 +46,7 @@ const router = createBrowserRouter(
         <Route path="/categories" element={<Categories />} />
         <Route path="/categories/new" element={<CategoryEditor key="new" />} />
         <Route path="/categories/:id" element={<CategoryEditor />} />
+        <Route path="/users" element={<Users />} />
         <Route path="/visits" element={<Visits />} />
         <Route path="/workflows" element={<Workflows />} />
         <Route path="/variables" element={<Variables />} />

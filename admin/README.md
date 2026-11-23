@@ -55,6 +55,11 @@ sections show a setup notice and Workflows keep working.
   and opens where a visitor would land, skipping the gate. Runs show in the workflow's History.
 - **Categories**: name, picture and the posts in each. Picking a post that is already in another
   category moves it.
+- **Users**: members of the news and videos sites from the videos server's `accounts` table, with their
+  plan, last sign-in and devices. Opening one changes the plan: Member, Member Lite, or Member Pro for
+  good or until a date. Only `role` and `pro_until` are written, like a Pro purchase, and the member gets
+  it on their next page load. Search matches names; it also finds an account number when the server's
+  `ACCOUNT_PEPPER` is in this app's `.env` (numbers are stored only as keys made with it).
 
 link-gate caches public pages in memory and only its own writes clear that cache, so after an edit
 here its pages can lag for up to about 10 minutes.
@@ -172,11 +177,6 @@ then send a Telegram notification. Each step runs one Pipeline workflow with a f
 | `reel-post`       | `title`, `description`, `realUrl`, `thumbnail`, `category`, `duration`, `postTag` | the created post, with `postTag` (wired to Create Post already) |
 | `reel-notify`     | `videoUrl`, `message`, `linkName`, `linkUrl`, and `video` when the .mp4 is a saved file | anything; a successful run counts as sent              |
 
-Create them (only the missing ones; existing ones are never changed) with:
-
-```bash
-npm run reels:setup                          # the database in .env
-npm run reels:setup -- --env .env.production # the database in another env file
 Every reel that is downloaded is saved in the `reel_drafts` table (created on first use) with its progress,
 so it shows under **Recent** on the Reel step and can be continued later from any device. Pasting a link
 that was already worked on offers to continue it; downloading the same reel again keeps its frame, matches
@@ -185,6 +185,11 @@ and form unless it was already posted. Without a database the page works as befo
 On the Frame step, an image can be dropped, pasted or chosen from the device instead of a video frame, and
 used for the thumbnail, for Find details, or both.
 
+Create them (only the missing ones; existing ones are never changed) with:
+
+```bash
+npm run reels:setup                          # the database in .env
+npm run reels:setup -- --env .env.production # the database in another env file
 ```
 
 To copy them, once wired, to another database such as production (ids are kept, so they stay locked):
