@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS visits (
   path             VARCHAR(512)    NULL,
   referrer         VARCHAR(512)    NULL,
   visitor_id       VARCHAR(32)     NULL,
+  account_id       CHAR(64)        NULL,
   ip               VARCHAR(45)     NOT NULL,
   country_code     CHAR(2)         NULL,
   country          VARCHAR(80)     NULL,
@@ -35,7 +36,9 @@ CREATE TABLE IF NOT EXISTS visits (
   PRIMARY KEY (id),
   KEY idx_visits_created (created_at),
   KEY idx_visits_site_created (site, created_at),
-  KEY idx_visits_ip (ip)
+  KEY idx_visits_ip (ip),
+  KEY idx_visits_account (account_id, created_at),
+  KEY idx_visits_visitor (visitor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 
 const str = (value, max) => {
@@ -80,11 +83,26 @@ function parseUserAgent(ua) {
   return { device, os: match(SYSTEMS), browser: match(BROWSERS) };
 }
 
+// Tables made before visits were linked to accounts lack these.
+const ADDED = [
+  ["ALTER TABLE visits ADD COLUMN account_id CHAR(64) NULL AFTER visitor_id", "ER_DUP_FIELDNAME"],
+  ["ALTER TABLE visits ADD KEY idx_visits_account (account_id, created_at)", "ER_DUP_KEYNAME"],
+  ["ALTER TABLE visits ADD KEY idx_visits_visitor (visitor_id)", "ER_DUP_KEYNAME"],
+];
+
 async function ensureTable() {
   await getPool().query(CREATE_VISITS);
+  for (const [sql, alreadyThere] of ADDED) {
+    await getPool()
+      .query(sql)
+      .catch((err) => {
+        if (err.code !== alreadyThere) throw err;
+      });
+  }
 }
 
-async function record({ site, ip, userAgent, body }) {
+/** `accountId` is the signed-in member's public id, already checked against a live session by the caller. */
+async function record({ site, ip, userAgent, body, accountId = null }) {
   const geo = geoip.lookup(ip);
   const ua = parseUserAgent(userAgent || "");
   const connection = body.connection && typeof body.connection === "object" ? body.connection : {};
@@ -93,6 +111,7 @@ async function record({ site, ip, userAgent, body }) {
     path: str(body.path, 512),
     referrer: str(body.referrer, 512),
     visitor_id: /^[a-z0-9]{8,32}$/i.test(body.visitorId || "") ? body.visitorId : null,
+    account_id: accountId,
     ip,
     country_code: geo.countryCode,
     country: geo.country,

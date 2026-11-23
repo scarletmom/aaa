@@ -59,7 +59,11 @@ sections show a setup notice and Workflows keep working.
   plan, last sign-in and devices. Opening one changes the plan: Member, Member Lite, or Member Pro for
   good or until a date. Only `role` and `pro_until` are written, like a Pro purchase, and the member gets
   it on their next page load. Search matches names; it also finds an account number when the server's
-  `ACCOUNT_PEPPER` is in this app's `.env` (numbers are stored only as keys made with it).
+  `ACCOUNT_PEPPER` is in this app's `.env` (numbers are stored only as keys made with it). Each row shows
+  where the member was last seen, and **Visits** in the plan dialog opens their visits.
+- **Visits**: page views with a member's name on the ones made while signed in. Picking a name (or
+  `/visits?user=<public id>`) lists that member's visits, plus those from the same browsers while signed
+  out, with every place and device they've used. Search also matches member names.
 
 link-gate caches public pages in memory and only its own writes clear that cache, so after an edit
 here its pages can lag for up to about 10 minutes.

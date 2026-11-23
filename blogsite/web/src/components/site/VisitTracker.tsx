@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useCurrentPage } from '@/lib/linkQuery';
+import { getSession } from '@/lib/session';
 
 interface NetworkInformation {
   effectiveType?: string;
@@ -31,6 +32,8 @@ function sendVisit(apiUrl: string, path: string, referrer: string) {
     path: withoutSecrets(path),
     referrer: withoutSecrets(referrer),
     visitorId: visitorId(),
+    // The server checks it against a live session and records the visit under that member.
+    account: getSession()?.token,
     language: navigator.language,
     screen: `${screen.width}x${screen.height}`,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

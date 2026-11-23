@@ -1103,3 +1103,84 @@
   }
 }
 
+/* ---- visits by member ---- */
+
+.visit-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.visit-member:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.member-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  animation: rise var(--enter) var(--ease);
+}
+
+.member-summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.member-summary h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+}
+
+.member-summary .plan-badge {
+  align-self: center;
+}
+
+.member-summary-note {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.member-summary-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.member-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-facts-label {
+  min-width: 56px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+

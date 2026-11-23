@@ -98,6 +98,6 @@ The player and Mini App keep using `assets/css/style.css`.
 
 - **Link parameters**: `/assets/js/query-parser.js` still runs in `<head>` on every full load. `src/lib/linkQuery.ts` carries its result across in-app pages: Back/Forward and reloads bring `?token=` back, a fresh link click doesn't.
 - **Link gate**: banner, countdown and "get link", using `linkGate` in `data/site.json`.
-- **Visit tracking**: one `/api/visit` per page shown, including pages opened without a reload.
+- **Visit tracking**: one `/api/visit` per page shown, including pages opened without a reload. A signed-in visitor's account token goes with it, so the visit is recorded under their account.
 - **Ads**: the Monetag tag is in the root layout's `<head>`. It runs once per full page load, not on in-app page changes.
 - **Times**: the HTML shows dates; the browser swaps in "2 hours ago" and local times after it loads.

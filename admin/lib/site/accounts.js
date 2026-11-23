@@ -46,6 +46,7 @@ function toAccount(row) {
     lastSeenAt: row.last_seen_at || null,
     devices: Number(row.devices) || 0,
     paidCheckouts: Number(row.paid_checkouts) || 0,
+    lastPlace: row.last_visit_at ? { city: row.last_city, country: row.last_country, code: row.last_country_code, at: row.last_visit_at } : null,
   };
 }
 
@@ -67,10 +68,13 @@ function filters({ q, role }) {
 
 const whereSql = (where) => (where.length ? `WHERE ${where.join(" AND ")}` : "");
 
-// Sessions and checkouts are the server's tables too; a server that hasn't made them yet just shows no devices.
+// Sessions, checkouts and visits are the server's tables too; a server that hasn't made them (or visits.account_id) yet
+// just shows nothing for them.
 async function optionalTables() {
   const [rows] = await getPool().query(
-    "SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('account_sessions', 'pro_checkouts')"
+    `SELECT DISTINCT IF(TABLE_NAME = 'visits', 'visits.account_id', TABLE_NAME) AS name FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND (TABLE_NAME IN ('account_sessions', 'pro_checkouts') OR (TABLE_NAME = 'visits' AND COLUMN_NAME = 'account_id'))`
   );
   return new Set(rows.map((row) => row.name));
 }
@@ -86,10 +90,15 @@ async function selectAccounts(where, args, tail) {
     ? `LEFT JOIN (SELECT account_key, COUNT(*) AS paid_checkouts FROM pro_checkouts WHERE status = 'paid' GROUP BY account_key) c
          ON c.account_key = a.account_key`
     : "";
+  // The member's latest signed-in visit, found through the (account_id, created_at) index.
+  const lastVisit = tables.has("visits.account_id")
+    ? "LEFT JOIN visits v ON v.id = (SELECT MAX(id) FROM visits WHERE account_id = a.public_id)"
+    : "";
   const [rows] = await getPool().query(
     `SELECT a.account_key, a.full_name, a.role, a.pro_until, a.public_id, a.created_at
             ${sessions ? ", s.last_seen_at, s.devices" : ""}${checkouts ? ", c.paid_checkouts" : ""}
-       FROM accounts a ${sessions} ${checkouts} ${whereSql(where)} ${tail}`,
+            ${lastVisit ? ", v.city AS last_city, v.country AS last_country, v.country_code AS last_country_code, v.created_at AS last_visit_at" : ""}
+       FROM accounts a ${sessions} ${checkouts} ${lastVisit} ${whereSql(where)} ${tail}`,
     args
   );
   return rows;

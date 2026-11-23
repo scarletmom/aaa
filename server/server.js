@@ -183,7 +183,9 @@ app.post(
       return res.sendStatus(400);
     }
     if (!body || typeof body !== "object") return res.sendStatus(400);
-    await visits.record({ site, ip: clientIp(req), userAgent: req.get("user-agent"), body });
+    // Only a live session's token links a visit to a member, so nobody can pin visits on someone else.
+    const { account } = typeof body.account === "string" && body.account ? await signedIn(body.account) : {};
+    await visits.record({ site, ip: clientIp(req), userAgent: req.get("user-agent"), body, accountId: account?.publicId || null });
     res.sendStatus(204);
   })
 );

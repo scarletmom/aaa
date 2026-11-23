@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
-import { Bot, ChevronDown, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Link, useSearchParams } from "react-router";
+import { Bot, ChevronDown, Monitor, Smartphone, Tablet, UserRound, X } from "lucide-react";
 import { api } from "../lib/api.js";
-import { formatCount } from "../lib/content.js";
+import { formatCount, formatDate } from "../lib/content.js";
 import { Button } from "../ui/controls.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, isSetupError } from "../ui/site.jsx";
+import { PlanBadge } from "../ui/members.jsx";
 
 const TABS = [
   { value: "all", label: "All" },
@@ -52,7 +53,82 @@ function Detail({ label, children }) {
   );
 }
 
-function VisitDetails({ visit: v }) {
+function MemberLink({ member, onPick }) {
+  return (
+    <button
+      type="button"
+      className="visit-member"
+      title={`Show ${member.name}'s visits`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPick(member.id);
+      }}
+    >
+      <UserRound size={12} strokeWidth={2} />
+      {member.name}
+    </button>
+  );
+}
+
+const deviceText = (d) => [d.browser || "Unknown browser", d.os].filter(Boolean).join(" on ");
+
+function MemberSummary({ member, onClear }) {
+  const signedOut = member.visits - member.signedIn;
+  return (
+    <section className="member-summary" aria-label={`Visits by ${member.name}`}>
+      <div className="member-summary-head">
+        <div>
+          <h2>
+            {member.name} <PlanBadge role={member.role} />
+          </h2>
+          <p className="home-sub">
+            {member.visits
+              ? `${formatCount(member.visits)} page views from ${formatDate(member.firstAt)} to ${formatDate(member.lastAt)} · ${member.ips} ${member.ips === 1 ? "IP" : "IPs"} · ${member.browsers} ${member.browsers === 1 ? "browser" : "browsers"}`
+              : `No visits recorded since they joined on ${formatDate(member.joinedAt)}`}
+          </p>
+          {signedOut > 0 && <p className="member-summary-note">{formatCount(signedOut)} of them were from the same browsers while signed out.</p>}
+        </div>
+        <div className="member-summary-actions">
+          <Link to={`/users?q=${encodeURIComponent(member.name)}`} className="btn btn-ghost btn-sm">
+            Plan
+          </Link>
+          <Button variant="ghost" size="sm" icon={X} onClick={onClear}>
+            All visits
+          </Button>
+        </div>
+      </div>
+      {member.places.length > 0 && (
+        <div className="member-facts">
+          <span className="member-facts-label">Places</span>
+          {member.places.map((p) => (
+            <span key={`${p.code}:${p.city}`} className="visit-country" title={`Last ${new Date(p.lastAt).toLocaleString()}`}>
+              <span aria-hidden="true">{flag(p.code)}</span>
+              {[p.city, p.region !== p.city && p.region, p.country].filter(Boolean).join(", ") || "Unknown location"}
+              <span className="mono">{formatCount(p.count)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {member.devices.length > 0 && (
+        <div className="member-facts">
+          <span className="member-facts-label">Devices</span>
+          {member.devices.map((d) => {
+            const DeviceIcon = DEVICE_ICONS[d.device] || Monitor;
+            return (
+              <span key={`${d.device}:${d.os}:${d.browser}`} className="visit-country" title={`Last ${new Date(d.lastAt).toLocaleString()}`}>
+                <DeviceIcon size={13} aria-hidden="true" />
+                {deviceText(d)}
+                <span className="mono">{formatCount(d.count)}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisitDetails({ visit: v, onPickMember }) {
   const map = v.latitude !== null && `https://www.google.com/maps?q=${v.latitude},${v.longitude}`;
   return (
     <div className="visit-details">
@@ -78,6 +154,7 @@ function VisitDetails({ visit: v }) {
         <span className="mono">{v.path}</span>
       </Detail>
       <Detail label="Came from">{v.referrer && <span className="mono">{v.referrer}</span>}</Detail>
+      <Detail label="Member">{v.member && <MemberLink member={v.member} onPick={onPickMember} />}</Detail>
       <Detail label="Visitor ID">{v.visitorId && <span className="mono">{v.visitorId}</span>}</Detail>
       <Detail label="Time">{new Date(v.at).toLocaleString()}</Detail>
       <Detail label="User agent">{v.userAgent && <span className="mono visit-ua">{v.userAgent}</span>}</Detail>
@@ -87,8 +164,9 @@ function VisitDetails({ visit: v }) {
 
 export default function Visits() {
   const { toast } = useFeedback();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const query = (params.get("q") || "").trim();
+  const user = params.get("user") || "";
   const [site, setSite] = useState("all");
   const [data, setData] = useState(null);
   const [setupNeeded, setSetupNeeded] = useState(false);
@@ -96,7 +174,17 @@ export default function Visits() {
   const [open, setOpen] = useState(null);
   const request = useRef(0);
 
-  const url = (before) => `/api/visits?${new URLSearchParams({ site, q: query, ...(before ? { before } : {}) })}`;
+  const url = (before) => `/api/visits?${new URLSearchParams({ site, q: query, ...(user ? { user } : {}), ...(before ? { before } : {}) })}`;
+
+  const pickMember = (id) => {
+    setOpen(null);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (id) next.set("user", id);
+      else next.delete("user");
+      return next;
+    });
+  };
 
   useEffect(() => {
     const id = ++request.current;
@@ -108,7 +196,7 @@ export default function Visits() {
       query ? 300 : 0
     );
     return () => clearTimeout(timer);
-  }, [site, query]);
+  }, [site, query, user]);
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -140,9 +228,16 @@ export default function Visits() {
       <div className="home-head">
         <div>
           <h1>Visits</h1>
-          <p className="home-sub">Page views on the videos and news sites, with the visitor's IP location, ISP and device</p>
+          <p className="home-sub">Page views on the videos and news sites, with the visitor's IP location, ISP and device. Pick a member's name to see all their visits.</p>
         </div>
       </div>
+
+      {data?.member && <MemberSummary member={data.member} onClear={() => pickMember("")} />}
+      {data && user && !data.linked && (
+        <div className="reel-banner" role="status">
+          <span>Visits get linked to members once the videos server has restarted with this update. Showing all visits for now.</span>
+        </div>
+      )}
 
       {summary && (
         <>
@@ -181,7 +276,7 @@ export default function Visits() {
         </div>
       ) : data.visits.length === 0 ? (
         <div className="empty-state">
-          <h2>{query ? "No visits match" : "No visits yet"}</h2>
+          <h2>{query || user ? "No visits match" : "No visits yet"}</h2>
           <p>
             {query
               ? `Nothing matches “${query}”`
@@ -217,7 +312,9 @@ export default function Visits() {
                     <span className="visit-main">
                       <span aria-hidden="true">{flag(v.countryCode)}</span> {place(v)}
                     </span>
-                    <span className="visit-sub">{v.city || v.region ? v.country : ""}</span>
+                    <span className="visit-sub">
+                      {v.member ? <MemberLink member={v.member} onPick={pickMember} /> : v.city || v.region ? v.country : ""}
+                    </span>
                   </span>
                   <span className="visit-cell">
                     <span className="visit-main mono">{v.ip}</span>
@@ -238,7 +335,7 @@ export default function Visits() {
                     <ChevronDown size={14} className="visit-chevron" aria-hidden="true" />
                   </span>
                 </div>
-                {expanded && <VisitDetails visit={v} />}
+                {expanded && <VisitDetails visit={v} onPickMember={pickMember} />}
               </Fragment>
             );
           })}

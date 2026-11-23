@@ -6,7 +6,7 @@ export const NAV = [
   { to: "/reels", label: "Reel to post", icon: Clapperboard },
   { to: "/categories", label: "Categories", icon: Tags, search: "Search categories" },
   { to: "/users", label: "Users", icon: Users, search: "Search name or account number" },
-  { to: "/visits", label: "Visits", icon: Globe, search: "Search IP, city, country, ISP or page" },
+  { to: "/visits", label: "Visits", icon: Globe, search: "Search member, IP, city, country, ISP or page" },
   { to: "/workflows", label: "Workflows", icon: Workflow, search: "Search workflows" },
   { to: "/variables", label: "Variables", icon: KeyRound, search: "Search variables" },
 ];

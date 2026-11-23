@@ -145,6 +145,10 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
   downloaded into `data/geoip/` on start and refreshed when older than 7 days. Without them only the
   IP is stored.
 - Rows older than `VISIT_RETENTION_DAYS` (default 90) are deleted daily.
+- A signed-in visitor on the news site also sends their account token as `account`. When it belongs to a
+  live session, the visit's `account_id` is set to the account's `public_id` (which survives a new account
+  number); any other token is ignored, so visits can't be pinned on someone else. The videos site has no
+  sign-in, so its visits stay anonymous.
 - Gate tokens and stream links (`token=`, `endpoint=`, `url=`, `startapp=`) are cut from the stored path.
 
 ## Endpoints

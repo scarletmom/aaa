@@ -1,19 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Dialog } from "radix-ui";
-import { ChevronRight, Crown, X } from "lucide-react";
+import { ChevronRight, Globe, X } from "lucide-react";
 import { api } from "../lib/api.js";
 import { formatCount, formatDate } from "../lib/content.js";
 import { Button, Segmented, TextInput } from "../ui/controls.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, isSetupError } from "../ui/site.jsx";
+import { PLANS, PLAN_LABELS, PlanBadge, visitsPath } from "../ui/members.jsx";
 
-const PLANS = [
-  { value: "member", label: "Member", perk: "Can't watch videos" },
-  { value: "member-lite", label: "Member Lite", perk: "Watches videos, with ads" },
-  { value: "member-pro", label: "Member Pro", perk: "Watches videos, no ads" },
-];
-const PLAN_LABELS = Object.fromEntries(PLANS.map((plan) => [plan.value, plan.label]));
 const TABS = [{ value: "all", label: "All" }, ...PLANS];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const QUICK_DAYS = [
@@ -31,6 +26,8 @@ function seenText(iso) {
   if (seconds < 86400) return `Seen ${Math.floor(seconds / 3600)}h ago`;
   return `Seen ${timeFormat.format(new Date(iso))}`;
 }
+
+const placeText = (place) => [place.city, place.code || place.country].filter(Boolean).join(", ") || "Unknown place";
 
 function planNote(account) {
   if (account.role === "member-pro") return account.proUntil ? `Until ${formatDate(account.proUntil)}` : "Lifetime";
@@ -52,15 +49,6 @@ function Stat({ label, value, note }) {
       <span className="stat-value mono">{value}</span>
       <span className="stat-note">{note}</span>
     </div>
-  );
-}
-
-function PlanBadge({ role }) {
-  return (
-    <span className={`plan-badge is-${role}`}>
-      {role === "member-pro" && <Crown size={12} strokeWidth={2} />}
-      {PLAN_LABELS[role]}
-    </span>
   );
 }
 
@@ -158,6 +146,12 @@ function PlanDialog({ account, onClose, onSaved }) {
         <p className="form-hint plan-hint">They get the new plan the next time they open the news or videos site.</p>
 
         <div className="dialog-actions">
+          {account.publicId && (
+            <Link to={visitsPath(account.publicId)} className="btn btn-ghost btn-md plan-visits">
+              <Globe size={16} strokeWidth={1.75} />
+              Visits
+            </Link>
+          )}
           <Dialog.Close asChild>
             <Button variant="ghost" disabled={saving}>
               Cancel
@@ -292,7 +286,8 @@ export default function Users() {
               <span className="visit-cell col-seen">
                 <span className="visit-main">{seenText(account.lastSeenAt)}</span>
                 <span className="visit-sub">
-                  {account.devices} {account.devices === 1 ? "device" : "devices"} signed in
+                  {account.lastPlace ? `${placeText(account.lastPlace)} · ` : ""}
+                  {account.devices} {account.devices === 1 ? "device" : "devices"}
                   {account.paidCheckouts > 0 && ` · ${account.paidCheckouts} paid`}
                 </span>
               </span>
