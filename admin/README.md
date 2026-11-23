@@ -177,6 +177,14 @@ Create them (only the missing ones; existing ones are never changed) with:
 ```bash
 npm run reels:setup                          # the database in .env
 npm run reels:setup -- --env .env.production # the database in another env file
+Every reel that is downloaded is saved in the `reel_drafts` table (created on first use) with its progress,
+so it shows under **Recent** on the Reel step and can be continued later from any device. Pasting a link
+that was already worked on offers to continue it; downloading the same reel again keeps its frame, matches
+and form unless it was already posted. Without a database the page works as before, kept in the browser tab.
+
+On the Frame step, an image can be dropped, pasted or chosen from the device instead of a video frame, and
+used for the thumbnail, for Find details, or both.
+
 ```
 
 To copy them, once wired, to another database such as production (ids are kept, so they stay locked):

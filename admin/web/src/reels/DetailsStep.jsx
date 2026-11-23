@@ -74,7 +74,7 @@ export default function DetailsStep({ draft, update, go, back }) {
             {groups.length > 0 && <span className="muted"> across {groups.length} {groups.length === 1 ? "source" : "sources"}</span>}
           </h2>
           <p className="reel-lead">
-            {draft.searchedTime != null && `Searched the frame at ${formatClock(draft.searchedTime)}. `}
+            {draft.searchedTime != null ? `Searched the frame at ${formatClock(draft.searchedTime)}. ` : "Searched your image. "}
             Open a thumbnail to check it, then pick the one to post.
           </p>
           <div className="reel-summary-facts">

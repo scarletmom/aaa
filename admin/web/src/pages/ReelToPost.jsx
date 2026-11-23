@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Check, Ellipsis, RotateCcw, Workflow, TriangleAlert } from "lucide-react";
-import { EMPTY_DRAFT as EMPTY, EMPTY_FORM, STEPS, loadReelSetup } from "../lib/reels.js";
+import { Check, Ellipsis, Plus, RotateCcw, Workflow, TriangleAlert } from "lucide-react";
+import { EMPTY_DRAFT as EMPTY, STEPS, failureMessage, loadReelSetup, loadSavedReel, normalizeDraft, reachableSteps, resumeStep, withoutTransient } from "../lib/reels.js";
 import { workflowPath } from "../lib/workflow.js";
 import { Button } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
@@ -10,19 +10,14 @@ import FrameStep from "../reels/FrameStep.jsx";
 import DetailsStep from "../reels/DetailsStep.jsx";
 import PostStep from "../reels/PostStep.jsx";
 import ShareStep from "../reels/ShareStep.jsx";
+import { useReelSync } from "../reels/useReelSync.js";
 
+// This tab's copy of the draft, so a refresh is instant; a saved reel is then refreshed from the database.
 const DRAFT_KEY = "studio:reel-draft";
-
-// Captured frames are kept in memory only; they're large and a refresh can simply grab them again.
-const TRANSIENT = ["searchedFrame"];
 
 function readDraft() {
   try {
-    const saved = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
-    if (!saved) return EMPTY;
-    // Drafts saved before several thumbnails were kept had a single `thumbnail`.
-    const thumbnails = saved.thumbnails || (saved.thumbnail ? [{ url: saved.thumbnail.url, label: "Frame" }] : []);
-    return { ...EMPTY, ...saved, thumbnails, form: { ...EMPTY_FORM, ...saved.form } };
+    return normalizeDraft(JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null"));
   } catch {
     return EMPTY;
   }
@@ -30,8 +25,7 @@ function readDraft() {
 
 function writeDraft(draft) {
   try {
-    const kept = Object.fromEntries(Object.entries(draft).filter(([key]) => !TRANSIENT.includes(key)));
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(kept));
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(withoutTransient(draft)));
   } catch {}
 }
 
@@ -39,12 +33,6 @@ function clearDraft() {
   try {
     sessionStorage.removeItem(DRAFT_KEY);
   } catch {}
-}
-
-// Once the post exists, the earlier steps are closed so it can't be created twice.
-function reachable(draft) {
-  if (draft.post) return ["share"];
-  return STEPS.map((s) => s.key).filter((key) => key === "reel" || (draft.video && (key !== "details" || draft.matches) && key !== "share"));
 }
 
 function Stepper({ current, open, onGo }) {
@@ -101,7 +89,27 @@ export default function ReelToPost() {
 
   useEffect(() => writeDraft(draft), [draft]);
 
-  const open = useMemo(() => reachable(draft), [draft]);
+  const update = (patch) => setDraft((current) => ({ ...current, ...(typeof patch === "function" ? patch(current) : patch) }));
+  const markSynced = useReelSync(draft, update, (err) => toast(`Progress couldn't be saved. ${failureMessage(err)}`, "error"));
+
+  const applySaved = (saved) => {
+    const next = { ...normalizeDraft(saved.draft), id: saved.id };
+    markSynced(next);
+    setDraft(next);
+    return next;
+  };
+
+  // Another device may have moved this reel on since this tab last saw it.
+  useEffect(() => {
+    if (!draft.id) return;
+    loadSavedReel(draft.id)
+      .then(applySaved)
+      .catch((err) => {
+        if (err.status === 404) update({ id: null });
+      });
+  }, []);
+
+  const open = useMemo(() => reachableSteps(draft), [draft]);
   const wanted = params.get("step") || "reel";
   const step = open.includes(wanted) ? wanted : open[open.length - 1];
 
@@ -109,7 +117,6 @@ export default function ReelToPost() {
     if (step !== wanted) setParams(step === "reel" ? {} : { step }, { replace: true });
   }, [step, wanted]);
 
-  const update = (patch) => setDraft((current) => ({ ...current, ...(typeof patch === "function" ? patch(current) : patch) }));
   const go = (key) => setParams(key === "reel" ? {} : { step: key });
   const previous = (key) => open[open.indexOf(key) - 1] || "reel";
 
@@ -117,6 +124,10 @@ export default function ReelToPost() {
     clearDraft();
     setDraft(EMPTY);
     setParams({}, { replace: true });
+  };
+
+  const resume = async (id) => {
+    go(resumeStep(applySaved(await loadSavedReel(id))));
   };
 
   const startOver = async () => {
@@ -131,6 +142,7 @@ export default function ReelToPost() {
 
   const missing = setup ? Object.values(setup).filter((s) => !s.exists) : [];
   const shared = { draft, update, go, back: () => go(previous(step)) };
+  const onDeleted = (id) => id === draft.id && reset();
 
   return (
     <div className="home reel-page">
@@ -140,10 +152,17 @@ export default function ReelToPost() {
           <p className="home-sub">Turn an Instagram reel into a post, then share it on Telegram</p>
         </div>
         <div className="reel-head-actions">
-          {draft.video && !draft.post && (
-            <Button variant="ghost" icon={RotateCcw} onClick={startOver}>
-              Start over
+          {draft.id && draft.video ? (
+            <Button variant="ghost" icon={Plus} onClick={reset}>
+              New reel
             </Button>
+          ) : (
+            draft.video &&
+            !draft.post && (
+              <Button variant="ghost" icon={RotateCcw} onClick={startOver}>
+                Start over
+              </Button>
+            )
           )}
           {setup && (
             <Menu
@@ -161,7 +180,7 @@ export default function ReelToPost() {
       <Stepper current={step} open={open} onGo={go} />
 
       <section className="reel-body" key={step}>
-        {step === "reel" && <ReelStep {...shared} />}
+        {step === "reel" && <ReelStep {...shared} resume={resume} onDeleted={onDeleted} />}
         {step === "frame" && <FrameStep {...shared} />}
         {step === "details" && <DetailsStep {...shared} />}
         {step === "post" && <PostStep {...shared} />}

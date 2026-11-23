@@ -1,13 +1,20 @@
 import { useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ImageUp, Pause, Play, ScanFace, SkipForward, Volume2, VolumeX } from "lucide-react";
-import { captureFrame, failureMessage, formatClock, matchGroups, playableUrl, runReelStep } from "../lib/reels.js";
+import { captureFrame, failureMessage, formatClock, imageFromDevice, imageFromUrl, matchGroups, playableUrl, runReelStep } from "../lib/reels.js";
 import { formatDuration } from "../lib/content.js";
-import { Button, Tip } from "../ui/controls.jsx";
+import { Button, Segmented, Tip } from "../ui/controls.jsx";
 import { useFeedback } from "../ui/overlays.jsx";
+import { hostOf, imageFileOf, imageUrlOf, useDocumentPaste, useDropTarget } from "../ui/imageIntake.js";
 import { useElapsed } from "./useElapsed.js";
-import { DeviceImageButton, useThumbnailUpload } from "./thumbnails.jsx";
+import { useThumbnailUpload } from "./thumbnails.jsx";
+import ImageDrop from "./ImageDrop.jsx";
 
 const FRAME_SECONDS = 1 / 30;
+// The same JPEG sizes FaceDigger's own site sends, so its workflow needs no resize steps.
+const SEARCH_SIZES = [700, 350];
+
+// Formats the browser can't draw can still be uploaded as a thumbnail, just not searched.
+const readImage = (read) => read({ variants: SEARCH_SIZES }).catch(() => read());
 
 export default function FrameStep({ draft, update, go, back }) {
   const { toast } = useFeedback();
@@ -19,8 +26,12 @@ export default function FrameStep({ draft, update, go, back }) {
   const [failed, setFailed] = useState(false);
   const [direct, setDirect] = useState(false);
   const [searching, setSearching] = useState(false);
-  const { uploading, upload, uploadFile } = useThumbnailUpload(update);
+  const [reading, setReading] = useState(false);
+  const [source, setSource] = useState(draft.customImage ? "image" : "frame");
+  const { uploading, upload } = useThumbnailUpload(update);
   const busy = searching ? "details" : uploading;
+  const image = draft.customImage;
+  const usingImage = source === "image" && Boolean(image);
   const elapsed = useElapsed(Boolean(busy));
   const src = draft.video.url;
   const passedThrough = playableUrl(src);
@@ -71,16 +82,60 @@ export default function FrameStep({ draft, update, go, back }) {
     return frame;
   };
 
-  const uploadThumbnail = () => upload("frame", capture, (frame) => `Frame ${formatClock(frame.time)}`);
+  const takeImage = async (read, label) => {
+    setReading(true);
+    try {
+      const taken = await readImage(read);
+      update({ customImage: { ...taken, label } });
+      setSource("image");
+    } catch (err) {
+      toast(failureMessage(err), "error");
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const takeFile = (file, label = file.name) => takeImage((options) => imageFromDevice(file, options), label);
+
+  // Returns whether the transfer held an image, so a paste without one is left alone.
+  const takeTransfer = (transfer, { pasted = false } = {}) => {
+    const file = imageFileOf(transfer);
+    const url = file ? "" : imageUrlOf(transfer);
+    if (file) takeFile(file, pasted ? "Pasted image" : file.name);
+    else if (url) takeImage((options) => imageFromUrl(url, options), hostOf(url));
+    return Boolean(file || url);
+  };
+
+  const intakeOpen = !busy && !reading;
+  useDocumentPaste((event) => {
+    if (takeTransfer(event.clipboardData, { pasted: true })) event.preventDefault();
+  }, intakeOpen);
+
+  const { dragging, dragProps } = useDropTarget((transfer) => {
+    if (intakeOpen && !takeTransfer(transfer)) toast("That wasn't an image. Drop an image file or an image from a web page.", "error");
+  });
+
+  const removeImage = () => {
+    update({ customImage: null });
+    setSource("frame");
+  };
+
+  const uploadThumbnail = () =>
+    usingImage ? upload("image", async () => image, () => image.label) : upload("frame", capture, (frame) => `Frame ${formatClock(frame.time)}`);
 
   const findDetails = async () => {
     setSearching(true);
     try {
-      const frame = await captureFrame(videoRef.current, src, { variants: [700, 350] });
-      update({ frameTime: frame.time });
-      // image700/image350 are the same JPEGs FaceDigger's own site sends, so the workflow needs no resize steps.
-      const result = await runReelStep("facedigger", { image: frame.file, image700: frame.variants[700], image350: frame.variants[350] });
-      update({ matches: matchGroups(result), chosen: null, searchedFrame: frame.dataUrl, searchedTime: frame.time });
+      let picked;
+      if (usingImage) {
+        if (!image.variants?.[700]) throw new Error("The browser can't read this image format, so it can't be searched. Use a JPEG, PNG or WebP.");
+        picked = { ...image, time: null };
+      } else {
+        picked = await captureFrame(videoRef.current, src, { variants: SEARCH_SIZES });
+        update({ frameTime: picked.time });
+      }
+      const result = await runReelStep("facedigger", { image: picked.file, image700: picked.variants[700], image350: picked.variants[350] });
+      update({ matches: matchGroups(result), chosen: null, searchedFrame: picked.dataUrl, searchedTime: picked.time });
       go("details");
     } catch (err) {
       toast(`Finding details failed. ${failureMessage(err)}`, "error");
@@ -93,12 +148,13 @@ export default function FrameStep({ draft, update, go, back }) {
   const progress = duration ? (time / duration) * 100 : 0;
   const selected = draft.thumbnails.find((t) => t.url === draft.form.thumbnail);
   const uploads = draft.thumbnails.length;
-  const canCapture = !busy && !failed && Boolean(duration);
+  const canCapture = !busy && !reading && (usingImage || (!failed && Boolean(duration)));
+  const noun = usingImage ? "image" : "frame";
   const skipLabel = draft.matches ? "Go to details" : "Skip to post";
   const skip = () => go(draft.matches ? "details" : "post");
 
   return (
-    <div className="reel-split">
+    <div className="reel-split" {...dragProps}>
       <div className="reel-card reel-player-card">
         <div className="reel-player">
           {failed ? (
@@ -173,7 +229,9 @@ export default function FrameStep({ draft, update, go, back }) {
       <aside className="reel-side">
         <div className="reel-card reel-side-card">
           <h3>Choose a frame</h3>
-          <p className="reel-lead">Slide to the frame you want. Upload it as the thumbnail, search it for details, or both, using the same frame or different ones.</p>
+          <p className="reel-lead">
+            Slide to the frame you want, or use your own image. Upload it as the thumbnail, search it for details, or both, using the same one or different ones.
+          </p>
 
           <div className="reel-status-list">
             <div className="reel-status">
@@ -195,7 +253,7 @@ export default function FrameStep({ draft, update, go, back }) {
                   <span className="reel-status-title">Details</span>
                   <span className="reel-status-sub">
                     {matchCount} {matchCount === 1 ? "match" : "matches"}
-                    {draft.searchedTime != null ? ` from ${formatClock(draft.searchedTime)}` : ""}
+                    {draft.searchedTime != null ? ` from ${formatClock(draft.searchedTime)}` : " from your image"}
                   </span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} className="muted" />
@@ -203,17 +261,30 @@ export default function FrameStep({ draft, update, go, back }) {
             )}
           </div>
 
+          <ImageDrop image={image} reading={reading} dragging={dragging} disabled={Boolean(busy)} onFile={takeFile} onRemove={removeImage} />
+
+          {image && (
+            <div className="reel-source">
+              <span className="reel-status-sub">Use</span>
+              <Segmented
+                value={source}
+                onChange={setSource}
+                options={[
+                  { value: "frame", label: "Video frame" },
+                  { value: "image", label: "Your image" },
+                ]}
+              />
+            </div>
+          )}
+
           <div className="reel-side-actions reel-wide-only">
-            <Button icon={ImageUp} onClick={uploadThumbnail} loading={uploading === "frame"} disabled={!canCapture}>
-              {uploads ? "Upload this frame instead" : "Upload for thumbnail"}
+            <Button icon={ImageUp} onClick={uploadThumbnail} loading={Boolean(uploading)} disabled={!canCapture}>
+              {uploads ? `Upload this ${noun} instead` : "Upload for thumbnail"}
             </Button>
             <Button variant="primary" icon={ScanFace} onClick={findDetails} loading={busy === "details"} disabled={!canCapture}>
               Find details
             </Button>
           </div>
-          <DeviceImageButton variant="ghost" className="reel-device-btn" onFile={uploadFile} loading={uploading === "device"} disabled={Boolean(busy)}>
-            Or upload an image from device
-          </DeviceImageButton>
           <Button variant="ghost" icon={SkipForward} className="reel-narrow-only reel-skip" onClick={skip} disabled={Boolean(busy)}>
             {skipLabel}
           </Button>
@@ -228,7 +299,7 @@ export default function FrameStep({ draft, update, go, back }) {
         <Button variant="ghost" icon={SkipForward} className="reel-wide-only" onClick={skip} disabled={Boolean(busy)}>
           {skipLabel}
         </Button>
-        <Button icon={ImageUp} className="reel-narrow-only" onClick={uploadThumbnail} loading={uploading === "frame"} disabled={!canCapture}>
+        <Button icon={ImageUp} className="reel-narrow-only" onClick={uploadThumbnail} loading={Boolean(uploading)} disabled={!canCapture}>
           Thumbnail
         </Button>
         <Button variant="primary" icon={ScanFace} className="reel-narrow-only" onClick={findDetails} loading={busy === "details"} disabled={!canCapture}>

@@ -1,38 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog } from "radix-ui";
 import { ClipboardPaste, ImagePlus, Link2, LoaderCircle, X } from "lucide-react";
 import { failureMessage, imageFromDevice, imageFromUrl, uploadImage } from "../lib/reels.js";
 import { Button, Kbd, TextInput } from "./controls.jsx";
-
-const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-const PASTE_KEYS = IS_MAC ? ["⌘", "V"] : ["Ctrl", "V"];
-const CAN_READ_CLIPBOARD = Boolean(navigator.clipboard?.read);
-
-const isHttpUrl = (text) => /^https?:\/\/\S+$/i.test(text.trim());
-const hostOf = (url) => {
-  try {
-    return new URL(url).host;
-  } catch {
-    return "link";
-  }
-};
-
-function imageFileOf(transfer) {
-  const files = [...(transfer.files || [])];
-  const fromItems = [...(transfer.items || [])].filter((item) => item.kind === "file").map((item) => item.getAsFile());
-  return [...files, ...fromItems].find((file) => file?.type.startsWith("image/")) || null;
-}
-
-// Images dragged or copied from a web page often arrive as markup or a link rather than bytes.
-function imageUrlOf(transfer) {
-  const html = transfer.getData("text/html");
-  const src = html && new DOMParser().parseFromString(html, "text/html").querySelector("img")?.getAttribute("src");
-  if (src && isHttpUrl(src)) return src;
-  const uri = transfer.getData("text/uri-list").split(/\r?\n/).find((line) => line && !line.startsWith("#"));
-  if (uri && isHttpUrl(uri)) return uri;
-  const text = transfer.getData("text/plain");
-  return text && isHttpUrl(text) ? text.trim() : "";
-}
+import { CAN_READ_CLIPBOARD, PASTE_KEYS, hostOf, imageFileOf, imageUrlOf, readClipboardImage, useDocumentPaste, useDropTarget } from "./imageIntake.js";
 
 export default function ImageUploadDialog({ open, onOpenChange, onUploaded, title = "Upload picture" }) {
   return (
@@ -50,8 +21,6 @@ function UploadContent({ title, onClose, onUploaded }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
   const [link, setLink] = useState("");
-  const [dragging, setDragging] = useState(false);
-  const dragDepth = useRef(0);
   const fileInput = useRef(null);
   const linkInput = useRef(null);
 
@@ -82,37 +51,20 @@ function UploadContent({ title, onClose, onUploaded }) {
     return Boolean(file || url);
   };
 
-  const latest = useRef({});
-  latest.current = { busy, fromTransfer };
-
-  useEffect(() => {
-    const onPaste = (event) => {
-      if (latest.current.busy) return;
-      const typingInLink = event.target === linkInput.current;
-      if (typingInLink && !imageFileOf(event.clipboardData)) return;
-      if (latest.current.fromTransfer(event.clipboardData, { pasted: true })) event.preventDefault();
-      else if (!typingInLink) setError("The clipboard has no image or image link in it.");
-    };
-    document.addEventListener("paste", onPaste);
-    return () => document.removeEventListener("paste", onPaste);
-  }, []);
+  useDocumentPaste((event) => {
+    if (busy) return;
+    const typingInLink = event.target === linkInput.current;
+    if (typingInLink && !imageFileOf(event.clipboardData)) return;
+    if (fromTransfer(event.clipboardData, { pasted: true })) event.preventDefault();
+    else if (!typingInLink) setError("The clipboard has no image or image link in it.");
+  });
 
   const readClipboard = async () => {
     setError("");
     try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find((t) => t.startsWith("image/"));
-        if (type) {
-          const blob = await item.getType(type);
-          return fromFile(new File([blob], "clipboard", { type }), "Pasted image");
-        }
-      }
-      for (const item of items) {
-        if (!item.types.includes("text/plain")) continue;
-        const text = await (await item.getType("text/plain")).text();
-        if (isHttpUrl(text)) return fromLink(text.trim());
-      }
+      const found = await readClipboardImage();
+      if (found?.file) return fromFile(found.file, "Pasted image");
+      if (found?.url) return fromLink(found.url);
       setError("The clipboard has no image or image link in it.");
     } catch (err) {
       setError(err.name === "NotAllowedError" ? `Clipboard access was blocked. Press ${PASTE_KEYS.join("")} instead.` : failureMessage(err));
@@ -131,25 +83,10 @@ function UploadContent({ title, onClose, onUploaded }) {
     }
   };
 
-  const dragProps = {
-    onDragEnter: (e) => {
-      e.preventDefault();
-      dragDepth.current += 1;
-      setDragging(true);
-    },
-    onDragOver: (e) => e.preventDefault(),
-    onDragLeave: () => {
-      dragDepth.current = Math.max(dragDepth.current - 1, 0);
-      if (!dragDepth.current) setDragging(false);
-    },
-    onDrop: (e) => {
-      e.preventDefault();
-      dragDepth.current = 0;
-      setDragging(false);
-      if (busy) return;
-      if (!fromTransfer(e.dataTransfer)) setError("That wasn't an image. Drop an image file or an image from a web page.");
-    },
-  };
+  const { dragging, dragProps } = useDropTarget((transfer) => {
+    if (busy) return;
+    if (!fromTransfer(transfer)) setError("That wasn't an image. Drop an image file or an image from a web page.");
+  });
 
   const keepOpenWhileUploading = (e) => busy === "uploading" && e.preventDefault();
 

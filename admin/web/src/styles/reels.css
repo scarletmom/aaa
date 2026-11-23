@@ -203,6 +203,90 @@
   justify-content: flex-end;
 }
 
+.reel-start-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.reel-start-wrap .reel-start {
+  width: 100%;
+}
+
+.reel-saved {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.reel-saved > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text);
+}
+
+.reel-recent h3 {
+  margin-bottom: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.reel-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reel-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reel-recent-item .reel-status {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+}
+
+.reel-recent-item .reel-status:disabled {
+  cursor: default;
+}
+
+.reel-recent-item .reel-status-title,
+.reel-recent-item .reel-status-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reel-recent-item .reel-status-thumb.is-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+}
+
+.reel-recent-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
 /* step 2 */
 
 .reel-split {
@@ -913,9 +997,79 @@
   white-space: nowrap;
 }
 
-.reel-device-btn {
+/* own image on the Frame step */
+
+.reel-drop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+}
+
+.reel-drop.has-image {
+  padding: 8px;
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--bg);
+}
+
+.reel-drop.is-dragging {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.reel-drop-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  margin-top: 8px;
+  padding: 12px;
+  border-radius: inherit;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.reel-drop-empty:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.reel-drop-empty:disabled {
+  cursor: default;
+}
+
+.reel-drop-empty > span,
+.reel-drop-caption {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reel-drop-caption .reel-status-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reel-drop-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.reel-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 /* ---- Variables ---- */

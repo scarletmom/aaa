@@ -11,6 +11,7 @@ export const STEPS = [
 export const EMPTY_FORM = { title: "", description: "", thumbnail: "", realUrl: "", realUrlType: "player", categoryId: "none", duration: "", postTag: "" };
 
 export const EMPTY_DRAFT = {
+  id: null,
   reelUrl: "",
   video: null,
   frameTime: 0,
@@ -27,8 +28,78 @@ export const EMPTY_DRAFT = {
 // Everything that came from the previous reel, so a new reel starts a clean post.
 export const freshReel = () => {
   const { reelUrl, video, post, share, ...rest } = EMPTY_DRAFT;
-  return { ...rest, searchedFrame: null };
+  return { ...rest, searchedFrame: null, customImage: null };
 };
+
+// Captured frames and pasted images are kept in memory only; they're large and can simply be taken again.
+const TRANSIENT = ["searchedFrame", "customImage"];
+
+export const withoutTransient = (draft) => Object.fromEntries(Object.entries(draft).filter(([key]) => !TRANSIENT.includes(key)));
+
+// Fills in keys added since a draft was saved. Drafts saved before several thumbnails were kept had a single `thumbnail`.
+export function normalizeDraft(saved) {
+  if (!saved) return EMPTY_DRAFT;
+  const thumbnails = saved.thumbnails || (saved.thumbnail ? [{ url: saved.thumbnail.url, label: "Frame" }] : []);
+  return { ...EMPTY_DRAFT, ...saved, thumbnails, form: { ...EMPTY_FORM, ...saved.form } };
+}
+
+// Once the post exists, the earlier steps are closed so it can't be created twice.
+export function reachableSteps(draft) {
+  if (draft.post) return ["share"];
+  return STEPS.map((s) => s.key).filter((key) => key === "reel" || (draft.video && (key !== "details" || draft.matches) && key !== "share"));
+}
+
+// The step a reel was left on, judged from what it has; matches the server's stage for the Recent list.
+export function resumeStep(draft) {
+  if (draft.post) return "share";
+  if (draft.form.title || draft.form.realUrl) return "post";
+  if (draft.matches) return "details";
+  return draft.video ? "frame" : "reel";
+}
+
+export const STAGE_LABELS = {
+  frame: "Picking a frame",
+  details: "Choosing a match",
+  post: "Filling in the post",
+  share: "Posted, not shared yet",
+  shared: "Posted and shared",
+};
+
+export const loadRecentReels = () => api("/api/reels/drafts");
+export const findSavedReel = (url, { signal } = {}) => api(`/api/reels/drafts?url=${encodeURIComponent(url)}`, { signal });
+export const startSavedReel = (reelUrl, video) => api("/api/reels/drafts", { method: "POST", body: { reelUrl, video } });
+export const loadSavedReel = (id) => api(`/api/reels/drafts/${encodeURIComponent(id)}`);
+export const deleteSavedReel = (id) => api(`/api/reels/drafts/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const saveReel = (id, draft, { keepalive = false } = {}) =>
+  api(`/api/reels/drafts/${encodeURIComponent(id)}`, { method: "PUT", body: { draft: withoutTransient({ ...draft, id: undefined }) }, keepalive });
+
+// A reel link without tracking parameters, for showing in lists.
+export function shortReel(url) {
+  try {
+    const parsed = new URL(url);
+    const code = /\/(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/.exec(parsed.pathname)?.[1];
+    return code && /instagram|instagr\.am/.test(parsed.hostname) ? `Reel ${code}` : `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const UNITS = [
+  ["year", 365 * 24 * 3600],
+  ["month", 30 * 24 * 3600],
+  ["week", 7 * 24 * 3600],
+  ["day", 24 * 3600],
+  ["hour", 3600],
+  ["minute", 60],
+];
+
+export function timeAgo(iso) {
+  const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (!Number.isFinite(seconds)) return "";
+  for (const [unit, size] of UNITS) if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
+  return "just now";
+}
 
 export const THUMBNAIL_KEYS = ["url", "thumbnail", "link", "image", "file", "result"];
 
@@ -185,7 +256,8 @@ function readAsDataUrl(file) {
 }
 
 // Re-encodes as JPEG no larger than 2048px, so phone photos stay small; formats the browser can't draw are sent as they are.
-export async function imageFromDevice(file) {
+// `variants` works as in captureFrame, and needs an image the browser can draw.
+export async function imageFromDevice(file, { variants = [] } = {}) {
   if (!file.type.startsWith("image/")) throw new Error("Pick an image file");
   const stem = file.name.replace(/\.[^.]+$/, "") || "image";
   try {
@@ -200,16 +272,18 @@ export async function imageFromDevice(file) {
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
     const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    return { dataUrl, file: { data, mimeType: "image/jpeg", fileName: `${stem}.jpg`, size: Math.floor((data.length * 3) / 4) } };
+    const encoded = { data, mimeType: "image/jpeg", fileName: `${stem}.jpg`, size: Math.floor((data.length * 3) / 4) };
+    return { dataUrl, file: encoded, variants: jpegVariants(canvas, canvas.width, canvas.height, variants) };
   } catch {
+    if (variants.length) throw new Error("The browser can't read this image format. Use a JPEG, PNG or WebP.");
     if (file.size > MAX_UPLOAD_BYTES) throw new Error("That image is over 15 MB");
     const dataUrl = await readAsDataUrl(file);
     const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    return { dataUrl, file: { data, mimeType: file.type, fileName: file.name, size: file.size } };
+    return { dataUrl, file: { data, mimeType: file.type, fileName: file.name, size: file.size }, variants: {} };
   }
 }
 
-export async function imageFromUrl(url) {
+export async function imageFromUrl(url, options) {
   const link = url.trim();
   if (!/^https?:\/\//i.test(link)) throw new Error("The link must start with http:// or https://");
   const res = await fetch(`/api/reels/image?url=${encodeURIComponent(link)}`, { credentials: "same-origin" });
@@ -219,7 +293,7 @@ export async function imageFromUrl(url) {
   }
   const blob = await res.blob();
   const name = decodeURIComponent(new URL(link).pathname.split("/").pop() || "") || "image";
-  return imageFromDevice(new File([blob], name, { type: blob.type }));
+  return imageFromDevice(new File([blob], name, { type: blob.type }), options);
 }
 
 // Runs the "Upload thumbnail" workflow, the same one Reel to post uses, and returns the hosted URL.

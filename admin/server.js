@@ -20,6 +20,8 @@ const { MEDIA_DIR } = require("./lib/storage");
 const { usedFor, usageOf, deliveryProblems } = require("./lib/usage");
 const { MAX_FILE_BYTES, mimeFromName } = require("./lib/files");
 const reels = require("./lib/reels");
+const reelDrafts = require("./lib/reelDrafts");
+const siteDb = require("./lib/site/db");
 const variables = require("./lib/variables");
 
 const PORT = Number(process.env.PORT) || 5678;
@@ -476,6 +478,40 @@ app.post("/api/reels/frame", async (req, res) => {
     res.status(422).json({ error: err.message });
   }
 });
+
+const draftRoute = (fn) => async (req, res, next) => {
+  if (!siteDb.configured) return res.status(503).json({ error: "Saving reels needs the database. Set DATABASE_URL in .env.", code: "no_database" });
+  try {
+    await fn(req, res);
+  } catch (err) {
+    if (err instanceof reelDrafts.DraftError) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+};
+
+app.get("/api/reels/drafts", draftRoute(async (req, res) => {
+  if (req.query.url) return res.json({ draft: await reelDrafts.findByUrl(req.query.url) });
+  res.json({ drafts: await reelDrafts.recent() });
+}));
+
+app.post("/api/reels/drafts", draftRoute(async (req, res) => {
+  res.json(await reelDrafts.start(String(req.body?.reelUrl || "").trim(), req.body?.video));
+}));
+
+app.get("/api/reels/drafts/:id", draftRoute(async (req, res) => {
+  const saved = await reelDrafts.get(req.params.id);
+  return saved ? res.json(saved) : res.status(404).json({ error: "This reel is no longer saved" });
+}));
+
+app.put("/api/reels/drafts/:id", draftRoute(async (req, res) => {
+  await reelDrafts.save(req.params.id, req.body?.draft);
+  res.json({ ok: true });
+}));
+
+app.delete("/api/reels/drafts/:id", draftRoute(async (req, res) => {
+  await reelDrafts.remove(req.params.id);
+  res.json({ ok: true });
+}));
 
 // Runs the graph sent by the editor, saved or not, so edits can be tested before saving.
 app.post("/api/execute", async (req, res) => {
