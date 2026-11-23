@@ -22,6 +22,73 @@ Input node matches). An Iframe post (`real_url_type = 'iframe'`) is shown as is 
 `…/player/?url=<stream>` has the inner stream resolved, and `…/embed/?url=<page>` becomes an iframe
 on the news player.
 
+## Accounts
+
+The videos site works on a pass (access token) and the captcha (how a new pass is earned): every page
+asks for the captcha in a modal when there's no valid pass, and again whenever the server answers
+`pass_required`. Pressing play on a video sends the visitor to the blogsite as `<BLOGSITE_URL>/videos/#access=<pass>`.
+
+| Role | Created by | Videos on the blogsite |
+| ---- | ---------- | ---------------------- |
+| `member` | `POST /api/register` without a pass (someone who came to the blogsite directly) | no |
+| `member-lite` | `POST /api/register` with `Authorization: Bearer <pass>` | yes, with ads |
+| `member-pro` | a purchase, or an admin changing `accounts.role` (find the row with `npm run account-key`) | yes, no ads |
+
+The account number is 16 random hex characters (xxxx-xxxx-xxxx-xxxx, 64 bits) made by the server; accounts made
+before that keep their UUID. It is the only login, so it is never stored: `accounts.account_key` (also
+`pro_checkouts.account_key`) is its HMAC-SHA256 under `ACCOUNT_PEPPER`, which lives only in the server's environment.
+A copy of the database alone can't be used to log in. The number is sent once, in the `/api/register` answer (or
+`/api/account/new-number`), and never again.
+
+**`ACCOUNT_PEPPER` must never change or be lost**: every login depends on it. Every server on one database needs the
+same value. `server_settings.account_pepper_check` records which pepper the database was keyed with, and a server
+whose pepper doesn't match refuses to start instead of touching the data. To find an account's row (e.g. to make it
+Pro by hand): `npm run account-key -- xxxx-xxxx-xxxx-xxxx`.
+
+Databases from before keying hold plain numbers in `account_number`. On start the server keys every row of
+`accounts` and `pro_checkouts` in one transaction, gives each account a new random `public_id`, and renames the
+columns to `account_key`. The blogsite moves the comments and likes it kept under the old id to the new one.
+
+Each sign-in (register, login) opens a row in `account_sessions`, and the account JWT (audience `videos-account`,
+`{ sid }`, 30 days) carries only that row's random id. The blogsite renews the token with `GET /api/account` on each
+page load, which also marks the session used and picks up role changes. A token whose session has ended stops working
+everywhere at once.
+
+An account can be signed in on `MAX_DEVICES` devices at once (default 2). Signing in on another ends the session used
+least recently; its device is told why (`401 device_limit`) and the blogsite shows that on its sign-in dialog. Signing
+in itself always works, so someone holding a shared number can't lock the owner out; the owner's answer is a new
+number. Log out ends the session on the server too, freeing its place. Ended sessions are kept, with the reason,
+until their last token would have expired, then cleared on start.
+
+Tokens from before sessions (`{ sub: accountNumber }`) only work at `GET /api/account`, which trades one for a session
+(counted like any sign-in). The tables are created on start, and missing columns are added.
+
+The blogsite's account menu has Account security. Both actions need the current account number as well as a token,
+so a stolen token alone can't lock the owner out:
+
+- `POST /api/account/sign-out-others` ends every other session; this device stays signed in.
+- `POST /api/account/new-number` also swaps the account number for a new one (its open `pro_checkouts` and sessions
+  follow it) and sends the new number once. `public_id`, the random id the sites tag the account's comments, likes
+  and ad-free pass with, stays the same.
+
+### Ad-free passes
+
+The sites never trust the stored `role` to switch ads off: it's in localStorage and anyone can edit it. Instead
+every session answer for a Member Pro account carries `adFree`, an ES256 JWT (audience `ad-free`,
+`{ sub: public_id }`) that ends at `pro_until` or after 7 days, whichever is sooner; other roles get
+`null`. The blogsite and its `/player/` check it with the public key alone, so a pass can't be forged, edited, or
+moved to another account. Anything that doesn't check out means ads.
+
+The key pair is derived from `JWT_SECRET`, so changing that secret changes the key. Put the public key in the
+blogsite's `web/src/data/site.json` as `adFreeKey` (its production build refuses to run without it):
+
+```sh
+npm run ad-free-key   # with the production JWT_SECRET; the server also logs it on start
+```
+
+The blogsite is `NEWS_SITE_URL` here, so CORS allows it; in local development that's
+`http://localhost:5174`.
+
 ## Telegram fallback for blocked hosts
 
 Some hosts only let their own website play their HLS/DASH streams (no CORS for other sites), so the
@@ -84,11 +151,19 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 
 | Method | Path | Auth | Answer |
 | ------ | ---- | ---- | ------ |
-| GET  | `/api/config` | none | `{ sitekey }` |
+| GET  | `/api/config` | none | `{ sitekey, adFreeKey }` |
 | POST | `/api/pass` | `{ captcha }` | `{ token, expiresIn }` |
-| GET  | `/api/videos` | `Bearer <pass>` | `{ videos: [...] }` (enabled posts, no Real URL) |
-| GET  | `/api/videos/:tag` | none | `{ video, same, others }`, and counts a view |
+| POST | `/api/register` | `{ fullname, captcha }`, optional `Bearer <pass>` | `201 { token, expiresIn, id, name, role, proUntil, adFree, accountNumber }`: `member-lite` with a pass, `member` without |
+| POST | `/api/login` | `{ accountNumber, captcha }` | `{ token, expiresIn, id, name, role, proUntil, adFree }` (`id` is the account's `public_id`) |
+| GET  | `/api/account` | `Bearer <account JWT>` | the same, with the role re-read from the database and a new token. 401 `device_limit` when another device took this one's place, `session_expired` otherwise |
+| POST | `/api/logout` | `Bearer <account JWT>` | `204`; the token's session ends |
+| POST | `/api/account/sign-out-others` | `Bearer <account JWT>`, `{ accountNumber }` | the session answer; every other session ends. 403 `wrong_account_number` if the number isn't this account's |
+| POST | `/api/account/new-number` | `Bearer <account JWT>`, `{ accountNumber }` | the same plus the new `accountNumber`; the old number stops logging in |
+| GET  | `/api/videos` | `Bearer <pass>` or a Member Lite/Pro account token | `{ videos: [...] }` (enabled posts, no Real URL); other accounts get 403 `plan_required` |
+| GET  | `/api/videos/:tag` | `Bearer <pass>` or a Member Lite/Pro account token | `{ video, same, others }`, and counts a view; an account token also gets `play`, a signed `/api/play` endpoint for the player |
 | POST | `/api/videos/:tag/unlock` | `{ captcha }` | `{ next }`: the news page to open |
+| POST | `/api/pro/checkout` | `Bearer <account token>`, `{ plan: "week" \| "month" \| "lifetime" }` | `{ url }`: Dodo's checkout page for that plan (503 `payments_off` without `DODO_API_KEY`) |
+| POST | `/api/pro/webhook` | Dodo's signed webhook (`webhook-id`, `webhook-timestamp`, `webhook-signature`) | 204; on `payment.succeeded` grants the plan once |
 | GET  | `/api/gate` | `Bearer <gate JWT>` | `{ url }`: the news player link |
 | GET  | `/api/play?token=` | play token | player JSON |
 | GET  | `/api/app/video?token=` | app token (+ `initData`) | `{ title, poster, channel, durationSeconds }` |
@@ -96,3 +171,26 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 | POST | `/api/visit` | allowed `Origin` | `204`; records a page view (body is JSON sent as `text/plain`) |
 
 Captcha endpoints allow 30 attempts per IP per 10 minutes.
+
+## Member Pro payments (Dodo Payments)
+
+One Pay What You Want product (`DODO_PRODUCT_ID`, one-time, minimum $0.50) sells all three plans; the server sets
+the amount per plan (`lib/pro.js`: week 50¢ / 7 days, month 100¢ / 30 days, lifetime 500¢), so the buyer never types a
+price. Prices must match `blogsite/web/src/data/pricing.json`.
+
+1. `POST /api/pro/checkout` saves a `pro_checkouts` row under a random `ref` and creates the Dodo checkout with
+   `metadata: { ref, plan }`. Dodo never sees the account number. Dodo returns the buyer to `<NEWS_SITE_URL>/videos/?pro=<ref>`.
+2. That page calls `POST /api/pro/confirm { ref }` until it's settled. The server reads the checkout and its payment from
+   Dodo's API (`GET /checkouts/:id`, `GET /payments/:id`), never trusting the return URL, and grants the plan once the
+   payment has `status: "succeeded"` and our `ref`. This needs no public URL, so it works on localhost.
+3. The webhook (`<PUBLIC_URL>/api/pro/webhook`, signed with `DODO_WEBHOOK_SECRET`) runs the same check for buyers who close
+   the tab before returning. It's a backup: without it, those buyers turn Pro the next time their return page checks.
+4. Week and month set `accounts.pro_until`, extending any time left; lifetime clears it. When `pro_until` passes, the
+   account drops back to `member-lite` the next time it's read. Pro with no `pro_until` (lifetime, or set by an admin) never ends.
+
+Adaptive pricing may charge the buyer in their own currency; the USD settlement amount is what's logged.
+The API key needs Checkout Sessions: Write and Payments: Read.
+
+For production, add the webhook URL in the Dodo dashboard and subscribe it to `payment.succeeded`. A `dodo_test_` key uses
+test.dodopayments.com; a `dodo_live_` key uses live.dodopayments.com.
+

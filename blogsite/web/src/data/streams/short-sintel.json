@@ -1,0 +1,17 @@
+{
+  "title": "Sintel in ten seconds",
+  "description": "A glimpse of Sintel, the Blender Institute’s open movie about a girl searching for her dragon.",
+  "channel": "Open Movie Night",
+  "views": 1364020,
+  "publishedAt": "2026-11-13T18:00:00Z",
+  "short": true,
+  "duration": "0:10",
+  "poster": "https://picsum.photos/seed/quillwood-short-sintel/720/1280",
+  "tags": [
+    "Shorts",
+    "Animation"
+  ],
+  "source": {
+    "url": "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+
+# Copied or linked from the blogsite folder by scripts/sync-static.ts
+/public/player
+/public/tg
+/public/assets
+/public/sw.js
+/public/_headers
+/public/test-link.json
+
+next-env.d.ts
+*.tsbuildinfo

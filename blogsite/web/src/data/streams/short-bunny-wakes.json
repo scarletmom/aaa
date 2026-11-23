@@ -1,0 +1,17 @@
+{
+  "title": "Big Buck Bunny wakes up",
+  "description": "The first ten seconds of Big Buck Bunny, from the Blender Institute’s open movie.",
+  "channel": "Open Movie Night",
+  "views": 45584,
+  "publishedAt": "2026-11-11T18:00:00Z",
+  "short": true,
+  "duration": "0:10",
+  "poster": "https://picsum.photos/seed/quillwood-short-bunny/720/1280",
+  "tags": [
+    "Shorts",
+    "Animation"
+  ],
+  "source": {
+    "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4"
+  }
+}

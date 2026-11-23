@@ -2,13 +2,12 @@
   "name": "quillwood-notes",
   "version": "1.0.0",
   "private": true,
-  "description": "Static news site. `npm run build` writes a deployable copy with obfuscated JavaScript to dist/.",
+  "description": "Static player, Telegram Mini App and their scripts. `npm run build` writes a copy with obfuscated JavaScript to dist/; the blog pages are in web/.",
   "engines": {
     "node": ">=20.12"
   },
   "scripts": {
-    "pages": "node scripts/build-pages.js",
-    "build": "node scripts/build-pages.js && node scripts/build-dist.js",
+    "build": "node scripts/build-dist.js",
     "preview": "python3 -m http.server 8080 --directory dist"
   },
   "devDependencies": {

@@ -75,11 +75,14 @@
     return response.json();
   }
 
+  // An embedded player (embed=1) shows no header, footer or lists, and the page around it counts the visit.
+  const embedded = document.documentElement.classList.contains('is-embed');
+
   async function loadData() {
     const [site, articles, videos] = await Promise.all([
       fetchJSON(DATA_FILES.site),
-      fetchJSON(DATA_FILES.articles),
-      fetchJSON(DATA_FILES.videos),
+      embedded ? [] : fetchJSON(DATA_FILES.articles),
+      embedded ? [] : fetchJSON(DATA_FILES.videos),
     ]);
     const byNewest = (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt);
     articles.sort(byNewest);
@@ -697,7 +700,7 @@
     let view;
     try {
       const data = await loadData();
-      if (/^https?:\/\//.test(data.site.apiUrl || '')) trackVisit(data.site.apiUrl);
+      if (!embedded && /^https?:\/\//.test(data.site.apiUrl || '')) trackVisit(data.site.apiUrl);
       labels = data.site.labels || {};
       ctx = { ...data, params: new URLSearchParams(window.LedgerQuery ?? location.search), helpers: { esc, fetchJSON } };
       const render = PAGES[document.body.dataset.page] || homePage;

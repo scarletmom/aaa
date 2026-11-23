@@ -120,12 +120,14 @@
     }
   }
 
-  function client(apiUrl) {
-    const base = apiUrl.replace(/\/+$/, '');
-    return async function api(path, { method = 'GET', body, withPass = false } = {}) {
+  // The pass is the access token and the captcha is how a new one is earned, so a request that
+  // needs it waits for the captcha modal and retries once if the server says it has expired.
+  function client(ctx) {
+    const base = ctx.site.apiUrl.replace(/\/+$/, '');
+    async function send(path, { method, body, token }) {
       const headers = { Accept: 'application/json' };
       if (body) headers['Content-Type'] = 'application/json';
-      if (withPass && pass.get()) headers.Authorization = `Bearer ${pass.get()}`;
+      if (token) headers.Authorization = `Bearer ${token}`;
       let response;
       try {
         response = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: 'omit' });
@@ -135,6 +137,17 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new ApiError(data.error || `Something went wrong (HTTP ${response.status}).`, response.status, data.code);
       return data;
+    }
+
+    return async function api(path, { method = 'GET', body, withPass = false } = {}) {
+      if (!withPass) return send(path, { method, body });
+      try {
+        return await send(path, { method, body, token: await ensurePass(ctx) });
+      } catch (err) {
+        if (err.code !== 'pass_required') throw err;
+        pass.clear();
+        return send(path, { method, body, token: await ensurePass(ctx) });
+      }
     };
   }
 
@@ -215,6 +228,47 @@
         button.classList.remove('is-loading');
       }
     });
+  }
+
+  // Can't be dismissed: every page needs the pass. Concurrent callers share one modal.
+  let passPrompt = null;
+  function ensurePass(ctx) {
+    const current = pass.get();
+    if (current) return Promise.resolve(current);
+    passPrompt ||= new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pass-modal';
+      dialog.setAttribute('aria-labelledby', 'pass-modal-title');
+      dialog.innerHTML = `
+        <div class="gate__card" data-form>
+          <span class="gate__icon">${icons.shield}</span>
+          <span class="kicker">Security check</span>
+          <h2 class="gate__title" id="pass-modal-title">Verify you’re human</h2>
+          <p class="gate__text">Complete the check below to keep watching on ${esc(ctx.site.name)}. You’ll only need to do this about once a day.</p>
+          <div class="captcha" data-captcha><span class="spinner" aria-hidden="true"></span></div>
+          <p class="form-error" role="alert" data-error hidden></p>
+          <button class="btn btn--solid btn--block" type="button" data-submit disabled>Continue</button>
+        </div>`;
+
+      let done = false;
+      dialog.addEventListener('cancel', (event) => event.preventDefault());
+      dialog.addEventListener('close', () => {
+        if (!done) dialog.showModal();
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+
+      captchaForm(ctx, dialog.querySelector('[data-form]'), async (captcha) => {
+        const { token } = await ctx.api('/api/pass', { method: 'POST', body: { captcha } });
+        pass.set(token);
+        done = true;
+        dialog.close();
+        dialog.remove();
+        passPrompt = null;
+        resolve(token);
+      });
+    });
+    return passPrompt;
   }
 
   // ---------- Shared markup ----------
@@ -353,28 +407,6 @@
 
   // ---------- Home ----------
 
-  function renderGate(ctx, main, onPass) {
-    document.title = `Verify · ${ctx.site.name}`;
-    main.innerHTML = `
-      <section class="gate container">
-        <div class="gate__card" data-form>
-          <span class="gate__icon">${icons.shield}</span>
-          <span class="kicker">Security check</span>
-          <h1 class="gate__title">Verify you’re human</h1>
-          <p class="gate__text">Complete the check below to open ${esc(ctx.site.name)}. You’ll only need to do this once a day.</p>
-          <div class="captcha" data-captcha><span class="spinner" aria-hidden="true"></span></div>
-          <p class="form-error" role="alert" data-error hidden></p>
-          <button class="btn btn--solid btn--block" type="button" data-submit disabled>Continue</button>
-        </div>
-      </section>`;
-
-    captchaForm(ctx, main.querySelector('[data-form]'), async (captcha) => {
-      const { token } = await ctx.api('/api/pass', { method: 'POST', body: { captcha } });
-      pass.set(token);
-      onPass();
-    });
-  }
-
   function categoriesOf(videos) {
     const seen = new Map();
     for (const video of videos) if (video.category && !seen.has(video.category.slug)) seen.set(video.category.slug, video.category);
@@ -464,23 +496,14 @@
   async function homePage(ctx, main) {
     if (location.pathname.endsWith('.html')) history.replaceState(null, '', `/${location.search}`);
     renderTopbar(ctx.site);
-    const load = async () => {
-      main.innerHTML = '<p class="loading"><span class="spinner" aria-hidden="true"></span>Loading videos…</p>';
-      try {
-        const { videos } = await ctx.api('/api/videos', { withPass: true });
-        renderList(ctx, main, videos);
-        showTelegramPrompt(ctx.site);
-      } catch (err) {
-        if (err.status === 401) {
-          pass.clear();
-          renderGate(ctx, main, load);
-          return;
-        }
-        notice(main, 'Couldn’t load videos', err.message, '<a class="btn" href="">Try again</a>');
-      }
-    };
-    if (pass.get()) load();
-    else renderGate(ctx, main, load);
+    main.innerHTML = '<p class="loading"><span class="spinner" aria-hidden="true"></span>Loading videos…</p>';
+    try {
+      const { videos } = await ctx.api('/api/videos', { withPass: true });
+      renderList(ctx, main, videos);
+      showTelegramPrompt(ctx.site);
+    } catch (err) {
+      notice(main, 'Couldn’t load videos', err.message, '<a class="btn" href="">Try again</a>');
+    }
   }
 
   // ---------- Watch ----------
@@ -494,15 +517,27 @@
       </section>`;
   }
 
+  // The register dialog opens over the blogsite's videos page, so the visitor never lands on its notes.
+  function blogsiteVideosUrl(base) {
+    const href = httpUrl(base);
+    if (!href) return '';
+    const url = new URL(href);
+    url.search = '';
+    url.hash = '';
+    if (!url.pathname.endsWith('/')) url.pathname += '/';
+    return new URL('videos/', url).href;
+  }
+
   function renderWatch(ctx, main, { video, same, others }) {
     const category = video.category;
     document.title = `${video.title} · ${ctx.site.name}`;
     const posted = timeAgo(video.createdAt);
+    const blogsite = blogsiteVideosUrl(ctx.site.blogsiteUrl);
 
     main.innerHTML = `
       <div class="watch container">
         <article class="watch__main">
-          <button class="watch__poster" type="button" data-jump aria-label="Watch this video">
+          <button class="watch__poster" type="button" data-watch aria-label="Watch this video"${blogsite ? '' : ' disabled'}>
             ${thumb(video, { eager: true })}
             <span class="watch__play">${icons.playBig}</span>
           </button>
@@ -526,21 +561,6 @@
               <button class="description__toggle" type="button" data-desc-toggle hidden>Show more</button>
             </div>` : ''}
 
-          <section class="unlock" id="unlock" aria-labelledby="unlock-title" data-form>
-            <div class="unlock__head">
-              <span class="kicker">Free to watch</span>
-              <h2 class="unlock__title" id="unlock-title">Watch the full video</h2>
-            </div>
-            <ol class="steps">
-              <li class="is-current"><span>1</span>Verify</li>
-              <li><span>2</span>Sponsor page</li>
-              <li><span>3</span>Watch</li>
-            </ol>
-            <div class="captcha" data-captcha><span class="spinner" aria-hidden="true"></span></div>
-            <p class="form-error" role="alert" data-error hidden></p>
-            <button class="btn btn--solid btn--block" type="button" data-submit disabled>${icons.play}<span>Get video</span></button>
-            <p class="unlock__hint">Solve the check, press <strong>Get video</strong>, then follow the short sponsor page to the player.</p>
-          </section>
         </article>
 
         <aside class="watch__side">
@@ -559,18 +579,16 @@
       });
     }
 
-    const unlock = main.querySelector('#unlock');
-    main.querySelector('[data-jump]').addEventListener('click', () => {
-      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      unlock.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
-      unlock.classList.remove('is-flash');
-      void unlock.offsetWidth;
-      unlock.classList.add('is-flash');
+    const poster = main.querySelector('[data-watch]');
+    // In the fragment, not the query, so the pass never reaches a server log, analytics or a Referer.
+    poster.addEventListener('click', async () => {
+      poster.disabled = true;
+      const token = await ensurePass(ctx);
+      location.href = `${blogsite}#access=${encodeURIComponent(token)}`;
     });
-
-    captchaForm(ctx, unlock, async (captcha) => {
-      const { next } = await ctx.api(`/api/videos/${encodeURIComponent(video.tag)}/unlock`, { method: 'POST', body: { captcha } });
-      location.href = next;
+    // Back from the blogsite can restore this page from the back/forward cache with the poster still disabled.
+    window.addEventListener('pageshow', () => {
+      poster.disabled = !blogsite;
     });
   }
 
@@ -591,14 +609,14 @@
 
   async function watchPage(ctx, main) {
     renderTopbar(ctx.site, { back: true });
-    if (pass.get()) showTelegramPrompt(ctx.site);
     const tag = watchTag();
     if (!tag) {
       location.replace('/');
       return;
     }
     try {
-      renderWatch(ctx, main, await ctx.api(`/api/videos/${encodeURIComponent(tag)}`));
+      renderWatch(ctx, main, await ctx.api(`/api/videos/${encodeURIComponent(tag)}`, { withPass: true }));
+      showTelegramPrompt(ctx.site);
     } catch (err) {
       if (err.status === 404) {
         notice(main, 'Video not found', err.message, '<a class="btn" href="/">Browse all videos</a>');
@@ -657,7 +675,8 @@
     }
 
     trackVisit(site.apiUrl);
-    const ctx = { site, api: client(site.apiUrl) };
+    const ctx = { site };
+    ctx.api = client(ctx);
     const pages = { home: homePage, watch: watchPage };
     await (pages[document.body.dataset.page] || homePage)(ctx, main);
   }

@@ -1,0 +1,65 @@
+{
+  "title": "Clip of the day",
+  "description": "A new ten-second clip every day. Twelve episodes so far, so the episode list has something to scroll; each one starts the next when it ends.",
+  "channel": "Open Movie Night",
+  "views": 4788,
+  "publishedAt": "2026-11-17T07:00:00Z",
+  "poster": "https://picsum.photos/seed/quillwood-daily/1280/720",
+  "tags": [
+    "Series",
+    "Daily"
+  ],
+  "source": {
+    "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
+  },
+  "episodes": [
+    {
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-1/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-2/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-3/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-4/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-5/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-6/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-7/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/1080/Jellyfish_1080_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-8/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/sintel/mp4/h264/1080/Sintel_1080_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-9/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-10/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-11/1280/720"
+    },
+    {
+      "url": "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4",
+      "poster": "https://picsum.photos/seed/quillwood-daily-12/1280/720"
+    }
+  ]
+}

@@ -62,6 +62,8 @@ const config = {
   isProduction,
   port: Number(process.env.PORT) || 3000,
   jwtSecret: process.env.JWT_SECRET || "",
+  // Keys account numbers in the database. Every server on one database needs the same value, and it can never change.
+  accountPepper: (process.env.ACCOUNT_PEPPER || "").trim(),
   turnstileSecret: process.env.TURNSTILE_SECRET || "",
   turnstileSitekey: process.env.TURNSTILE_SITEKEY || "",
   captchaDevBypass: !isProduction && process.env.CAPTCHA_DEV_BYPASS === "true",
@@ -73,12 +75,21 @@ const config = {
   gateTtlSeconds: 15 * 60,
   playTtlSeconds: 3 * 60 * 60,
   appTtlSeconds: 60 * 60,
+  accountTtlSeconds: 30 * 24 * 60 * 60,
+  // Devices one account can be signed in on at once; signing in on another signs out the one used least recently.
+  maxDevices: Number.isInteger(Number(process.env.MAX_DEVICES)) && Number(process.env.MAX_DEVICES) >= 1 ? Number(process.env.MAX_DEVICES) : 2,
   telegramAppUrl: telegramAppUrl(process.env.TELEGRAM_APP_URL),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   geoip: {
     accountId: (process.env.MAXMIND_ACCOUNT_ID || "").trim(),
     licenseKey: (process.env.MAXMIND_LICENSE_KEY || "").trim(),
     dir: process.env.GEOIP_DIR || path.join(__dirname, "..", "data", "geoip"),
+  },
+  // Dodo Payments for Member Pro. The key's prefix picks the API host: dodo_live_ is live, anything else test.
+  dodo: {
+    apiKey: (process.env.DODO_API_KEY || "").trim(),
+    webhookSecret: (process.env.DODO_WEBHOOK_SECRET || "").trim(),
+    productId: (process.env.DODO_PRODUCT_ID || "pdt_0NsZCAbvgSv1RYt8nSDvk").trim(),
   },
   visitRetentionDays: Number(process.env.VISIT_RETENTION_DAYS) > 0 ? Number(process.env.VISIT_RETENTION_DAYS) : 90,
   database,
@@ -89,6 +100,7 @@ config.allowedOrigins = [origin(config.videosSite), origin(config.newsSite)].fil
 function assertReady() {
   const missing = [];
   if (!config.jwtSecret) missing.push("JWT_SECRET");
+  if (!config.accountPepper) missing.push("ACCOUNT_PEPPER");
   if (!config.captchaDevBypass && !config.turnstileSecret) missing.push("TURNSTILE_SECRET");
   if (!config.turnstileSitekey) missing.push("TURNSTILE_SITEKEY");
   if (!database.configured) missing.push("DATABASE_URL (or MYSQL_HOST + MYSQL_USER + MYSQL_DATABASE)");
@@ -96,6 +108,7 @@ function assertReady() {
   if (!config.newsSite) missing.push("NEWS_SITE_URL");
   if (missing.length) throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   if (isProduction && config.jwtSecret.length < 32) throw new Error("JWT_SECRET must be at least 32 characters in production");
+  if (isProduction && config.accountPepper.length < 32) throw new Error("ACCOUNT_PEPPER must be at least 32 characters in production");
 }
 
 module.exports = { config, assertReady };

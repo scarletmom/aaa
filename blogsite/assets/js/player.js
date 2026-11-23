@@ -40,9 +40,9 @@
   const icons = {
     play: svg('<path d="M8 5.2v13.6L19 12z" fill="currentColor"/>'),
     pause: svg('<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/>'),
-    replay: svg('<path d="M12 5a7 7 0 1 1-6.6 4.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4.5 4.5v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
-    back: svg('<path d="M12 5a7.5 7.5 0 1 1-7.1 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 4.5v5.2h5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="12.4" y="15.6" text-anchor="middle" font-size="7.2" font-weight="700" font-family="Arial, sans-serif" fill="currentColor">10</text>'),
-    forward: svg('<path d="M12 5a7.5 7.5 0 1 0 7.1 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4.5v5.2h-5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="11.6" y="15.6" text-anchor="middle" font-size="7.2" font-weight="700" font-family="Arial, sans-serif" fill="currentColor">10</text>'),
+    replay: svg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
+    back: svg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="12.6" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="700" font-family="Arial, sans-serif" fill="currentColor">10</text>'),
+    forward: svg('<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="12.6" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="700" font-family="Arial, sans-serif" fill="currentColor">10</text>'),
     volumeHigh: svg('<path d="M4 9.2h3.6L12.5 5v14l-4.9-4.2H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.3a8 8 0 0 1 0 11.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'),
     volumeLow: svg('<path d="M4 9.2h3.6L12.5 5v14l-4.9-4.2H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'),
     volumeMuted: svg('<path d="M4 9.2h3.6L12.5 5v14l-4.9-4.2H4z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'),
@@ -55,6 +55,7 @@
     chevronLeft: svg('<path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 16),
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>', 16),
     close: svg('<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 16),
+    episodes: svg('<rect x="3" y="8.5" width="18" height="11.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 5.2h13M8 2.2h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
   };
 
   // ---------- Helpers ----------
@@ -99,8 +100,11 @@
     let type = (params.get('type') || '').toLowerCase();
     let start = Number(params.get('t')) || 0;
     let ep = episodeNumber(params.get('ep'));
+    // embed=1 and share=<page> come before endpoint=, whose value runs to the end of the query.
+    const embed = params.get('embed') === '1';
+    const share = embed ? sameOriginUrl(params.get('share')) : '';
     const match = search.match(/[?&](endpoint|url)=([^]*)$/);
-    if (!match) return { url: '', endpoint: '', type, start, ep };
+    if (!match) return { url: '', endpoint: '', type, start, ep, embed, share };
 
     let raw = match[2];
     let trailing;
@@ -120,7 +124,18 @@
       type: ENGINE_TYPES.includes(type) || type === EMBED_TYPE ? type : '',
       start,
       ep,
+      embed,
+      share,
     };
+  }
+
+  function sameOriginUrl(value) {
+    try {
+      const url = new URL(value || '', location.origin);
+      return value && url.origin === location.origin ? url.href : '';
+    } catch {
+      return '';
+    }
   }
 
   const episodeNumber = (value) => (/^\d{1,4}$/.test(value || '') ? Number(value) : 0);
@@ -571,6 +586,17 @@
     });
   }
 
+  // What a page embedding the player (embed=1) needs to list the episodes itself; the URLs stay in the player.
+  const episodeSummary = (meta) => meta.episodes.map((e) => ({ title: e.title, poster: e.poster }));
+
+  // inPlace: the player switches episodes itself on ledger-player:play-episode; otherwise the page reloads it with ep=N.
+  function announceReady(meta, inPlace) {
+    window.parent.postMessage(
+      { type: 'ledger-player:ready', episode: meta.episodeIndex + 1, episodes: episodeSummary(meta), inPlace },
+      location.origin,
+    );
+  }
+
   const withEpisode = (meta, title) => (meta.episodeIndex >= 0 ? `${title} · ${episodeName(meta, meta.episodeIndex)}` : title);
 
   const episodeName = (meta, index) => {
@@ -826,6 +852,7 @@
           </div>
 
           <div class="vp-settings" data-settings role="menu" aria-label="Settings" hidden></div>
+          <div class="vp-episodes" data-episodes role="dialog" aria-label="Episodes" hidden></div>
 
           <div class="vp-controls" data-controls>
             <div class="vp-progress" data-progress role="slider" tabindex="0" aria-label="Seek"
@@ -855,6 +882,7 @@
                 <span class="vp-chapter" data-chapter></span>
               </div>
               <div class="vp-group">
+                ${button('episodes', 'Episodes', icons.episodes, ' aria-haspopup="dialog" aria-expanded="false" hidden')}
                 ${button('captions', 'Subtitles (c)', icons.captions, ' aria-pressed="false" hidden')}
                 <button class="vp-btn" type="button" data-action="settings" aria-label="Settings" title="Settings" aria-haspopup="menu" aria-expanded="false">
                   ${icons.settings}<span class="vp-badge" data-quality-badge></span>
@@ -1003,6 +1031,7 @@
 
   function mountEmbed(main, { request, meta }) {
     bindDescription(main);
+    if (request.embed) announceReady(meta, false);
 
     main.querySelector('[data-copy-link]')?.addEventListener('click', async (event) => {
       const link = new URL('player/', document.baseURI);
@@ -1064,6 +1093,9 @@
       liveButton: pick('[data-action="go-live"]'),
       captionsButton: pick('[data-action="captions"]'),
       settingsButton: pick('[data-action="settings"]'),
+      episodesButton: pick('[data-action="episodes"]'),
+      episodesPanel: pick('[data-episodes]'),
+      title: pick('.player-title', main),
       qualityBadge: pick('[data-quality-badge]'),
       pipButton: pick('[data-action="pip"]'),
       fullscreenButton: pick('[data-action="fullscreen"]'),
@@ -1096,10 +1128,12 @@
       lastTap: { time: 0, x: 0 },
       lastSavedAt: 0,
       external: [],
+      subtitlesLoaded: false,
       chapterIndex: -2,
       upNextTimer: 0,
     };
-    const positionKey = POSITION_KEY + (request.endpoint || url.href) + (request.ep ? `#ep${request.ep}` : '');
+    const positionKeyFor = () => POSITION_KEY + (request.endpoint || url.href) + (request.ep ? `#ep${request.ep}` : '');
+    let positionKey = positionKeyFor();
 
     const showInfo = (node, text) => {
       node.textContent = text;
@@ -1493,12 +1527,17 @@
     function nextEpisode() {
       const index = meta.episodeIndex + 1;
       const episode = meta.episodes[index];
-      return episode && { href: episode.href, poster: episode.poster || meta.poster, title: episodeName(meta, index) };
+      return episode && { href: episode.href, poster: episode.poster || meta.poster, title: episodeName(meta, index), episode: index + 1 };
+    }
+
+    function follow(next) {
+      if (next.episode) switchEpisode(next.episode);
+      else location.href = new URL(next.href, document.baseURI).href;
     }
 
     function showUpNext() {
       const episode = nextEpisode();
-      const next = episode || meta.related[0];
+      const next = episode || (request.embed ? null : meta.related[0]);
       if (!next) return;
       let remaining = UP_NEXT_S;
       el.upnext.innerHTML = `
@@ -1515,13 +1554,20 @@
         </div>`;
       el.upnext.hidden = false;
       el.bigPlay.hidden = true;
+      if (episode) {
+        el.upnext.querySelectorAll('a').forEach((link) => link.addEventListener('click', (event) => {
+          event.preventDefault();
+          cancelUpNext();
+          follow(next);
+        }));
+      }
       const counter = pick('[data-upnext-count]', el.upnext);
       state.upNextTimer = setInterval(() => {
         remaining -= 1;
         counter.textContent = String(remaining);
         if (remaining > 0) return;
         cancelUpNext();
-        location.href = new URL(next.href, document.baseURI).href;
+        follow(next);
       }, 1000);
     }
 
@@ -1651,6 +1697,8 @@
 
     function renderSettings(panel) {
       state.menu = panel;
+      el.episodesPanel.hidden = true;
+      el.episodesButton.setAttribute('aria-expanded', 'false');
       if (panel === 'main') {
         el.settings.innerHTML = `
           <ul>
@@ -1688,7 +1736,9 @@
       if (!state.menu) return;
       state.menu = null;
       el.settings.hidden = true;
+      el.episodesPanel.hidden = true;
       el.settingsButton.setAttribute('aria-expanded', 'false');
+      el.episodesButton.setAttribute('aria-expanded', 'false');
       frame.classList.remove('vp--menu');
       wake();
     }
@@ -1718,15 +1768,17 @@
     }
 
     async function copyTimeLink() {
-      const link = new URL('player/', document.baseURI);
-      const params = new URLSearchParams({ t: String(Math.floor(video.currentTime)) });
-      if (request.endpoint) {
+      // Embedded, the link points at the page around the player, which already names the video and episode.
+      const link = new URL(request.share || 'player/', document.baseURI);
+      const params = new URLSearchParams(link.search);
+      if (!request.share && request.endpoint) {
         params.set('endpoint', request.endpoint);
         if (request.ep) params.set('ep', String(request.ep));
-      } else {
+      } else if (!request.share) {
         if (request.type) params.set('type', request.type);
         params.set('url', request.url);
       }
+      params.set('t', String(Math.floor(video.currentTime)));
       link.search = `?${params}`;
       try {
         await navigator.clipboard.writeText(link.href);
@@ -1734,6 +1786,131 @@
       } catch {
         window.prompt('Copy this link:', link.href);
       }
+    }
+
+    // ----- Episodes -----
+
+    function renderEpisodes() {
+      el.episodesPanel.innerHTML = `
+        <div class="vp-episodes__head">
+          <h2>${esc(meta.title || 'Episodes')}</h2>
+          <button class="vp-btn" type="button" data-action="episodes" aria-label="Close episodes">${icons.close}</button>
+        </div>
+        <div class="vp-episodes__body">
+          <button class="vp-episodes__nav" type="button" data-episodes-scroll="-1" aria-label="Earlier episodes">${icons.chevronLeft}</button>
+          <ol class="vp-episodes__row" data-episodes-row>
+            ${meta.episodes.map((e, i) => {
+              const poster = e.poster || meta.poster;
+              const current = i === meta.episodeIndex;
+              return `
+                <li>
+                  <button class="vp-episode" type="button" data-episode="${i + 1}"${current ? ' aria-current="true"' : ''}>
+                    <span class="vp-episode__thumb">
+                      ${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : ''}
+                      <span class="vp-episode__number">E${i + 1}</span>
+                      ${current ? '<span class="vp-episode__now">Now playing</span>' : ''}
+                    </span>
+                    <span class="vp-episode__title">${esc(episodeName(meta, i))}</span>
+                  </button>
+                </li>`;
+            }).join('')}
+          </ol>
+          <button class="vp-episodes__nav" type="button" data-episodes-scroll="1" aria-label="Later episodes">${icons.chevronRight}</button>
+        </div>`;
+    }
+
+    function toggleEpisodes() {
+      if (state.menu === 'episodes') {
+        closeSettings();
+        return;
+      }
+      closeSettings();
+      renderEpisodes();
+      state.menu = 'episodes';
+      el.episodesPanel.hidden = false;
+      el.episodesButton.setAttribute('aria-expanded', 'true');
+      frame.classList.add('vp--menu');
+      const row = pick('[data-episodes-row]', el.episodesPanel);
+      const current = pick('[aria-current]', row);
+      if (current) row.scrollLeft = current.parentElement.offsetLeft - (row.clientWidth - current.offsetWidth) / 2;
+      wake();
+    }
+
+    const shareFor = (number) => {
+      const link = new URL(request.share);
+      link.searchParams.set('ep', String(number));
+      link.searchParams.delete('t');
+      return link.href;
+    };
+
+    // query-parser.js keeps the full query in sessionStorage behind a short URL; a reload should land on this episode.
+    function rememberEpisode(number) {
+      const onEpisode = (query) => `${query.replace(/(&(ep|t)=[\w.-]+)+$/i, '')}&ep=${number}`;
+      const key = `page-query:${location.pathname}${location.search}`;
+      try {
+        const stored = sessionStorage.getItem(key);
+        if (stored) {
+          sessionStorage.setItem(key, onEpisode(stored));
+          return;
+        }
+      } catch { /* storage blocked: fall back to the address bar */ }
+      history.replaceState(history.state, '', location.pathname + onEpisode(location.search) + location.hash);
+    }
+
+    function announceEpisode(number) {
+      if (!request.embed) {
+        rememberEpisode(number);
+        return;
+      }
+      if (request.share) request.share = shareFor(number);
+      window.parent.postMessage({ type: 'ledger-player:episode', episode: number }, location.origin);
+    }
+
+    // Switches in place, so fullscreen and the page around the player survive. The endpoint is fetched again
+    // for fresh signed links, as the reload this replaces did.
+    async function switchEpisode(number) {
+      const episode = meta.episodes[number - 1];
+      if (!episode || number - 1 === meta.episodeIndex || !request.endpoint) return;
+      cancelUpNext();
+      closeSettings();
+      state.lastSavedAt = 0;
+      savePosition();
+
+      const endpoint = new URL(request.endpoint, document.baseURI).href;
+      const next = { ...request, ep: number, start: 0 };
+      let fresh = null;
+      try {
+        fresh = normalizeMeta(await fetchMeta(endpoint), endpoint);
+        selectEpisode(fresh, next);
+      } catch { /* fall through to a full load */ }
+      if (!fresh?.sources.length) {
+        const href = request.embed
+          ? `${playerHref('endpoint', endpoint).replace('?', `?embed=1&share=${encodeURIComponent(request.share ? shareFor(number) : '')}&`)}&ep=${number}`
+          : episode.href;
+        location.href = new URL(href, document.baseURI).href;
+        return;
+      }
+
+      Object.assign(request, next);
+      meta.sources = fresh.sources;
+      meta.episodes = fresh.episodes;
+      meta.episodeIndex = fresh.episodeIndex;
+      positionKey = positionKeyFor();
+      const title = withEpisode(meta, meta.title || streamTitle(new URL(meta.sources[0].url)));
+      if (el.title) el.title.textContent = title;
+      if (!request.embed) document.title = `${title} · Player`;
+      main.querySelectorAll('.episode-list__item').forEach((link, i) => {
+        if (i === meta.episodeIndex) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
+      announceEpisode(number);
+
+      state.session.destroy();
+      state.session = withDefaults({ name: '' });
+      state.started = false;
+      el.status.innerHTML = '<div><span class="spinner" aria-hidden="true"></span><p>Connecting to stream…</p></div>';
+      el.status.hidden = false;
+      start();
     }
 
     // ----- Stats & help -----
@@ -1855,7 +2032,8 @@
             renderChapterMarkers();
             restorePosition();
             autoplay();
-            loadExternalSubtitles();
+            if (!state.subtitlesLoaded) loadExternalSubtitles();
+            state.subtitlesLoaded = true;
             return;
           } catch (error) {
             lastError = error;
@@ -1896,7 +2074,8 @@
       unmute: () => { video.muted = false; },
       'go-live': goLive,
       captions: toggleCaptions,
-      settings: () => (state.menu ? closeSettings() : renderSettings('main')),
+      settings: () => (state.menu && state.menu !== 'episodes' ? closeSettings() : renderSettings('main')),
+      episodes: toggleEpisodes,
       pip: togglePip,
       fullscreen: toggleFullscreen,
       stats: toggleStats,
@@ -1920,6 +2099,16 @@
         return;
       }
       if (event.target.closest('[data-settings]')) onSettingsClick(event.target);
+      const episodeChoice = event.target.closest('[data-episode]');
+      if (episodeChoice) {
+        closeSettings();
+        switchEpisode(Number(episodeChoice.dataset.episode));
+      }
+      const scroll = event.target.closest('[data-episodes-scroll]');
+      if (scroll) {
+        const row = pick('[data-episodes-row]', el.episodesPanel);
+        row.scrollBy({ left: Number(scroll.dataset.episodesScroll) * row.clientWidth * 0.8, behavior: 'smooth' });
+      }
     });
 
     video.addEventListener('pointerup', (event) => {
@@ -1936,7 +2125,7 @@
     });
     frame.addEventListener('contextmenu', (event) => { if (event.target === video) event.preventDefault(); });
     document.addEventListener('pointerdown', (event) => {
-      if (state.menu && !event.target.closest('[data-settings], [data-action="settings"]')) closeSettings();
+      if (state.menu && !event.target.closest('[data-settings], [data-action="settings"], [data-episodes], [data-action="episodes"]')) closeSettings();
     });
 
     el.volume.addEventListener('input', () => {
@@ -2034,6 +2223,15 @@
         return true;
       },
     });
+
+    el.episodesButton.hidden = meta.episodes.length < 2;
+    if (request.embed) {
+      window.addEventListener('message', (event) => {
+        if (event.origin !== location.origin || event.source !== window.parent) return;
+        if (event.data?.type === 'ledger-player:play-episode') switchEpisode(Number(event.data.episode));
+      });
+      announceReady(meta, true);
+    }
 
     bindProgress();
     restoreVolume();

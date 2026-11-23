@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const { config } = require("./config");
 
-const AUDIENCE = { pass: "videos-pass", gate: "news-gate", play: "news-play" };
+const AUDIENCE = { pass: "videos-pass", gate: "news-gate", play: "news-play", account: "videos-account" };
 
 function sign(audience, payload, ttlSeconds) {
   return jwt.sign(payload, config.jwtSecret, { algorithm: "HS256", audience, expiresIn: ttlSeconds });
@@ -29,6 +29,19 @@ function signGate(tag) {
 const verifyGate = (token) => verify(AUDIENCE.gate, token);
 const signPlay = (tag) => sign(AUDIENCE.play, { sub: tag }, config.playTtlSeconds);
 const verifyPlay = (token) => verify(AUDIENCE.play, token);
+// Tokens from before sessions carried the account number in `sub`. /api/account still trades one for a session.
+const LEGACY_ACCOUNT_SUB = /^(?:[0-9a-f]{4}(?:-[0-9a-f]{4}){3}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+// Only the session id: nothing in a token read off the page identifies the account or helps log in.
+const signAccount = (sessionId) => sign(AUDIENCE.account, { sid: sessionId }, config.accountTtlSeconds);
+
+/** `{ sessionId }` from a valid account token, `{ accountNumber }` from a valid pre-session one, otherwise null. */
+function verifyAccount(token) {
+  const claims = verify(AUDIENCE.account, token);
+  if (typeof claims?.sid === "string") return { sessionId: claims.sid };
+  if (typeof claims?.sub === "string" && LEGACY_ACCOUNT_SUB.test(claims.sub)) return { accountNumber: claims.sub };
+  return null;
+}
 
 // Telegram's startapp parameter only allows [A-Za-z0-9_-], so no JWT dots: base64url payload
 // followed by a fixed-length base64url signature.
@@ -61,4 +74,4 @@ function bearer(req) {
   return String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
 }
 
-module.exports = { signPass, verifyPass, signGate, verifyGate, signPlay, verifyPlay, signApp, verifyApp, bearer };
+module.exports = { signPass, verifyPass, signGate, verifyGate, signPlay, verifyPlay, signAccount, verifyAccount, signApp, verifyApp, bearer };

@@ -464,7 +464,8 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
   transition: transform .2s, background .2s;
 }
 .watch__play svg { margin-left: 4px; }
-.watch__poster:hover .watch__play { background: var(--accent); transform: translate(-50%, -50%) scale(1.06); }
+.watch__poster:disabled { cursor: default; }
+.watch__poster:not(:disabled):hover .watch__play { background: var(--accent); transform: translate(-50%, -50%) scale(1.06); }
 
 .watch__title {
   margin-top: 16px;
@@ -524,76 +525,6 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
   cursor: pointer;
 }
 
-.unlock {
-  margin-top: 24px;
-  padding: 22px 18px;
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--accent);
-  border-radius: 16px;
-  background: var(--bg);
-  box-shadow: var(--shadow);
-  scroll-margin-top: calc(var(--topbar) + 16px);
-}
-.unlock.is-flash { animation: flash 1s ease; }
-@keyframes flash {
-  0%, 100% { box-shadow: var(--shadow); }
-  30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent); }
-}
-.unlock__title {
-  margin-top: 4px;
-  font-family: var(--display);
-  font-size: 22px;
-  line-height: 1.2;
-}
-.unlock__hint {
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin: 16px 0 18px;
-  counter-reset: step;
-}
-.steps li {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  text-align: center;
-}
-.steps li span {
-  display: grid;
-  place-items: center;
-  width: 28px; height: 28px;
-  border: 1.5px solid var(--border);
-  border-radius: 50%;
-  background: var(--bg);
-  font-size: 12.5px;
-  font-weight: 700;
-  position: relative;
-  z-index: 1;
-}
-.steps li + li::before {
-  content: "";
-  position: absolute;
-  top: 14px;
-  right: 50%;
-  width: 100%;
-  height: 1.5px;
-  background: var(--border);
-}
-.steps li.is-current { color: var(--text); }
-.steps li.is-current span { border-color: var(--accent); background: var(--accent); color: #fff; }
-
 .block-title {
   display: flex;
   align-items: center;
@@ -615,7 +546,6 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pill-btn span { display: inline; }
   .gate__card { padding: 40px 36px; }
-  .unlock { padding: 26px 28px; }
   .watch__poster { width: 100%; margin: 0; }
   .watch__poster .thumb { border-radius: 16px; }
   .watch { padding-top: 20px; }
@@ -648,6 +578,18 @@ ol, ul { margin: 0; padding: 0; list-style: none; }
 
 /* ---------- Telegram prompt ---------- */
 /* Always dark, whatever the site theme, so it reads as a separate card over the page. */
+.pass-modal {
+  width: min(420px, calc(100% - 2 * var(--gutter)));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+.pass-modal:focus-visible { outline: none; }
+.pass-modal::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(4px); }
+.pass-modal .gate__card { width: 100%; }
+
 .tg-modal {
   width: min(380px, calc(100% - 2 * var(--gutter)));
   padding: 32px 22px 22px;

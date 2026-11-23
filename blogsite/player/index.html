@@ -1,7 +1,50 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <script src="https://quge5.com/88/tag.min.js" data-zone="308861" async data-cfasync="false"></script>
+  <script>
+    // ?embed=1 (before endpoint=) shows only the player, for the videos site, which loads the ad tag itself.
+    (function () {
+      if (/[?&]embed=1(&|$)/.test(location.search.replace(/[?&](endpoint|url)=[^]*$/, ''))) {
+        document.documentElement.classList.add('is-embed');
+        return;
+      }
+      function loadAds() {
+        var tag = document.createElement('script');
+        tag.src = 'https://quge5.com/88/tag.min.js';
+        tag.async = true;
+        tag.setAttribute('data-zone', '308861');
+        tag.setAttribute('data-cfasync', 'false');
+        document.head.appendChild(tag);
+      }
+      function bytes(value) {
+        return Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), function (c) { return c.charCodeAt(0); });
+      }
+      function json(value) {
+        return JSON.parse(new TextDecoder().decode(bytes(value)));
+      }
+      // Member Pro (signed in on the blogsite, same origin) skips ads only with an ad-free pass the server signed;
+      // the stored role is editable, so it never counts.
+      var session = null;
+      try { session = JSON.parse(localStorage.getItem('quillwood-session') || 'null'); } catch (e) { /* show ads */ }
+      var pass = session && typeof session.adFree === 'string' ? session.adFree.split('.') : [];
+      if (pass.length !== 3 || !window.crypto || !crypto.subtle) return loadAds();
+      fetch(new URL('../data/site.json', location.href), { cache: 'no-cache' })
+        .then(function (response) { return response.json(); })
+        .then(function (site) {
+          if (json(pass[0]).alg !== 'ES256') return false;
+          return crypto.subtle.importKey('jwk', site.adFreeKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+            .then(function (key) {
+              return crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, bytes(pass[2]),
+                new TextEncoder().encode(pass[0] + '.' + pass[1]));
+            })
+            .then(function (signed) {
+              var claims = json(pass[1]);
+              return signed && claims.aud === 'ad-free' && claims.sub === session.id && claims.exp * 1000 > Date.now();
+            });
+        })
+        .then(function (adFree) { if (!adFree) loadAds(); }, loadAds);
+    })();
+  </script>
   <meta charset="utf-8">
   <base href="../">
   <script src="assets/js/query-parser.js"></script>

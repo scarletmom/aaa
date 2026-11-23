@@ -1,0 +1,17 @@
+{
+  "title": "Ten seconds with a jellyfish",
+  "description": "A moon jelly drifting through blue water. A short clip for the Shorts shelf.",
+  "channel": "Signal Lab",
+  "views": 7735448,
+  "publishedAt": "2026-11-12T08:00:00Z",
+  "short": true,
+  "duration": "0:10",
+  "poster": "https://picsum.photos/seed/quillwood-short-jelly/720/1280",
+  "tags": [
+    "Shorts",
+    "Nature"
+  ],
+  "source": {
+    "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_1MB.mp4"
+  }
+}

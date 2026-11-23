@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <title>Quillwood Notes</title>
+  <script>
+    // Old address article.html?id=<id> → /article/<id>/, keeping ?token= and any other parameters.
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var id = params.get('id');
+      params.delete('id');
+      var rest = params.toString();
+      var path = id ? '/article/' + encodeURIComponent(id) + '/' : '/';
+      location.replace(path + (rest ? '?' + rest : '') + location.hash);
+    })();
+  </script>
+</head>
+<body></body>
+</html>

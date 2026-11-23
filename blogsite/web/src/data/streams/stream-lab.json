@@ -1,0 +1,18 @@
+{
+  "title": "Stream lab: a tour of formats",
+  "description": "Six streams, one per episode, to try every part of the player.\n\nBig Buck Bunny and Tears of Steel are HLS: open the gear to pick a quality, and turn on Tears of Steel's subtitles with C. Angel One comes as DASH and as HLS, each with seven audio languages under Settings → Audio. The test pattern has a 5.1 audio track, and Envivio is a plain DASH stream.",
+  "channel": "Signal Lab",
+  "views": 2493,
+  "publishedAt": "2026-11-16T09:00:00Z",
+  "poster": "https://picsum.photos/seed/quillwood-stream-lab/1280/720",
+  "tags": ["Series", "Test stream", "Subtitles"],
+  "source": {"url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", "type": "hls"},
+  "episodes": [
+    {"title": "Big Buck Bunny", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", "poster": "https://picsum.photos/seed/quillwood-lab-1/1280/720"},
+    {"title": "Tears of Steel", "url": "https://test-streams.mux.dev/tos_ismc/main.m3u8", "poster": "https://picsum.photos/seed/quillwood-lab-2/1280/720"},
+    {"title": "Angel One · DASH", "url": "https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd", "poster": "https://picsum.photos/seed/quillwood-lab-3/1280/720"},
+    {"title": "Angel One · HLS", "url": "https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8", "poster": "https://picsum.photos/seed/quillwood-lab-4/1280/720"},
+    {"title": "Test pattern", "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8", "poster": "https://picsum.photos/seed/quillwood-lab-5/1280/720"},
+    {"title": "Envivio", "url": "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd", "poster": "https://picsum.photos/seed/quillwood-lab-6/1280/720"}
+  ]
+}

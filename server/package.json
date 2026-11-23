@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --env-file-if-exists=.env --watch server.js",
-    "sync-engine": "node scripts/sync-engine.js"
+    "sync-engine": "node scripts/sync-engine.js",
+    "ad-free-key": "node --env-file-if-exists=.env scripts/ad-free-key.js",
+    "account-key": "node --env-file-if-exists=.env scripts/account-key.js"
   },
   "dependencies": {
     "express": "^4.21.2",

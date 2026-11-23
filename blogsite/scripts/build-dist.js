@@ -6,7 +6,7 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 const EXCLUDE = new Set([
-  'dist', 'node_modules', 'scripts', 'package.json', 'package-lock.json', 'README.md', '.DS_Store', '.gitignore',
+  'dist', 'node_modules', 'scripts', 'web', 'package.json', 'package-lock.json', 'README.md', '.DS_Store', '.gitignore',
 ]);
 const OBFUSCATE_DIR = path.join(ROOT, 'assets', 'js');
 

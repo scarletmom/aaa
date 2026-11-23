@@ -1,0 +1,24 @@
+{
+  "news": {
+    "kicker": "Subscribe",
+    "title": "Read without ads",
+    "intro": "Support the blog and get every note, without the clutter.",
+    "perks": ["No ads", "Access all notes"],
+    "plans": [
+      { "id": "monthly", "name": "Monthly", "price": "$3", "period": "per month", "cta": "Subscribe monthly" },
+      { "id": "yearly", "name": "Yearly", "price": "$30", "period": "per year", "badge": "2 months free", "featured": true, "cta": "Subscribe yearly" }
+    ],
+    "comingSoon": "Subscriptions open soon. Nothing has been charged."
+  },
+  "videos": {
+    "kicker": "Member Pro",
+    "title": "Upgrade to Pro",
+    "intro": "Get more out of every video.",
+    "perks": ["No ads", "Special videos for Pro members", "Search videos with an image", "Early access to new videos", "Priority support"],
+    "plans": [
+      { "id": "week", "name": "1 week", "price": "$0.50", "period": "7 days of Pro", "cta": "Get 1 week for $0.50" },
+      { "id": "month", "name": "1 month", "price": "$1.00", "period": "30 days of Pro", "cta": "Get 1 month for $1.00" },
+      { "id": "lifetime", "name": "Lifetime", "price": "$5.00", "period": "Pay once, Pro forever", "badge": "Best value", "featured": true, "cta": "Get lifetime for $5.00" }
+    ]
+  }
+}

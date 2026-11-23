@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+/* The theme script in <head> sets data-theme="dark" on <html>. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --bg: #ffffff;
+  --surface: #f6f5f1;
+  --surface-2: #edebe5;
+  --text: #121212;
+  --text-2: #3f3f3f;
+  --muted: #6f6f6f;
+  --border: #e1dfd8;
+  --rule: #121212;
+  --accent: #b1151a;
+  --up: #17803d;
+  --img-bg: #e7e5df;
+}
+
+[data-theme='dark'] {
+  --bg: #111213;
+  --surface: #191a1c;
+  --surface-2: #222326;
+  --text: #ebeae6;
+  --text-2: #c2c1bc;
+  --muted: #8f8e89;
+  --border: #2d2e31;
+  --rule: #ebeae6;
+  --accent: #ef5a5f;
+  --up: #4cc277;
+  --img-bg: #222326;
+}
+
+@theme {
+  --breakpoint-*: initial;
+  --breakpoint-xs: 30rem; /* 480px */
+  --breakpoint-sm: 40rem; /* 640px */
+  --breakpoint-md: 47.5rem; /* 760px */
+  --breakpoint-lg: 67.5rem; /* 1080px */
+  --breakpoint-xl: 80rem; /* 1280px */
+
+  --color-link-green: #17803d;
+  --color-link-green-hover: #116632;
+
+  --animate-digit-in: digit-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  @keyframes digit-in {
+    from {
+      opacity: 0.2;
+      transform: translateY(-45%) scale(1.15);
+    }
+  }
+}
+
+/* Colours follow the light/dark variables above, so most classes need no dark: variant. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--text);
+  --color-fg-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-up: var(--up);
+  --color-img: var(--img-bg);
+
+  --font-serif: var(--font-source-serif), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-libre-franklin), 'Helvetica Neue', Arial, sans-serif;
+  --font-display: var(--font-playfair), Georgia, serif;
+}
+
+@utility page-container {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 20px;
+  @variant max-md {
+    padding-inline: 16px;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  @media print {
+    body {
+      background: #fff;
+      color: #000;
+    }
+  }
+}

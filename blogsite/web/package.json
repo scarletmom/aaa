@@ -1,0 +1,29 @@
+{
+  "name": "quillwood-notes-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Next.js (TypeScript, Tailwind CSS) version of the Quillwood Notes blog pages. The player and Telegram Mini App stay static and are served beside it.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node scripts/sync-static.ts dev && next dev --port 5174",
+    "build": "npm --prefix .. run build && node scripts/sync-static.ts build && next build",
+    "typecheck": "tsc --noEmit",
+    "preview": "python3 -m http.server 8080 --directory out"
+  },
+  "dependencies": {
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2"
+  }
+}
