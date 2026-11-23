@@ -383,6 +383,14 @@ function asItems(result) {
   return Array.isArray(result) ? result : [result];
 }
 
+// The only packages a Code step may require().
+const SANDBOX_MODULES = { "crypto-js": require("crypto-js") };
+
+function sandboxRequire(name) {
+  if (Object.hasOwn(SANDBOX_MODULES, name)) return SANDBOX_MODULES[name];
+  throw new Error(`Module "${name}" is not available in Code steps (allowed: ${Object.keys(SANDBOX_MODULES).join(", ")})`);
+}
+
 async function runScript(params, scope, logs, fallback) {
   const timeoutMs = Number(params.timeoutMs) || 5000;
   const log = (...args) => logs.push(args.map(formatLog).join(" "));
@@ -401,6 +409,7 @@ async function runScript(params, scope, logs, fallback) {
     atob,
     btoa,
     crypto: globalThis.crypto,
+    require: sandboxRequire,
     setTimeout,
     clearTimeout,
     console: { log, info: log, warn: log, error: log },
