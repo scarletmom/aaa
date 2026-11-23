@@ -28,7 +28,7 @@ interface AuthPanelProps {
   onKeyShown: () => void;
   initialMode?: AuthMode;
   notice?: string;
-  /** The videos site's pass; registering with it makes the account Member Lite. */
+  /** The videos site's pass; registering or signing in with it makes the account Member Lite. */
   videosPass?: string;
 }
 
@@ -75,7 +75,7 @@ export default function AuthPanel({ onSignedIn, onKeyShown, initialMode = 'signI
 
       <div className="mt-7 w-full">
         {registered ? <GeneratedKey {...registered} onSignedIn={onSignedIn} />
-          : mode === 'signIn' ? <SignInForm onSignedIn={onSignedIn} />
+          : mode === 'signIn' ? <SignInForm videosPass={videosPass} onSignedIn={onSignedIn} />
           : <RegisterForm videosPass={videosPass} onRegistered={showKey} />}
       </div>
     </div>
@@ -89,7 +89,7 @@ function useCaptcha() {
   return { token, widget: <Turnstile key={round} onToken={setToken} />, renew: () => setRound((n) => n + 1) };
 }
 
-function SignInForm({ onSignedIn }: { onSignedIn: SignedIn }) {
+function SignInForm({ videosPass, onSignedIn }: { videosPass: string; onSignedIn: SignedIn }) {
   const [accountNumber, setAccountNumber] = useState('');
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -103,7 +103,9 @@ function SignInForm({ onSignedIn }: { onSignedIn: SignedIn }) {
     setBusy(true);
     setError('');
     try {
-      onSignedIn(await signIn({ accountNumber, captchaToken: captcha.token }));
+      const account = await signIn({ accountNumber, captchaToken: captcha.token, videosPass: videosPass || undefined });
+      if (videosPass) clearVideosPass();
+      onSignedIn(account);
     } catch (failure) {
       setError(errorMessage(failure));
       captcha.renew();

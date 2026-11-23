@@ -1,9 +1,9 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { type Account, readVideosPass } from '@/lib/auth';
-import { videosUrl } from '@/lib/format';
+import { useHoldAds } from '@/lib/ads';
+import { type Account, readVideosPass, takeVideosDestination } from '@/lib/auth';
 import { canWatchVideos } from '@/lib/roles';
 import { saveSession } from '@/lib/session';
 import { CloseIcon } from '../ui/Icons';
@@ -23,7 +23,6 @@ export default function AuthDialog({ open, onClose, initialMode, videosPass, not
   const [keyShown, setKeyShown] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
   const close = () => {
     setKeyShown(false);
@@ -32,12 +31,15 @@ export default function AuthDialog({ open, onClose, initialMode, videosPass, not
   const dismiss = () => {
     if (!keyShown) close();
   };
-  // Videos are the home page for accounts that can watch them.
+  // Videos are the home page for accounts that can watch them; a visitor from the videos site gets the video they picked.
   const signedIn = (account: Account) => {
     close();
     saveSession(account);
-    if (canWatchVideos(account.role) && pathname !== videosUrl) router.push(videosUrl);
+    const destination = canWatchVideos(account.role) ? takeVideosDestination() : null;
+    if (destination) router.push(destination);
   };
+
+  useHoldAds(open);
 
   useEffect(() => {
     const dialog = dialogRef.current;

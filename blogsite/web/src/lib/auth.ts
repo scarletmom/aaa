@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { videosUrl } from './format';
 import { DEFAULT_ROLE, isRole, type Role } from './roles';
 import { clearSession, getSession } from './session';
 
@@ -54,12 +55,23 @@ async function toAccount(response: SessionResponse): Promise<Account> {
   };
 }
 
-export async function signIn({ accountNumber, captchaToken }: { accountNumber: string; captchaToken: string }): Promise<Account> {
+/** With the videos site's pass a Member account comes back as Member Lite. */
+export async function signIn({ accountNumber, captchaToken, videosPass }: { accountNumber: string; captchaToken: string; videosPass?: string }): Promise<Account> {
   const response = await apiRequest<SessionResponse>('/api/login', {
     method: 'POST',
     body: { accountNumber: accountNumber.trim(), captcha: captchaToken },
+    token: videosPass,
   });
   return toAccount(response);
+}
+
+/** Brings a signed-in Member up to Member Lite with the videos site's pass. */
+export async function joinVideos(account: Account, videosPass: string): Promise<Account> {
+  return toAccount(await apiRequest<SessionResponse>('/api/account/videos-access', {
+    method: 'POST',
+    body: { pass: videosPass },
+    token: account.token,
+  }));
 }
 
 /** With the videos site's pass the account is Member Lite; without it, a plain Member. */
@@ -103,17 +115,39 @@ export async function changeAccountNumber(account: Account, accountNumber: strin
   return { account: await toAccount(response), accountNumber: response.accountNumber ?? '' };
 }
 
-// The videos site sends visitors here as /#access=<pass>; it's kept for this tab until they register.
+// The videos site sends visitors here as /videos/?v=<tag>#access=<pass>; the pass is kept for this tab until they
+// register or sign in, and the video they picked until they're in.
 const VIDEOS_PASS_KEY = 'quillwood-videos-pass';
+const VIDEOS_TARGET_KEY = 'quillwood-videos-target';
 
 /** Moves a pass from the address bar into this tab's storage and returns it. */
 export function takeVideosPassFromUrl(): string {
   const match = window.location.hash.match(/^#access=([^&]+)/);
   if (!match) return '';
   const pass = decodeURIComponent(match[1]);
-  history.replaceState(history.state, '', window.location.pathname + window.location.search);
-  try { sessionStorage.setItem(VIDEOS_PASS_KEY, pass); } catch { /* still usable for this page */ }
+  const { pathname, search } = window.location;
+  history.replaceState(history.state, '', pathname + search);
+  try {
+    sessionStorage.setItem(VIDEOS_PASS_KEY, pass);
+    if (pathname === videosUrl) sessionStorage.setItem(VIDEOS_TARGET_KEY, pathname + search);
+  } catch { /* still usable for this page */ }
   return pass;
+}
+
+/**
+ * Where an account that can watch goes next: the video it picked on the videos site (read once), else the videos
+ * page. Null when this page already is that place.
+ */
+export function takeVideosDestination(): string | null {
+  let target = '';
+  try {
+    target = sessionStorage.getItem(VIDEOS_TARGET_KEY) || '';
+    sessionStorage.removeItem(VIDEOS_TARGET_KEY);
+  } catch { /* storage unavailable */ }
+  if (!target.startsWith(videosUrl)) target = videosUrl;
+  const { pathname, search } = window.location;
+  if (pathname + search === target || (target === videosUrl && pathname === videosUrl)) return null;
+  return target;
 }
 
 function passExpired(pass: string) {

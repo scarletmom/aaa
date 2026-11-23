@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { holdAdReload } from '@/lib/ads';
+import { holdAdReload, useHoldAds } from '@/lib/ads';
 import { refreshAccount } from '@/lib/auth';
 import { videosUrl } from '@/lib/format';
 import { confirmProPayment } from '@/lib/pro';
@@ -23,6 +23,7 @@ type Phase = 'waiting' | 'done' | 'slow' | 'failed';
 export default function ProReturn({ checkoutRef, onSettled }: { checkoutRef: string; onSettled: () => void }) {
   const [phase, setPhase] = useState<Phase>('waiting');
   const [open, setOpen] = useState(true);
+  useHoldAds(open);
 
   useEffect(() => {
     if (phase !== 'waiting') onSettled();

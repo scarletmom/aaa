@@ -26,12 +26,12 @@ on the news player.
 
 The videos site works on a pass (access token) and the captcha (how a new pass is earned): every page
 asks for the captcha in a modal when there's no valid pass, and again whenever the server answers
-`pass_required`. Pressing play on a video sends the visitor to the blogsite as `<BLOGSITE_URL>/videos/#access=<pass>`.
+`pass_required`. Pressing play on a video sends the visitor to the blogsite as `<BLOGSITE_URL>/videos/?v=<tag>#access=<pass>`, in a new tab.
 
 | Role | Created by | Videos on the blogsite |
 | ---- | ---------- | ---------------------- |
 | `member` | `POST /api/register` without a pass (someone who came to the blogsite directly) | no |
-| `member-lite` | `POST /api/register` with `Authorization: Bearer <pass>` | yes, with ads |
+| `member-lite` | `POST /api/register` with `Authorization: Bearer <pass>`; a `member` becomes one by signing in with a pass (`/api/login`) or arriving with one while signed in (`/api/account/videos-access`) | yes, with ads |
 | `member-pro` | a purchase, or an admin changing `accounts.role` (find the row with `npm run account-key`) | yes, no ads |
 
 The account number is 16 random hex characters (xxxx-xxxx-xxxx-xxxx, 64 bits) made by the server; accounts made
@@ -154,7 +154,8 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 | GET  | `/api/config` | none | `{ sitekey, adFreeKey }` |
 | POST | `/api/pass` | `{ captcha }` | `{ token, expiresIn }` |
 | POST | `/api/register` | `{ fullname, captcha }`, optional `Bearer <pass>` | `201 { token, expiresIn, id, name, role, proUntil, adFree, accountNumber }`: `member-lite` with a pass, `member` without |
-| POST | `/api/login` | `{ accountNumber, captcha }` | `{ token, expiresIn, id, name, role, proUntil, adFree }` (`id` is the account's `public_id`) |
+| POST | `/api/login` | `{ accountNumber, captcha }`, optional `Bearer <pass>` | `{ token, expiresIn, id, name, role, proUntil, adFree }` (`id` is the account's `public_id`); a valid pass turns a `member` into `member-lite` |
+| POST | `/api/account/videos-access` | `Bearer <account JWT>`, `{ pass }` | the session answer, with a `member` turned into `member-lite`. 401 `pass_required` if the pass is invalid |
 | GET  | `/api/account` | `Bearer <account JWT>` | the same, with the role re-read from the database and a new token. 401 `device_limit` when another device took this one's place, `session_expired` otherwise |
 | POST | `/api/logout` | `Bearer <account JWT>` | `204`; the token's session ends |
 | POST | `/api/account/sign-out-others` | `Bearer <account JWT>`, `{ accountNumber }` | the session answer; every other session ends. 403 `wrong_account_number` if the number isn't this account's |

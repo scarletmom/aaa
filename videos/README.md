@@ -8,8 +8,8 @@ from `server`, which reads the posts managed in linkproxy's **Content** and **Ca
   The pass lasts 12 hours and is kept in `localStorage` (or memory when storage is blocked).
 - `/` (`index.html`): the video list with search and category chips (`?category=<slug>` preselects one).
 - `/r/<post tag>` (served by `watch.html`): the video's poster, details and related videos. Pressing play on
-  the poster opens the blogsite at `BLOGSITE_URL/videos/#access=<pass>`, where the visitor registers a
-  free Member Lite account and watches there.
+  the poster opens the blogsite in a new tab at `BLOGSITE_URL/videos/?v=<post tag>#access=<pass>`, where the
+  visitor registers a free Member Lite account (or signs in, which upgrades a plain Member) and lands on that video.
 
 Settings live in `.env` (copy `.env.example`):
 

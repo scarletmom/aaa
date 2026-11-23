@@ -183,6 +183,13 @@ async function changeNumber(key) {
   return { account: await findByKey(replacement), accountNumber };
 }
 
+/** Coming from the videos site brings a plain Member up to Member Lite; higher roles are left alone. */
+async function upgradeToLite(account) {
+  if (account.role !== ROLES.member) return account;
+  await getPool().execute("UPDATE accounts SET role = ? WHERE account_key = ? AND role = ?", [ROLES.memberLite, account.key, ROLES.member]);
+  return findByKey(account.key);
+}
+
 /**
  * Makes the account Pro for `days` more days (added to any time it still has), or for good when `days` is null.
  * Pro that never ends is left alone. Runs inside the caller's transaction.
@@ -213,5 +220,6 @@ module.exports = {
   findByKey,
   findByNumber,
   changeNumber,
+  upgradeToLite,
   grantPro,
 };

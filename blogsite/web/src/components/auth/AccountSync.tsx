@@ -2,14 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { AuthError, refreshAccount, takeVideosPassFromUrl } from '@/lib/auth';
+import { AuthError, clearVideosPass, joinVideos, refreshAccount, takeVideosDestination, takeVideosPassFromUrl } from '@/lib/auth';
 import { moveOwnComments } from '@/lib/comments';
-import { videosUrl } from '@/lib/format';
 import { canWatchVideos } from '@/lib/roles';
 import { clearSession, getSession, saveSession } from '@/lib/session';
 import AuthDialog from './AuthDialog';
 
-/** Runs once per full page load: hands a videos-site pass to the register dialog and re-checks the session with the server. */
+/**
+ * Runs once per full page load: a videos-site pass upgrades the signed-in Member or opens the register dialog,
+ * and the session is re-checked with the server.
+ */
 export default function AccountSync() {
   const router = useRouter();
   const [videosPass, setVideosPass] = useState('');
@@ -20,9 +22,23 @@ export default function AccountSync() {
     const pass = takeVideosPassFromUrl();
     const session = getSession();
 
+    const goToVideo = () => {
+      const destination = takeVideosDestination();
+      if (destination) router.replace(destination);
+    };
+
     if (pass) {
-      if (session && canWatchVideos(session.role)) router.replace(videosUrl);
-      else setVideosPass(pass);
+      if (session && canWatchVideos(session.role)) goToVideo();
+      else if (session) {
+        joinVideos(session, pass)
+          .then((account) => {
+            if (getSession()?.id !== session.id) return;
+            clearVideosPass();
+            saveSession(account);
+            goToVideo();
+          })
+          .catch(() => { /* an expired pass leaves the account as it was */ });
+      } else setVideosPass(pass);
     }
 
     if (!session) return;

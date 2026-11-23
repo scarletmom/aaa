@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import pricingJson from '@/data/pricing.json';
+import { useHoldAds } from '@/lib/ads';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { startProCheckout } from '@/lib/pro';
@@ -26,6 +27,7 @@ export default function UpgradeDialog({ open, onClose, extending = false }: Upgr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const plan = proPricing.plans.find((item) => item.id === planId);
+  useHoldAds(open);
 
   const close = () => {
     if (busy) return;

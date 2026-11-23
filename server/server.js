@@ -231,9 +231,25 @@ app.post(
   captchaLimit,
   wrap(requireCaptcha),
   wrap(async (req, res) => {
-    const account = await accounts.findByNumber(String(req.body?.accountNumber || "").trim());
+    let account = await accounts.findByNumber(String(req.body?.accountNumber || "").trim());
     if (!account) return res.status(401).json({ error: "No account has that account number." });
+    // Signing in with the videos site's pass makes a Member into Member Lite. An expired pass still signs in,
+    // just without the upgrade.
+    if (tokens.verifyPass(tokens.bearer(req))) account = await accounts.upgradeToLite(account);
     res.json(sessionFor(account, await sessions.open(account.key)));
+  })
+);
+
+// For a Member who is already signed in when they arrive from the videos site with its pass.
+app.post(
+  "/api/account/videos-access",
+  gateLimit,
+  wrap(requireSignedIn),
+  wrap(async (req, res) => {
+    if (!tokens.verifyPass(String(req.body?.pass || ""))) {
+      return res.status(401).json({ error: "Verification expired. Open a video on our videos site again.", code: "pass_required" });
+    }
+    res.json(sessionFor(await accounts.upgradeToLite(req.account), req.sessionId));
   })
 );
 

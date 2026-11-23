@@ -31,6 +31,10 @@ export default function AccessGate({ session }: { session: Session | null }) {
     return (
       <GateCard title="Create your free account" text="Just your name and a quick check, and every video is yours to watch.">
         <LoginButton className={primaryButton} initialMode="register">Create free account</LoginButton>
+        <p className="mt-4 text-[14px] text-muted">
+          Already have an account?{' '}
+          <LoginButton className="font-semibold text-fg underline underline-offset-2 hover:opacity-80" initialMode="signIn">Sign in</LoginButton>
+        </p>
       </GateCard>
     );
   }
@@ -46,7 +50,7 @@ export default function AccessGate({ session }: { session: Session | null }) {
   return (
     <GateCard
       title="Videos aren’t in your plan"
-      text={`Your ${ROLE_LABELS[session.role]} account covers reading. Accounts created from our videos site come with Member Lite, which includes every video.`}
+      text={`Your ${ROLE_LABELS[session.role]} account covers reading. Open a video on our videos site and sign in from there to get Member Lite, which includes every video.`}
     />
   );
 }

@@ -28,7 +28,7 @@ Accounts live on the video server (`server/`), which `NEXT_PUBLIC_API_URL` point
 | Role | How you get it | Videos |
 | --- | --- | --- |
 | Member | Register directly on this site | No (`/videos/` shows an access screen) |
-| Member Lite | Register by pressing play on a video on the videos site (it opens `/videos/#access=<pass>` here, so the register dialog sits over the videos page, not the notes) | Yes, with ads |
+| Member Lite | Register by pressing play on a video on the videos site (it opens `/videos/?v=<tag>#access=<pass>` here: the register dialog sits over that video, which plays once they're in). A Member who signs in from there becomes Member Lite | Yes, with ads |
 | Member Pro | Set in the database by an admin | Yes, no ads |
 
 - Registering takes a full name and a captcha; the server makes a 16-character account number (xxxx-xxxx-xxxx-xxxx), shown once, which is the only login (with a captcha).

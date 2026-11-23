@@ -517,22 +517,35 @@
       </section>`;
   }
 
-  // The register dialog opens over the blogsite's videos page, so the visitor never lands on its notes.
-  function blogsiteVideosUrl(base) {
+  // The register dialog opens over the blogsite's page for this video, so after signing up the visitor is watching it.
+  function blogsiteVideoUrl(base, tag) {
     const href = httpUrl(base);
     if (!href) return '';
     const url = new URL(href);
     url.search = '';
     url.hash = '';
     if (!url.pathname.endsWith('/')) url.pathname += '/';
-    return new URL('videos/', url).href;
+    const videoUrl = new URL('videos/', url);
+    videoUrl.searchParams.set('v', tag);
+    return videoUrl.href;
+  }
+
+  // Falls back to this tab when the browser blocks the new one (Safari can, once a captcha came between).
+  function openInNewTab(href) {
+    const tab = window.open('', '_blank');
+    if (!tab) {
+      location.href = href;
+      return;
+    }
+    tab.opener = null;
+    tab.location.replace(href);
   }
 
   function renderWatch(ctx, main, { video, same, others }) {
     const category = video.category;
     document.title = `${video.title} · ${ctx.site.name}`;
     const posted = timeAgo(video.createdAt);
-    const blogsite = blogsiteVideosUrl(ctx.site.blogsiteUrl);
+    const blogsite = blogsiteVideoUrl(ctx.site.blogsiteUrl, video.tag);
 
     main.innerHTML = `
       <div class="watch container">
@@ -581,10 +594,15 @@
 
     const poster = main.querySelector('[data-watch]');
     // In the fragment, not the query, so the pass never reaches a server log, analytics or a Referer.
+    const watchHrefWith = (token) => `${blogsite}#access=${encodeURIComponent(token)}`;
     poster.addEventListener('click', async () => {
+      const ready = pass.get();
+      // Opened inside the click itself, so the browser doesn't treat the new tab as a pop-up.
+      if (ready) return openInNewTab(watchHrefWith(ready));
       poster.disabled = true;
       const token = await ensurePass(ctx);
-      location.href = `${blogsite}#access=${encodeURIComponent(token)}`;
+      poster.disabled = false;
+      openInNewTab(watchHrefWith(token));
     });
     // Back from the blogsite can restore this page from the back/forward cache with the poster still disabled.
     window.addEventListener('pageshow', () => {
