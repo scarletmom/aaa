@@ -20,9 +20,12 @@ const { MEDIA_DIR } = require("./lib/storage");
 const { usedFor, usageOf, deliveryProblems } = require("./lib/usage");
 const { MAX_FILE_BYTES, mimeFromName } = require("./lib/files");
 const reels = require("./lib/reels");
+const terabox = require("./lib/terabox");
 const reelDrafts = require("./lib/reelDrafts");
 const siteDb = require("./lib/site/db");
 const variables = require("./lib/variables");
+
+const lockReason = (id) => reels.lockReason(id) || terabox.lockReason(id);
 
 const PORT = Number(process.env.PORT) || 5678;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -202,7 +205,7 @@ app.get("/api/workflows", (req, res) => {
   res.json(
     store.list().map((workflow) => {
       const { id, name, slug, active, updatedAt } = workflow;
-      const lockedBy = reels.lockReason(id);
+      const lockedBy = lockReason(id);
       const usage = usageOf(workflow);
       const { matchType, matchValue } = inputSettings(workflow);
       const run = lastRuns.get(id);
@@ -253,7 +256,7 @@ app.post("/api/workflows", async (req, res, next) => {
 app.get("/api/workflows/:id", (req, res) => {
   const workflow = store.get(req.params.id);
   return workflow
-    ? res.json({ ...workflow, lockedBy: reels.lockReason(workflow.id) })
+    ? res.json({ ...workflow, lockedBy: lockReason(workflow.id) })
     : res.status(404).json({ error: "Not found" });
 });
 
@@ -262,7 +265,8 @@ app.put("/api/workflows/:id", async (req, res, next) => {
     return res.status(404).json({ error: "Not found" });
   const invalid =
     deliveryError(req.body || {}) ||
-    reels.saveProblem(req.params.id, req.body || {});
+    reels.saveProblem(req.params.id, req.body || {}) ||
+    terabox.saveProblem(req.params.id, req.body || {});
   if (invalid) return res.status(400).json({ error: invalid });
   forgetCache(req.params.id);
   try {
@@ -273,7 +277,7 @@ app.put("/api/workflows/:id", async (req, res, next) => {
 });
 
 app.delete("/api/workflows/:id", async (req, res, next) => {
-  const lockedBy = reels.lockReason(req.params.id);
+  const lockedBy = lockReason(req.params.id);
   if (lockedBy)
     return res
       .status(409)
@@ -627,6 +631,22 @@ app.all("/hook/:slug", requireToken, async (req, res) => {
       .json({ error: `Couldn't read the upload: ${err.message}` });
   }
   sendResponse(res, await run(workflow, { ...req.query, ...body }, "webhook"));
+});
+
+// The videos server's Terabox page: runs the locked Terabox workflow by its fixed id, switched on or not.
+app.post("/terabox", requireToken, async (req, res) => {
+  const workflow = store.get(terabox.STEP.id);
+  if (!workflow)
+    return res
+      .status(503)
+      .json({ error: "The Terabox workflow is missing. Run npm run workflows:setup." });
+  const url = String(req.body?.url || "");
+  if (!/^https?:\/\//i.test(url))
+    return res
+      .status(400)
+      .json({ error: "url must be an absolute http(s) URL" });
+  const data = Array.isArray(req.body?.data) ? req.body.data : [];
+  sendResponse(res, await run(workflow, { url, data }, "webhook"));
 });
 
 // Signer replacement: picks the first active workflow whose Input node matches the URL.

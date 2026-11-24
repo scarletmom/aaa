@@ -119,7 +119,7 @@ export default function ShortsFeed({ shorts, startId }: ShortsFeedProps) {
     <section aria-label="Shorts" className="relative -mx-4 sm:mx-0">
       <div
         ref={feedRef}
-        className="no-scrollbar h-[calc(100svh-3.5rem-1px)] snap-y snap-mandatory overflow-y-auto overscroll-contain"
+        className="no-scrollbar h-[calc(100svh-3.5rem-1px)] snap-y max-md:h-[calc(100svh-3.5rem-1px-var(--tab-bar-h))] snap-mandatory overflow-y-auto overscroll-contain"
       >
         {Array.from({ length: count }, (_, index) => (
           <ShortSlide

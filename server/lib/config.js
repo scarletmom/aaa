@@ -80,6 +80,9 @@ const config = {
   maxDevices: Number.isInteger(Number(process.env.MAX_DEVICES)) && Number(process.env.MAX_DEVICES) >= 1 ? Number(process.env.MAX_DEVICES) : 2,
   telegramAppUrl: telegramAppUrl(process.env.TELEGRAM_APP_URL),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+  // The admin (linkproxy) that runs the Terabox workflow, and its API_TOKEN. Without ADMIN_URL the Terabox page is off.
+  adminUrl: baseUrl(process.env.ADMIN_URL),
+  adminApiToken: (process.env.ADMIN_API_TOKEN || "").trim(),
   geoip: {
     accountId: (process.env.MAXMIND_ACCOUNT_ID || "").trim(),
     licenseKey: (process.env.MAXMIND_LICENSE_KEY || "").trim(),

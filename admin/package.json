@@ -12,6 +12,7 @@
     "build": "vite build",
     "dev": "concurrently -k -n api,web -c gray,cyan \"node --env-file-if-exists=.env --watch server.js\" \"vite\"",
     "reels:setup": "node scripts/reels-setup.js",
+    "workflows:setup": "node scripts/reels-setup.js",
     "workflows:copy": "node scripts/copy-workflows.js"
   },
   "dependencies": {

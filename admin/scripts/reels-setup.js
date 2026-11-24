@@ -1,6 +1,6 @@
-// Creates the Reel to post workflows in the database that the given env file points at.
-//   npm run reels:setup                          uses .env
-//   npm run reels:setup -- --env .env.production uses another env file, e.g. production's
+// Creates the built-in workflows (Reel to post, Terabox) in the database that the given env file points at.
+//   npm run workflows:setup                          uses .env
+//   npm run workflows:setup -- --env .env.production uses another env file, e.g. production's
 // Existing workflows are left as they are, so running it again is safe.
 const path = require("node:path");
 
@@ -24,6 +24,7 @@ async function main() {
   const db = require("../lib/site/db");
   const store = require("../lib/store");
   const { ensureReelWorkflows } = require("../lib/reels");
+  const { ensureTeraboxWorkflow } = require("../lib/terabox");
 
   const target = db.configured ? describeDatabase() : `files in ${path.resolve(process.env.DATA_DIR || path.join(__dirname, "..", "data"), "workflows")}`;
   console.log(`Env file: ${envFile}`);
@@ -31,7 +32,10 @@ async function main() {
 
   try {
     await store.init();
-    const { created, existing } = await ensureReelWorkflows(store);
+    const reels = await ensureReelWorkflows(store);
+    const terabox = await ensureTeraboxWorkflow(store);
+    const created = [...reels.created, ...terabox.created];
+    const existing = [...reels.existing, ...terabox.existing];
     for (const name of created) console.log(`  created  ${name}`);
     for (const name of existing) console.log(`  exists   ${name} (left unchanged)`);
     console.log(`\n${created.length} created, ${existing.length} already there.`);
@@ -54,6 +58,6 @@ function describeDatabase() {
 }
 
 main().catch((err) => {
-  console.error(`reels:setup failed: ${err.message}`);
+  console.error(`workflows:setup failed: ${err.message}`);
   process.exit(1);
 });

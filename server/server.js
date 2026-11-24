@@ -7,6 +7,7 @@ const news = require("./lib/news");
 const { verifyCaptcha } = require("./lib/captcha");
 const { playable } = require("./lib/workflows");
 const telegram = require("./lib/telegram");
+const terabox = require("./lib/terabox");
 const geoip = require("./lib/geoip");
 const visits = require("./lib/visits");
 const accounts = require("./lib/accounts");
@@ -78,6 +79,7 @@ function rateLimit({ windowMs, limit }) {
 const captchaLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30 });
 const gateLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 60 });
 const visitLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 120 });
+const teraboxLimit = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30 });
 
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
@@ -375,6 +377,46 @@ app.get(
     });
   })
 );
+
+// The videos site's Terabox page: a member pastes a share link, the admin's Terabox workflow finds its streams.
+app.post(
+  "/api/terabox",
+  teraboxLimit,
+  wrap(requireViewer),
+  wrap(async (req, res) => {
+    if (!req.member) return res.status(403).json({ error: "Sign in with a Member Lite or Pro account to watch Terabox links.", code: "plan_required" });
+    if (!terabox.enabled()) return res.status(503).json({ error: "Watching Terabox links isn't set up yet." });
+    const url = terabox.shareLink(req.body?.url);
+    if (!url) return res.status(400).json({ error: "That isn't a Terabox share link." });
+    const data = terabox.cookieList(req.body?.data);
+    if (!data) return res.status(400).json({ error: "Couldn't get Terabox ready in your browser. Reload the page and try again." });
+
+    let video;
+    try {
+      video = await terabox.resolve(url, data);
+    } catch (err) {
+      console.error(`terabox ${url}: ${err.message}`);
+      if (err instanceof terabox.TeraboxBusyError) {
+        return res.status(503).json({ error: "Terabox videos are busy right now. Please try again in a few hours." });
+      }
+      return res.status(502).json({ error: "This Terabox video couldn't be opened. Check the link and try again in a moment." });
+    }
+    const play = new URL("api/terabox/play", config.publicUrl);
+    play.searchParams.set("id", terabox.keep(video));
+    res.json({ title: video.title, poster: video.poster, play: play.href });
+  })
+);
+
+// The player's endpoint for a resolved Terabox video, in the same shape as /api/play.
+app.get("/api/terabox/play", (req, res) => {
+  const video = terabox.find(String(req.query.id || ""));
+  if (!video) return res.status(404).json({ error: "This Terabox link has expired. Paste it again on the Terabox page." });
+  res.json({
+    title: video.title,
+    poster: video.poster,
+    source: { url: video.qualities[0].url, qualities: video.qualities },
+  });
+});
 
 // Step 2: captcha on the detail page, then off to a random news page carrying the gate token.
 app.post(

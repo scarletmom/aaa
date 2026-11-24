@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { cn } from '@/lib/cn';
 import { videosUrl } from '@/lib/format';
 import AccountNav from '../auth/AccountNav';
 import { navToolClass } from '../site/ThemeToggle';
-import { CloseIcon, ImageIcon, PlaySolidIcon, SearchIcon } from '../ui/Icons';
+import { CloseIcon, ImageIcon, SearchIcon } from '../ui/Icons';
+import BrandMark from './BrandMark';
 import ImageSearchPanel from './ImageSearchPanel';
 import { videoContainer } from './styles';
 
@@ -15,6 +15,9 @@ interface VideoTopBarProps {
   brand: string;
   /** Hidden until the visitor can watch, since there's nothing to search. */
   searchEnabled: boolean;
+  /** On phones the search box takes over the bar while this is on; the tab bar's Search turns it on. */
+  searching: boolean;
+  onSearchingChange: (searching: boolean) => void;
   query: string;
   onQuery: (query: string) => void;
   /** The image being searched with, shown as a chip in the box. */
@@ -26,19 +29,24 @@ interface VideoTopBarProps {
   onUpgrade: () => void;
 }
 
-export default function VideoTopBar({ brand, searchEnabled, query, onQuery, image = null, onImage, onClearImage, onUpgrade }: VideoTopBarProps) {
-  // On phones the search box takes over the bar while it's open.
-  const [searching, setSearching] = useState(false);
+export default function VideoTopBar({
+  brand,
+  searchEnabled,
+  searching,
+  onSearchingChange,
+  query,
+  onQuery,
+  image = null,
+  onImage,
+  onClearImage,
+  onUpgrade,
+}: VideoTopBarProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const openSearch = () => {
-    flushSync(() => setSearching(true));
-    inputRef.current?.focus();
-  };
   const closeSearch = () => {
-    setSearching(false);
+    onSearchingChange(false);
     setPanelOpen(false);
     onQuery('');
     onClearImage?.();
@@ -69,11 +77,9 @@ export default function VideoTopBar({ brand, searchEnabled, query, onQuery, imag
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/90 backdrop-blur-md backdrop-saturate-150">
       <div className={cn(videoContainer, 'flex h-14 items-center gap-2')}>
-        <Link href={videosUrl} className={cn('flex min-w-0 items-center gap-2.5', searching && 'max-md:hidden')}>
-          <span aria-hidden="true" className="grid h-5 w-7 flex-none place-items-center rounded-md bg-accent text-white">
-            <PlaySolidIcon size={12} />
-          </span>
-          <span className="truncate font-display text-[18px] font-extrabold tracking-[-0.01em] sm:text-[21px]">{brand}</span>
+        <Link href={videosUrl} className={cn('flex min-w-0 flex-none items-center gap-2.5', searching && 'max-md:hidden')}>
+          <BrandMark />
+          <span className="font-display text-[19px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[21px]">{brand}</span>
         </Link>
 
         {searchEnabled && (
@@ -133,14 +139,11 @@ export default function VideoTopBar({ brand, searchEnabled, query, onQuery, imag
               </div>
               {panelOpen && onImage && <ImageSearchPanel id="image-search-panel" onImage={pickImage} />}
             </div>
-            <button type="button" onClick={openSearch} aria-label="Search" className={cn(navToolClass, 'ml-auto md:hidden', searching && 'hidden')}>
-              <SearchIcon size={18} />
-            </button>
           </>
         )}
 
-        <div className={cn('flex flex-none items-center gap-1', !searchEnabled && 'ml-auto', searching && 'max-md:hidden')}>
-          <AccountNav themeInMenu onUpgrade={onUpgrade} />
+        <div className={cn('ml-auto flex flex-none items-center gap-1 md:ml-0', !searchEnabled && 'md:ml-auto', searching && 'max-md:hidden')}>
+          <AccountNav themeInMenu menuInTabBar onUpgrade={onUpgrade} />
         </div>
       </div>
     </header>

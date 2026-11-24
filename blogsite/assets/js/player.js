@@ -235,14 +235,18 @@
 
   // Separate files per quality (video_720p.mp4, video_1080p.mp4): switching swaps the file and keeps
   // the position. There is no Auto, and a file that fails to load sends the viewer back to the last one.
-  function fileQualities(video, startUrl, listed) {
+  function listedLevels(startUrl, listed) {
     const list = listed.some((q) => q.url === startUrl) ? [...listed] : [{ url: startUrl, label: '' }, ...listed];
-    if (list.length < 2) return {};
-    const levels = list.map((q, i) => {
+    return list.map((q, i) => {
       const height = q.height || heightFromText(q.label) || heightFromText(q.url);
       return { id: i, url: q.url, height, label: q.label || (height ? `${height}p` : `Quality ${i + 1}`) };
     });
-    let current = list.findIndex((q) => q.url === startUrl);
+  }
+
+  function fileQualities(video, startUrl, listed) {
+    const levels = listedLevels(startUrl, listed);
+    if (levels.length < 2) return {};
+    let current = levels.findIndex((q) => q.url === startUrl);
     let pending = null;
 
     function load(index, resume, fallback) {
@@ -309,12 +313,12 @@
       return withDefaults({ name: 'Browser', ...nativeTextTracks(video), ...fileQualities(video, url, qualities) });
     },
 
-    async hls(url, video, hooks) {
+    async hls(url, video, hooks, listed = []) {
       const Hls = await loadLibrary('hls');
       if (!Hls.isSupported()) {
         if (!video.canPlayType('application/vnd.apple.mpegurl')) throw new Error('This browser can’t play HLS streams.');
         video.src = url;
-        return withDefaults({ name: 'Browser (native HLS)', ...nativeTextTracks(video) });
+        return withDefaults({ name: 'Browser (native HLS)', ...nativeTextTracks(video), ...fileQualities(video, url, listed) });
       }
 
       const hls = new Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 90 });
@@ -367,7 +371,36 @@
         },
         liveEdge: () => hls.liveSyncPosition,
         bandwidth: () => hls.bandwidthEstimate,
+        ...playlistQualities(),
       });
+
+      // One playlist per quality (listed by the endpoint): switching loads the other playlist and keeps the position.
+      function playlistQualities() {
+        const playlists = listedLevels(url, listed);
+        if (playlists.length < 2) return {};
+        let current = playlists.findIndex((q) => q.url === url);
+        return {
+          autoQuality: false,
+          qualities: () => playlists,
+          getQuality: () => current,
+          activeQuality: () => playlists[current] || null,
+          setQuality: (id) => {
+            if (!playlists[id] || id === current) return;
+            const resume = { time: video.currentTime, paused: video.paused, rate: video.playbackRate };
+            current = id;
+            hls.once(Hls.Events.MANIFEST_PARSED, () => {
+              video.playbackRate = resume.rate;
+              if (!resume.paused) video.play().catch(() => {});
+            });
+            // hls.js only starts a new source cleanly on freshly attached media, from startPosition.
+            hls.stopLoad();
+            hls.detachMedia();
+            hls.config.startPosition = resume.time;
+            hls.loadSource(playlists[id].url);
+            hls.attachMedia(video);
+          },
+        };
+      }
     },
 
     async dash(url, video, hooks) {

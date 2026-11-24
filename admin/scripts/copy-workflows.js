@@ -64,7 +64,8 @@ async function main() {
 
   const db = require("../lib/site/db");
   const { STEPS } = require("../lib/reels");
-  const ids = args.ids || Object.values(STEPS).map((step) => step.id);
+  const terabox = require("../lib/terabox");
+  const ids = args.ids || [...Object.values(STEPS).map((step) => step.id), terabox.STEP.id];
 
   console.log(`From: ${args.from} (${describe(fromUrl)})`);
   console.log(`To:   ${args.to} (${describe(toUrl)})${args.dryRun ? "   [dry run, nothing is written]" : ""}\n`);

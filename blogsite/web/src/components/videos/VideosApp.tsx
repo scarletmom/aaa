@@ -2,25 +2,29 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { cn } from '@/lib/cn';
 import type { Comment, SeedComments } from '@/lib/comments';
 import { episodeIndex, titleWithEpisode } from '@/lib/episodes';
 import { videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
 import { canWatchVideos, proPlan } from '@/lib/roles';
-import { useHydrated, useSession } from '@/lib/session';
-import { type CatalogVideo, type Episode, fetchVideo, fetchVideos } from '@/lib/videos';
+import { getSession, useHydrated, useSession } from '@/lib/session';
+import { type CatalogVideo, type Episode, fetchVideo, fetchVideos, openTerabox } from '@/lib/videos';
+import type { TeraboxLink } from '@/lib/teraboxLink';
 import ViewerAds from '../site/ViewerAds';
 import AccessGate from './AccessGate';
 import AdBlockDialog, { useAdBlockCheck } from './AdBlockDialog';
 import Catalog from './Catalog';
 import ImageResults from './ImageResults';
 import ShortsFeed from './ShortsFeed';
+import TeraboxView from './TeraboxView';
 import { videoContainer } from './styles';
 import ProReturn from './ProReturn';
 import UpgradeDialog from './UpgradeDialog';
 import { type Loaded, useAccountLoad } from './useAccountLoad';
 import { useImageSearch } from './useImageSearch';
+import VideoTabBar from './VideoTabBar';
 import VideoTopBar from './VideoTopBar';
 import WatchView from './WatchView';
 
@@ -32,6 +36,8 @@ const NO_VIDEOS: CatalogVideo[] = [];
 
 const loadCatalog = (_request: string, token: string) => fetchVideos(token);
 const loadDetail = (id: string, token: string) => fetchVideo(id, token);
+
+const watchTerabox = (link: TeraboxLink) => openTerabox(link.url, getSession()?.token ?? '');
 
 const loadingMessage = <p className="py-24 text-center text-muted">Loading…</p>;
 
@@ -60,10 +66,12 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeId = searchParams.get('v');
+  const onTerabox = !activeId && searchParams.get('tab') === 'terabox';
   const requestedEpisode = Number(searchParams.get('ep')) || 0;
   const start = Number(searchParams.get('t')) || 0;
   const [query, setQuery] = useState('');
   const [channel, setChannel] = useState('');
+  const [searching, setSearching] = useState(false);
   const imageSearch = useImageSearch();
 
   const allowed = session ? canWatchVideos(session.role) : false;
@@ -100,13 +108,27 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
 
   const search = (value: string) => {
     setQuery(value);
-    if (active && value) router.push(videosUrl);
+    if ((active || onTerabox) && value) router.push(videosUrl);
+  };
+
+  const openSearch = () => {
+    // Focusing inside the tap is what lets phones raise the keyboard.
+    flushSync(() => setSearching(true));
+    document.getElementById('video-search')?.focus();
+  };
+
+  const goHome = () => {
+    if (!activeId && !onTerabox && !searching && !query && !imageSearch.search) window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSearching(false);
+    setQuery('');
+    setChannel('');
+    imageSearch.clear();
   };
 
   const searchByImage = (file: File) => {
     setQuery('');
     imageSearch.start(file);
-    if (active) router.push(videosUrl);
+    if (active || onTerabox) router.push(videosUrl);
   };
 
   let content;
@@ -134,6 +156,9 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         comments={comments[active.id] ?? NO_COMMENTS}
         onEpisodes={(episodes, playing) => setReported({ id: active.id, episodes, playing })}
       />;
+  } else if (onTerabox) {
+    // The paste box doesn't need the catalog, so it shows while the other videos load.
+    content = <TeraboxView videos={videos} videosLoading={catalog.status === 'loading'} onWatch={watchTerabox} />;
   } else if (catalog.status !== 'ready') {
     content = loadStatus(catalog);
   } else if (imageSearch.search) {
@@ -149,6 +174,8 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
       <VideoTopBar
         brand={brand}
         searchEnabled={hydrated && allowed}
+        searching={searching}
+        onSearchingChange={setSearching}
         query={query}
         onQuery={search}
         image={imageSearch.search}
@@ -156,9 +183,15 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         onClearImage={imageSearch.clear}
         onUpgrade={() => setUpgradeOpen(true)}
       />
-      <main id="main" tabIndex={-1} className={cn(videoContainer, 'outline-none')}>
+      <main id="main" tabIndex={-1} className={cn(videoContainer, 'outline-none max-md:pb-(--tab-bar-h)')}>
         {content}
       </main>
+      <VideoTabBar
+        active={searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home'}
+        searchEnabled={hydrated && allowed}
+        onHome={goHome}
+        onSearch={openSearch}
+      />
       <UpgradeDialog
         open={upgradeOpen}
         onClose={() => setUpgradeOpen(false)}

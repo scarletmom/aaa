@@ -82,6 +82,8 @@ export interface SiteConfig {
   edition: string;
   description: string;
   apiUrl?: string;
+  /** Called from the visitor's browser for the Terabox cookies, so the request comes from their IP. */
+  teraboxCookieUrl?: string;
   sections: Section[];
   topics: string[];
   trending: string[];

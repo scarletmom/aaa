@@ -196,4 +196,4 @@ async function grabFrame(video, time) {
   }
 }
 
-module.exports = { FEATURE, STEPS, lockReason, ensureReelWorkflows, status, saveProblem, grabFrame };
+module.exports = { FEATURE, STEPS, lockReason, definitionFor, ensureReelWorkflows, status, saveProblem, grabFrame };

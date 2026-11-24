@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { formatStaticDate, initials, noteUrl, videosUrl } from '@/lib/format';
 import { canWatchVideos, proPlan, ROLE_LABELS } from '@/lib/roles';
@@ -26,8 +26,37 @@ function ThemeSwitch() {
   );
 }
 
-/** `themeInMenu` puts the theme switch here, for bars that drop their own theme button. */
-export default function UserMenu({ session, themeInMenu = false }: { session: Session; themeInMenu?: boolean }) {
+interface UserMenuProps {
+  session: Session;
+  /** Puts the theme switch here, for bars that drop their own theme button. */
+  themeInMenu?: boolean;
+  /** `above` opens the menu upward, for a trigger in a bottom tab bar. */
+  placement?: 'below' | 'above';
+  className?: string;
+  buttonClassName?: string;
+  /** Replaces the round avatar button's content. */
+  trigger?: ReactNode;
+}
+
+const defaultButtonClass =
+  'grid size-[38px] place-items-center rounded-full border border-transparent hover:border-fg-2 aria-expanded:border-fg-2';
+
+export function AvatarInitials({ name, className = 'size-[30px] text-[12px]' }: { name: string; className?: string }) {
+  return (
+    <span aria-hidden="true" className={cn('grid place-items-center rounded-full bg-fg font-semibold text-bg', className)}>
+      {initials(name)}
+    </span>
+  );
+}
+
+export default function UserMenu({
+  session,
+  themeInMenu = false,
+  placement = 'below',
+  className = 'relative ml-1.5',
+  buttonClassName = defaultButtonClass,
+  trigger,
+}: UserMenuProps) {
   const { name, role } = session;
   const plan = proPlan(session);
   const [open, setOpen] = useState(false);
@@ -54,7 +83,7 @@ export default function UserMenu({ session, themeInMenu = false }: { session: Se
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative ml-1.5">
+    <div ref={rootRef} className={className}>
       <button
         ref={buttonRef}
         type="button"
@@ -63,16 +92,17 @@ export default function UserMenu({ session, themeInMenu = false }: { session: Se
         aria-controls="user-menu"
         aria-label={`Account menu for ${name}`}
         title={name}
-        className="grid size-[38px] place-items-center rounded-full border border-transparent hover:border-fg-2 aria-expanded:border-fg-2"
+        className={buttonClassName}
       >
-        <span aria-hidden="true" className="grid size-[30px] place-items-center rounded-full bg-fg text-[12px] font-semibold text-bg">
-          {initials(name)}
-        </span>
+        {trigger ?? <AvatarInitials name={name} />}
       </button>
       <div
         id="user-menu"
         hidden={!open}
-        className="absolute top-[calc(100%+8px)] right-0 z-20 w-[240px] rounded-2xl border border-line bg-bg p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
+        className={cn(
+          'absolute z-20 w-[240px] rounded-2xl border border-line bg-bg p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]',
+          placement === 'above' ? 'right-2 bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)] right-0',
+        )}
       >
         <p className="px-3 pt-2 pb-2.5 text-[13px] text-muted">
           Signed in as

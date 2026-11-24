@@ -64,5 +64,6 @@ export const tagUrl = (tag: string) => `/topic/${tagSlug(tag)}/`;
 export const searchUrl = (query: string) => `/search/?q=${encodeURIComponent(query)}`;
 export const videosUrl = '/videos/';
 export const subscribeUrl = '/subscribe/';
+export const teraboxTabUrl = '/videos/?tab=terabox';
 export const videoUrl = (id: string, episode?: number) =>
   `/videos/?v=${encodeURIComponent(id)}${episode ? `&ep=${episode}` : ''}`;

@@ -16,6 +16,8 @@ interface AccountNavProps {
   themeInMenu?: boolean;
   /** Member Lite's Upgrade (and a timed Pro's Extend Pro) opens this instead of the subscribe page. */
   onUpgrade?: () => void;
+  /** Leaves sign-in and the account menu to a bottom tab bar on phones. */
+  menuInTabBar?: boolean;
 }
 
 function ProBadge() {
@@ -26,7 +28,8 @@ function ProBadge() {
   );
 }
 
-export default function AccountNav({ themeInMenu = false, onUpgrade }: AccountNavProps) {
+export default function AccountNav({ themeInMenu = false, onUpgrade, menuInTabBar = false }: AccountNavProps) {
+  const menuClass = menuInTabBar ? 'hidden md:contents' : 'contents';
   const session = useSession();
   if (session) {
     const plan = proPlan(session);
@@ -45,14 +48,18 @@ export default function AccountNav({ themeInMenu = false, onUpgrade }: AccountNa
     return (
       <>
         {action}
-        <UserMenu session={session} themeInMenu={themeInMenu} />
+        <div className={menuClass}>
+          <UserMenu session={session} themeInMenu={themeInMenu} />
+        </div>
       </>
     );
   }
   return (
     <>
       {themeInMenu && <ThemeToggle />}
-      <LoginButton />
+      <div className={menuClass}>
+        <LoginButton />
+      </div>
     </>
   );
 }

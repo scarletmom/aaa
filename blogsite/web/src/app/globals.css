@@ -15,6 +15,7 @@
   --accent: #b1151a;
   --up: #17803d;
   --img-bg: #e7e5df;
+  --tab-bar-h: calc(4rem + env(safe-area-inset-bottom));
 }
 
 [data-theme='dark'] {

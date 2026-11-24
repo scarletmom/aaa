@@ -152,3 +152,29 @@ export const ImageIcon = (props: IconProps) => (
     <path d="M3.5 17l5-5 4 4 2.5-2.5 5.5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
   </Svg>
 );
+
+export const HomeIcon = ({ filled = false, ...props }: IconProps & { filled?: boolean }) => (
+  <Svg size={22} {...props}>
+    <path
+      d="M4 10.2 12 4l8 6.2V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const CloudPlayIcon = (props: IconProps) => (
+  <Svg size={22} {...props}>
+    <path d="M7 18.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4.5 4.5 0 0 1-.5 9z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M10.5 11.2v4.6l3.8-2.3z" fill="currentColor" />
+  </Svg>
+);
+
+export const UserIcon = (props: IconProps) => (
+  <Svg size={22} {...props}>
+    <circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M4.5 20c.9-3.6 3.9-5.6 7.5-5.6s6.6 2 7.5 5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </Svg>
+);

@@ -192,8 +192,8 @@ used for the thumbnail, for Find details, or both.
 Create them (only the missing ones; existing ones are never changed) with:
 
 ```bash
-npm run reels:setup                          # the database in .env
-npm run reels:setup -- --env .env.production # the database in another env file
+npm run workflows:setup                          # the database in .env (reels:setup still works)
+npm run workflows:setup -- --env .env.production # the database in another env file
 ```
 
 To copy them, once wired, to another database such as production (ids are kept, so they stay locked):
@@ -209,6 +209,18 @@ them on the target's Variables page.
 
 Until you wire them, each one stops at a "Wire me" step with a clear error. These workflows are
 locked: they can't be deleted, and Pipeline must stay ticked. Similarity can be 0-1 or 0-100.
+
+## Terabox
+
+The videos site's Terabox page plays a pasted Terabox share link through one locked Pipeline workflow,
+created by `npm run workflows:setup` and copied by `workflows:copy` along with the Reel ones:
+
+| Workflow id     | Input                        | Output step must return                                      |
+| --------------- | ---------------------------- | ------------------------------------------------------------ |
+| `terabox-video` | `url` (required), `data`     | `{ title, thumbnail, qualities }`, qualities as `{ "720p": url, … }` or `[{ label, url }, …]` |
+
+It starts with a "Wire me" step; replace it with the steps that turn the share link into video URLs. The
+Output step already returns `title`, `thumbnail` and `qualities` from the item it receives.
 
 ## Endpoints
 

@@ -1,4 +1,5 @@
-import { apiRequest } from './api';
+import site from '@/data/site.json';
+import { ApiError, apiRequest } from './api';
 
 export type SourceType = 'hls' | 'dash' | 'native';
 
@@ -93,4 +94,38 @@ export interface VideoDetail {
 export async function fetchVideo(id: string, token: string): Promise<VideoDetail> {
   const detail = await apiRequest<{ video: ApiVideo; play?: string }>(`/api/videos/${encodeURIComponent(id)}`, { token });
   return { video: toCatalogVideo(detail.video), play: detail.play ?? '' };
+}
+
+export interface TeraboxVideo {
+  title: string;
+  poster: string;
+  /** The player's endpoint for the resolved streams; it lasts a few minutes. */
+  play: string;
+}
+
+const TERABOX_NOT_READY = 'Couldn’t get Terabox ready. Check your connection and try again.';
+
+// Fetched here rather than on the server: the cookie service blocks server IPs but not visitors'.
+async function fetchTeraboxCookies(token: string): Promise<string[]> {
+  let body: { data?: unknown };
+  try {
+    const response = await fetch(site.teraboxCookieUrl, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`cookie service answered ${response.status}`);
+    body = await response.json();
+  } catch {
+    throw new ApiError(TERABOX_NOT_READY, 0);
+  }
+  const cookies = Array.isArray(body.data) ? body.data.filter((item): item is string => typeof item === 'string' && item.length > 0) : [];
+  if (!cookies.length) throw new ApiError(TERABOX_NOT_READY, 0);
+  return cookies;
+}
+
+/** Gets Terabox cookies in this browser, then runs the share link through the server. Needs a Member Lite or Pro account token. */
+export async function openTerabox(url: string, token: string): Promise<TeraboxVideo> {
+  const data = await fetchTeraboxCookies(token);
+  return apiRequest<TeraboxVideo>('/api/terabox', { method: 'POST', body: { url, data }, token });
 }
