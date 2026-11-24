@@ -1,6 +1,9 @@
 const crypto = require("node:crypto");
-const { config } = require("./config");
 const { qualitiesOf } = require("./engine/helpers");
+const { workflowById, run } = require("./workflows");
+
+// The admin creates this workflow with a fixed id (admin/lib/terabox.js) in the database both servers share.
+const WORKFLOW_ID = "terabox-video";
 
 // Terabox serves the same share links from many mirror domains.
 const HOSTS = [
@@ -8,8 +11,6 @@ const HOSTS = [
   "1024tera.com", "1024terabox.com", "terasharelink.com", "terafileshare.com", "freeterabox.com",
   "4funbox.com", "4funbox.co", "mirrobox.com", "nephobox.com", "momerybox.com", "tibibox.com", "gibibox.com",
 ];
-// The workflow polls the stream API for up to a minute before it answers.
-const RESOLVE_TIMEOUT_MS = 90 * 1000;
 // Stream links carry their own short-lived tokens, so a resolved video is only kept long enough to start playing.
 const KEEP_MS = 15 * 60 * 1000;
 const MAX_KEPT = 1000;
@@ -22,7 +23,8 @@ const kept = new Map();
 /** The stream service refused because its usage limit is used up; it says when to try again. */
 class TeraboxBusyError extends Error {}
 
-const enabled = () => Boolean(config.adminUrl);
+/** The Terabox workflow isn't in the database. */
+class TeraboxMissingError extends Error {}
 
 const isTeraboxHost = (hostname) => {
   const host = hostname.toLowerCase().replace(/^www\./, "");
@@ -56,19 +58,17 @@ const heightOf = (quality) => Number(/(\d{3,4})\s*p/i.exec(quality.label || qual
 const httpUrl = (value) => (typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim() : "");
 const titleOf = (value) => (typeof value === "string" ? value.trim().replace(VIDEO_EXTENSION, "").slice(0, 200) : "");
 
-/** Runs the admin's Terabox workflow: { title, poster, qualities } with the best quality first. */
+/** Runs the Terabox workflow: { title, poster, qualities } with the best quality first. */
 async function resolve(url, data) {
-  const res = await fetch(new URL("terabox", config.adminUrl), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(config.adminApiToken ? { Authorization: `Bearer ${config.adminApiToken}` } : {}) },
-    body: JSON.stringify({ url, data }),
-    signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const message = body.error ? `${body.error}${body.node ? ` (at ${body.node})` : ""}` : `admin answered ${res.status}`;
-    throw /\bHTTP 429\b|usage_limit/.test(message) ? new TeraboxBusyError(message) : new Error(message);
+  const workflow = await workflowById(WORKFLOW_ID);
+  if (!workflow) throw new TeraboxMissingError(`workflow ${WORKFLOW_ID} isn't in the database`);
+  const execution = await run(workflow, { url, data });
+  if (execution.status !== "success") {
+    const { message = "the workflow failed", nodeName } = execution.error || {};
+    const detail = `${message}${nodeName ? ` (at ${nodeName})` : ""}`;
+    throw /\bHTTP 429\b|usage_limit/.test(detail) ? new TeraboxBusyError(detail) : new Error(detail);
   }
+  const body = execution.response?.body || {};
   const qualities = qualitiesOf(body.qualities).sort((a, b) => heightOf(b) - heightOf(a));
   if (!qualities.length) throw new Error("the workflow returned no qualities");
   return { title: titleOf(body.title) || "Terabox video", poster: httpUrl(body.thumbnail), qualities };
@@ -92,4 +92,4 @@ function find(id) {
   return null;
 }
 
-module.exports = { TeraboxBusyError, enabled, shareLink, cookieList, resolve, keep, find };
+module.exports = { TeraboxBusyError, TeraboxMissingError, shareLink, cookieList, resolve, keep, find };

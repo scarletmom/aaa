@@ -378,14 +378,13 @@ app.get(
   })
 );
 
-// The videos site's Terabox page: a member pastes a share link, the admin's Terabox workflow finds its streams.
+// The videos site's Terabox page: a member pastes a share link, the Terabox workflow finds its streams.
 app.post(
   "/api/terabox",
   teraboxLimit,
   wrap(requireViewer),
   wrap(async (req, res) => {
     if (!req.member) return res.status(403).json({ error: "Sign in with a Member Lite or Pro account to watch Terabox links.", code: "plan_required" });
-    if (!terabox.enabled()) return res.status(503).json({ error: "Watching Terabox links isn't set up yet." });
     const url = terabox.shareLink(req.body?.url);
     if (!url) return res.status(400).json({ error: "That isn't a Terabox share link." });
     const data = terabox.cookieList(req.body?.data);
@@ -396,6 +395,7 @@ app.post(
       video = await terabox.resolve(url, data);
     } catch (err) {
       console.error(`terabox ${url}: ${err.message}`);
+      if (err instanceof terabox.TeraboxMissingError) return res.status(503).json({ error: "Watching Terabox links isn't set up yet." });
       if (err instanceof terabox.TeraboxBusyError) {
         return res.status(503).json({ error: "Terabox videos are busy right now. Please try again in a few hours." });
       }

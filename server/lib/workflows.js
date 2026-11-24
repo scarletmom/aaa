@@ -6,6 +6,7 @@ const LIST_TTL_MS = 30 * 1000;
 const MAX_CACHE_ENTRIES = 2000;
 
 let cachedList = null;
+const byIdCache = new Map();
 const results = new Map();
 
 function toWorkflow(row) {
@@ -119,4 +120,19 @@ async function playable({ realUrl, realUrlType = "player", runWorkflow = false }
   return { source: url, qualities, episodes };
 }
 
-module.exports = { playable, resolveUrl };
+// A built-in workflow by its fixed id, switched on or not, cached like the active list.
+async function workflowById(id) {
+  const hit = byIdCache.get(id);
+  if (hit && Date.now() - hit.loadedAt < LIST_TTL_MS) return hit.workflow;
+  let workflow = null;
+  try {
+    const [rows] = await getPool().query("SELECT id, name, slug, is_active, definition, updated_at FROM workflows WHERE id = ?", [id]);
+    workflow = rows[0] ? toWorkflow(rows[0]) : null;
+  } catch (err) {
+    if (err.code !== "ER_NO_SUCH_TABLE") throw err;
+  }
+  byIdCache.set(id, { workflow, loadedAt: Date.now() });
+  return workflow;
+}
+
+module.exports = { playable, resolveUrl, workflowById, run };

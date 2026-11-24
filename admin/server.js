@@ -633,22 +633,6 @@ app.all("/hook/:slug", requireToken, async (req, res) => {
   sendResponse(res, await run(workflow, { ...req.query, ...body }, "webhook"));
 });
 
-// The videos server's Terabox page: runs the locked Terabox workflow by its fixed id, switched on or not.
-app.post("/terabox", requireToken, async (req, res) => {
-  const workflow = store.get(terabox.STEP.id);
-  if (!workflow)
-    return res
-      .status(503)
-      .json({ error: "The Terabox workflow is missing. Run npm run workflows:setup." });
-  const url = String(req.body?.url || "");
-  if (!/^https?:\/\//i.test(url))
-    return res
-      .status(400)
-      .json({ error: "url must be an absolute http(s) URL" });
-  const data = Array.isArray(req.body?.data) ? req.body.data : [];
-  sendResponse(res, await run(workflow, { url, data }, "webhook"));
-});
-
 // Signer replacement: picks the first active workflow whose Input node matches the URL.
 app.all("/resolve", requireToken, async (req, res) => {
   const input = {

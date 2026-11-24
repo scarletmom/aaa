@@ -213,7 +213,9 @@ locked: they can't be deleted, and Pipeline must stay ticked. Similarity can be 
 ## Terabox
 
 The videos site's Terabox page plays a pasted Terabox share link through one locked Pipeline workflow,
-created by `npm run workflows:setup` and copied by `workflows:copy` along with the Reel ones:
+created by `npm run workflows:setup` and copied by `workflows:copy` along with the Reel ones. The videos API
+server reads it from the shared database by its id and runs it itself (it can't use Variables, and its runs
+don't show in History):
 
 | Workflow id     | Input                        | Output step must return                                      |
 | --------------- | ---------------------------- | ------------------------------------------------------------ |
