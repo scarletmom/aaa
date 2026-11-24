@@ -3,16 +3,20 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { videosUrl } from '@/lib/format';
+import { teraboxTabUrl, videosUrl } from '@/lib/format';
 import AccountNav from '../auth/AccountNav';
 import { navToolClass } from '../site/ThemeToggle';
-import { CloseIcon, ImageIcon, SearchIcon } from '../ui/Icons';
+import { CloseIcon, CloudPlayIcon, HomeIcon, ImageIcon, SearchIcon } from '../ui/Icons';
 import BrandMark from './BrandMark';
 import ImageSearchPanel from './ImageSearchPanel';
 import { videoContainer } from './styles';
+import type { VideoTab } from './VideoTabBar';
 
 interface VideoTopBarProps {
   brand: string;
+  /** The section the desktop links mark as current; phones use the tab bar instead. */
+  active: VideoTab;
+  onHome: () => void;
   /** Hidden until the visitor can watch, since there's nothing to search. */
   searchEnabled: boolean;
   /** On phones the search box takes over the bar while this is on; the tab bar's Search turns it on. */
@@ -29,8 +33,13 @@ interface VideoTopBarProps {
   onUpgrade: () => void;
 }
 
+const sectionLinkClass =
+  'flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[14px] lg:px-3 font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-fg aria-[current=page]:bg-surface-2 aria-[current=page]:text-fg';
+
 export default function VideoTopBar({
   brand,
+  active,
+  onHome,
   searchEnabled,
   searching,
   onSearchingChange,
@@ -81,6 +90,17 @@ export default function VideoTopBar({
           <BrandMark />
           <span className="font-display text-[19px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[21px]">{brand}</span>
         </Link>
+
+        <nav aria-label="Video sections" className="hidden flex-none items-center gap-1 md:flex">
+          <Link href={videosUrl} onClick={onHome} title="Home" aria-current={active === 'home' ? 'page' : undefined} className={sectionLinkClass}>
+            <HomeIcon size={18} filled={active === 'home'} />
+            <span className="max-lg:sr-only">Home</span>
+          </Link>
+          <Link href={teraboxTabUrl} title="Terabox" aria-current={active === 'terabox' ? 'page' : undefined} className={sectionLinkClass}>
+            <CloudPlayIcon size={18} />
+            <span className="max-lg:sr-only">Terabox</span>
+          </Link>
+        </nav>
 
         {searchEnabled && (
           <>

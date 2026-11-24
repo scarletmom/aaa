@@ -24,7 +24,7 @@ import ProReturn from './ProReturn';
 import UpgradeDialog from './UpgradeDialog';
 import { type Loaded, useAccountLoad } from './useAccountLoad';
 import { useImageSearch } from './useImageSearch';
-import VideoTabBar from './VideoTabBar';
+import VideoTabBar, { type VideoTab } from './VideoTabBar';
 import VideoTopBar from './VideoTopBar';
 import WatchView from './WatchView';
 
@@ -167,12 +167,16 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     content = <Catalog videos={videos} query={query} channel={channel} onChannel={setChannel} />;
   }
 
+  const activeTab: VideoTab = searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home';
+
   return (
     <>
       <ViewerAds />
       <a href="#main" className="absolute -top-10 left-3 z-30 bg-fg px-3 py-2 text-bg focus:top-3">Skip to content</a>
       <VideoTopBar
         brand={brand}
+        active={activeTab}
+        onHome={goHome}
         searchEnabled={hydrated && allowed}
         searching={searching}
         onSearchingChange={setSearching}
@@ -187,7 +191,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         {content}
       </main>
       <VideoTabBar
-        active={searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home'}
+        active={activeTab}
         searchEnabled={hydrated && allowed}
         onHome={goHome}
         onSearch={openSearch}
