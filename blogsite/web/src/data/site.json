@@ -109,7 +109,7 @@
       "Accessibility"
     ]
   },
-  "teraboxCookieUrl": "https://cf-worker.viralxp.workers.dev/?type=t",
+  "teraboxUrl": "https://cf-worker.viralxp.workers.dev/?type=t",
   "telegramApp": {
     "apiUrl": "http://localhost:3000"
   },

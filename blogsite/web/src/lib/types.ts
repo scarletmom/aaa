@@ -82,8 +82,8 @@ export interface SiteConfig {
   edition: string;
   description: string;
   apiUrl?: string;
-  /** Called from the visitor's browser for the Terabox cookies, so the request comes from their IP. */
-  teraboxCookieUrl?: string;
+  /** The Terabox worker: given ?url=<share link>, it returns the share's files and stream links. */
+  teraboxUrl?: string;
   sections: Section[];
   topics: string[];
   trending: string[];

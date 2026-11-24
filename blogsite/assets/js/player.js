@@ -2395,7 +2395,9 @@
       } catch {
         return fail('That endpoint isn’t a valid address.');
       }
-      if (!BROWSER_PROTOCOLS.has(endpoint.protocol)) return fail('Endpoints must be http:// or https:// addresses.');
+      // A blob: endpoint can only have been made by this site's own pages, e.g. the Terabox page's resolved video.
+      const ownBlob = endpoint.protocol === 'blob:' && endpoint.origin === location.origin;
+      if (!BROWSER_PROTOCOLS.has(endpoint.protocol) && !ownBlob) return fail('Endpoints must be http:// or https:// addresses.');
       if (!endpointAllowed(endpoint, config)) return fail(`Endpoints on ${endpoint.hostname} aren’t allowed on this player.`);
       try {
         meta = normalizeMeta(await fetchMeta(endpoint.href), endpoint.href);

@@ -99,33 +99,78 @@ export async function fetchVideo(id: string, token: string): Promise<VideoDetail
 export interface TeraboxVideo {
   title: string;
   poster: string;
-  /** The player's endpoint for the resolved streams; it lasts a few minutes. */
+  /** A blob: URL holding the player's endpoint JSON; its stream links carry tokens that expire after a few minutes. */
   play: string;
 }
 
-const TERABOX_NOT_READY = 'Couldn’t get Terabox ready. Check your connection and try again.';
+interface TeraboxFile {
+  name?: unknown;
+  type?: unknown;
+  thumbnail?: unknown;
+  subtitle_url?: unknown;
+  fast_stream_url?: unknown;
+}
 
-// Fetched here rather than on the server: the cookie service blocks server IPs but not visitors'.
-async function fetchTeraboxCookies(token: string): Promise<string[]> {
-  let body: { data?: unknown };
+interface TeraboxReply {
+  result?: string;
+  data?: { status?: string; error?: string; list?: TeraboxFile[] } | Record<string, unknown> | string;
+}
+
+const TERABOX_NOT_READY = 'Couldn’t reach Terabox. Check your connection and try again.';
+const TERABOX_FAILED = 'This Terabox video couldn’t be opened. Check the link and try again in a moment.';
+const TERABOX_BUSY = 'Terabox videos are busy right now. Please try again in a few hours.';
+const VIDEO_EXTENSION = /\.(mp4|mkv|mov|avi|webm|m4v|ts|flv|wmv|3gp)$/i;
+
+const httpUrl = (value: unknown) => (typeof value === 'string' && /^https?:\/\//i.test(value.trim()) ? value.trim() : '');
+const heightOf = (label: string) => Number(/(\d{3,4})\s*p/i.exec(label)?.[1]) || 0;
+
+function qualitiesOf(file: TeraboxFile) {
+  const streams = file.fast_stream_url && typeof file.fast_stream_url === 'object' ? Object.entries(file.fast_stream_url) : [];
+  return streams
+    .map(([label, url]) => ({ label, url: httpUrl(url) }))
+    .filter((quality) => quality.url)
+    .sort((a, b) => heightOf(b.label) - heightOf(a.label));
+}
+
+/** One call to the Terabox worker, which gets cookies and the share's streams from Cloudflare's network. Needs an account token. */
+export async function openTerabox(url: string, token: string): Promise<TeraboxVideo> {
+  const endpoint = new URL(site.teraboxUrl ?? '');
+  endpoint.searchParams.set('url', url);
+
+  let response: Response;
+  let reply: TeraboxReply;
   try {
-    const response = await fetch(site.teraboxCookieUrl, {
+    response = await fetch(endpoint, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       credentials: 'omit',
       cache: 'no-store',
     });
-    if (!response.ok) throw new Error(`cookie service answered ${response.status}`);
-    body = await response.json();
+    reply = await response.json();
   } catch {
     throw new ApiError(TERABOX_NOT_READY, 0);
   }
-  const cookies = Array.isArray(body.data) ? body.data.filter((item): item is string => typeof item === 'string' && item.length > 0) : [];
-  if (!cookies.length) throw new ApiError(TERABOX_NOT_READY, 0);
-  return cookies;
-}
 
-/** Gets Terabox cookies in this browser, then runs the share link through the server. Needs a Member Lite or Pro account token. */
-export async function openTerabox(url: string, token: string): Promise<TeraboxVideo> {
-  const data = await fetchTeraboxCookies(token);
-  return apiRequest<TeraboxVideo>('/api/terabox', { method: 'POST', body: { url, data }, token });
+  if (response.status === 401) throw new ApiError('Your session has ended. Sign in again to watch Terabox links.', 401);
+  if (!response.ok || reply.result !== 'OK' || typeof reply.data !== 'object' || reply.data?.status !== 'success') {
+    const detail = JSON.stringify(reply.data ?? '');
+    const busy = /usage_limit|"error":"rate|\b429\b/i.test(detail);
+    throw new ApiError(busy ? TERABOX_BUSY : TERABOX_FAILED, response.status);
+  }
+
+  const files = Array.isArray(reply.data.list) ? (reply.data.list as TeraboxFile[]) : [];
+  const file = files.find((item) => item.type === 'video' && qualitiesOf(item).length) ?? files.find((item) => qualitiesOf(item).length);
+  if (!file) throw new ApiError('This Terabox link has no video to play.', 404);
+
+  const qualities = qualitiesOf(file);
+  const title = (typeof file.name === 'string' ? file.name.trim().replace(VIDEO_EXTENSION, '').slice(0, 200) : '') || 'Terabox video';
+  const poster = httpUrl(file.thumbnail);
+  const subtitle = httpUrl(file.subtitle_url);
+  const meta = {
+    title,
+    poster,
+    source: { url: qualities[0].url, qualities },
+    ...(subtitle && { subtitles: [{ url: subtitle, label: 'Subtitles' }] }),
+  };
+  const play = URL.createObjectURL(new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  return { title, poster, play };
 }
