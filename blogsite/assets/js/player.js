@@ -649,11 +649,23 @@
     return allowed.includes(url.origin) || (allowed.includes('self') && url.origin === location.origin);
   }
 
+  // The videos site's signed-in account (web/src/lib/session.ts), whose token resolve links check.
+  function accountToken() {
+    try {
+      const token = JSON.parse(localStorage.getItem('quillwood-session') || 'null')?.token;
+      return typeof token === 'string' ? token : '';
+    } catch {
+      return '';
+    }
+  }
+
   // A source given as { resolve } is a link (e.g. a Worker with a short-lived token) that answers with the real
   // { url, qualities }; it is called from the viewer's browser just before playing.
   async function resolveSource(meta) {
     if (!meta.resolve) return;
-    const resolved = normalizeMeta(await fetchMeta(meta.resolve), meta.resolve);
+    const token = accountToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const resolved = normalizeMeta(await fetchMeta(meta.resolve, headers), meta.resolve);
     meta.resolve = '';
     meta.sources = resolved.sources;
     meta.rejected = resolved.rejected;
@@ -661,12 +673,12 @@
     if (meta.episodeIndex < 0 && meta.sources.length) meta.episodeIndex = meta.episodes.findIndex((e) => e.url === meta.sources[0].url);
   }
 
-  async function fetchMeta(endpoint) {
+  async function fetchMeta(endpoint, headers = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ENDPOINT_TIMEOUT_MS);
     let response;
     try {
-      response = await fetch(endpoint, { headers: { Accept: 'application/json' }, credentials: 'omit', signal: controller.signal });
+      response = await fetch(endpoint, { headers: { Accept: 'application/json', ...headers }, credentials: 'omit', signal: controller.signal });
     } catch (error) {
       throw new Error(error.name === 'AbortError'
         ? 'The endpoint took too long to respond.'
