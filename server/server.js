@@ -466,7 +466,9 @@ app.get(
     // to the Telegram Mini App instead, which opens it in the browser after an ad.
     const external = telegram.enabled() ? { url: telegram.appLink(video.tag) } : null;
     const blocked = Boolean(external && media.source && (await telegram.blocksNewsSite(media.source)));
-    const source = { url: media.source, ...(media.qualities?.length ? { qualities: media.qualities } : {}) };
+    const source = media.resolve
+      ? { resolve: media.resolve }
+      : { url: media.source, ...(media.qualities?.length ? { qualities: media.qualities } : {}) };
     const playback = media.embed ? { embed: media.embed } : blocked ? {} : { source };
 
     const { same, others } = videos.related(video, await videos.listEnabled());
@@ -525,6 +527,8 @@ app.post(
     if (!video) return res.status(404).json({ error: "This video has been removed." });
     try {
       const media = await playable(video);
+      // A resolve link answers with JSON for the player, not a page the browser can open.
+      if (media.resolve) return res.status(409).json({ error: "This video can only be watched on the videos site." });
       res.json({ url: media.embed || media.source });
     } catch (err) {
       console.error(`app claim ${tag}: ${err.message}`);

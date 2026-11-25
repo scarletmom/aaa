@@ -148,6 +148,10 @@ A Delivery workflow's Output can return more than `url`:
 - `episodes`: a series, as `["url1", "url2"]`, `[{ "title": "Pilot", "url": "…", "poster": "…" }]`, a
   `{{ $json.episodes }}` field, or fields named `episodes.1`, `episodes.2`. The news player lists them under
   the video and plays the one clicked; `url` is what plays first. Up to 300.
+- `resolve`: a link the viewer's browser calls just before playing, such as a Cloudflare Worker with a
+  short-lived token. It must answer `{ "url": "…", "qualities": [{ "label": "1080p", "url": "…" }] }` and
+  allow the videos site in `Access-Control-Allow-Origin`. When it's set, `url` and `qualities` are ignored.
+  Only the videos site's player uses it; `/resolve`, Visit and the Telegram app don't.
 
 `$env` in expressions holds only the `WF_*` variables from the environment. Save File and Extract
 Frames need ffmpeg on the server.

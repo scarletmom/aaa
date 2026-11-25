@@ -555,8 +555,11 @@
   function normalizeMeta(raw, base) {
     const outer = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
     const m = outer.source || outer.sources || outer.url || !outer.data || typeof outer.data !== 'object' ? outer : outer.data;
-    const sources = [].concat(m.sources ?? m.source ?? (m.url ? { url: m.url, type: m.type, qualities: m.qualities } : []))
-      .map((s) => (typeof s === 'string' ? { url: s } : s || {}))
+    const listed = [].concat(m.sources ?? m.source ?? (m.url ? { url: m.url, type: m.type, qualities: m.qualities } : []))
+      .map((s) => (typeof s === 'string' ? { url: s } : s || {}));
+    const resolve = safeUrl(listed.find((s) => s.resolve && !s.url)?.resolve, base);
+    const sources = listed
+      .filter((s) => !s.resolve || s.url)
       .map((s) => ({
         url: safeUrl(s.url, base),
         raw: asText(s.url, 2000),
@@ -577,6 +580,7 @@
       tags: asList(m.tags).map((t) => asText(t, 40)).filter(Boolean).slice(0, 12),
       sources: sources.filter((s) => s.url),
       rejected: sources.filter((s) => !s.url).map((s) => s.raw),
+      resolve,
       embed: safeUrl(m.embed, base),
       external: safeUrl(m.external?.url ?? m.external, base),
       subtitles: asList(m.subtitles)
@@ -608,8 +612,10 @@
   function selectEpisode(meta, request) {
     if (!meta.episodes.length || !request.endpoint) return;
     const chosen = meta.episodes[request.ep - 1];
-    if (chosen && meta.sources.length) meta.sources = [{ url: chosen.url, raw: chosen.url, type: '', qualities: [] }];
-    else if (chosen && meta.embed) meta.embed = chosen.url;
+    if (chosen && (meta.sources.length || meta.resolve)) {
+      meta.sources = [{ url: chosen.url, raw: chosen.url, type: '', qualities: [] }];
+      meta.resolve = '';
+    } else if (chosen && meta.embed) meta.embed = chosen.url;
     const playing = meta.sources[0]?.url || meta.embed;
     meta.episodeIndex = chosen && playing === chosen.url ? request.ep - 1 : meta.episodes.findIndex((e) => e.url === playing);
     const endpoint = new URL(request.endpoint, document.baseURI).href;
@@ -641,6 +647,18 @@
     const allowed = asList(config.allowedEndpoints);
     if (!allowed.length) return true;
     return allowed.includes(url.origin) || (allowed.includes('self') && url.origin === location.origin);
+  }
+
+  // A source given as { resolve } is a link (e.g. a Worker with a short-lived token) that answers with the real
+  // { url, qualities }; it is called from the viewer's browser just before playing.
+  async function resolveSource(meta) {
+    if (!meta.resolve) return;
+    const resolved = normalizeMeta(await fetchMeta(meta.resolve), meta.resolve);
+    meta.resolve = '';
+    meta.sources = resolved.sources;
+    meta.rejected = resolved.rejected;
+    if (!meta.subtitles.length) meta.subtitles = resolved.subtitles;
+    if (meta.episodeIndex < 0 && meta.sources.length) meta.episodeIndex = meta.episodes.findIndex((e) => e.url === meta.sources[0].url);
   }
 
   async function fetchMeta(endpoint) {
@@ -1915,6 +1933,7 @@
       try {
         fresh = normalizeMeta(await fetchMeta(endpoint), endpoint);
         selectEpisode(fresh, next);
+        await resolveSource(fresh);
       } catch { /* fall through to a full load */ }
       if (!fresh?.sources.length) {
         const href = request.embed
@@ -2401,10 +2420,11 @@
       if (!endpointAllowed(endpoint, config)) return fail(`Endpoints on ${endpoint.hostname} aren’t allowed on this player.`);
       try {
         meta = normalizeMeta(await fetchMeta(endpoint.href), endpoint.href);
+        selectEpisode(meta, request);
+        await resolveSource(meta);
       } catch (error) {
         return fail(error.message);
       }
-      selectEpisode(meta, request);
       if (!meta.sources.length && !meta.embed && meta.external) {
         const title = meta.title || 'Video';
         return page(externalPageView(config, esc, meta, title), `${title} · Player`, bindDescription);

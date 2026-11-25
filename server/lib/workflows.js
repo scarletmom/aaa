@@ -59,10 +59,13 @@ async function run(workflow, input) {
   return execution;
 }
 
+const httpUrl = (value) => (typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim() : "");
+
 // Mirrors linkproxy's /resolve: the first active workflow whose Input node matches the URL.
-// Resolves to { url, qualities, episodes }; the lists are empty unless the workflow returned them.
+// Resolves to { url, resolve, qualities, episodes }; the rest are empty unless the workflow returned them.
+// `resolve` is a link the viewer's browser calls for the real { url, qualities }, e.g. a Worker with a token.
 async function resolveUrl(url) {
-  const unchanged = { url, qualities: [], episodes: [] };
+  const unchanged = { url, resolve: "", qualities: [], episodes: [] };
   for (const workflow of await activeWorkflows()) {
     if (!workflow.usage.includes("delivery")) continue;
     const settings = inputSettings(workflow);
@@ -80,6 +83,7 @@ async function resolveUrl(url) {
     const result = response.body?.url ?? response.url;
     return {
       url: typeof result === "string" && result ? result : url,
+      resolve: httpUrl(response.body?.resolve),
       qualities: qualitiesOf(response.body?.qualities),
       episodes: episodesOf(response.body?.episodes),
     };
@@ -116,8 +120,8 @@ async function playable({ realUrl, realUrlType = "player", runWorkflow = false }
     const { url, episodes } = await resolveUrl(realUrl);
     return { embed: url, episodes };
   }
-  const { url, qualities, episodes } = await resolveUrl(innerUrl(realUrl) || realUrl);
-  return { source: url, qualities, episodes };
+  const { url, resolve, qualities, episodes } = await resolveUrl(innerUrl(realUrl) || realUrl);
+  return resolve ? { resolve, episodes } : { source: url, qualities, episodes };
 }
 
 // A built-in workflow by its fixed id, switched on or not, cached like the active list.
