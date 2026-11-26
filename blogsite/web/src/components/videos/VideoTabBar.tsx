@@ -64,7 +64,7 @@ export default function VideoTabBar({ active, searchEnabled, onHome, onSearch }:
           <TabContent icon={<HomeIcon filled={active === 'home'} />} label="Home" />
         </Link>
         <Link href={teraboxTabUrl} aria-current={active === 'terabox' ? 'page' : undefined} className={tabClass}>
-          <TabContent icon={<CloudPlayIcon />} label="Terabox" />
+          <TabContent icon={<CloudPlayIcon />} label="Terabox Videos" />
         </Link>
         <button type="button" onClick={onSearch} disabled={!searchEnabled} aria-pressed={active === 'search'} className={tabClass}>
           <TabContent icon={<SearchIcon size={22} />} label="Search" />

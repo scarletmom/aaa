@@ -96,9 +96,9 @@ export default function VideoTopBar({
             <HomeIcon size={18} filled={active === 'home'} />
             <span className="max-lg:sr-only">Home</span>
           </Link>
-          <Link href={teraboxTabUrl} title="Terabox" aria-current={active === 'terabox' ? 'page' : undefined} className={sectionLinkClass}>
+          <Link href={teraboxTabUrl} title="Terabox Videos" aria-current={active === 'terabox' ? 'page' : undefined} className={sectionLinkClass}>
             <CloudPlayIcon size={18} />
-            <span className="max-lg:sr-only">Terabox</span>
+            <span className="max-lg:sr-only">Terabox Videos</span>
           </Link>
         </nav>
 

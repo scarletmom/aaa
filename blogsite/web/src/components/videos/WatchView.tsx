@@ -8,7 +8,7 @@ import type { Comment } from '@/lib/comments';
 import type { CatalogVideo, Episode } from '@/lib/videos';
 import { ChevronIcon } from '../ui/Icons';
 import CommentsSection from './CommentsSection';
-import { blockTitle } from './styles';
+import { blockTitle, watchTitle } from './styles';
 import EmbeddedPlayer from './EmbeddedPlayer';
 import VideoCard, { ChannelAvatar, videoStats } from './VideoCard';
 
@@ -39,13 +39,13 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
   const hasDetails = Boolean(video.description || video.tags.length);
 
   return (
-    <div className="grid gap-6 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
+    <WatchLayout upNext={upNext} moreVideos={moreVideos}>
       <article className="min-w-0">
         <div className="-mx-4 sm:mx-0">
           <EmbeddedPlayer key={video.id} videoId={video.id} endpoint={playEndpoint} title={title} episode={requestedEpisode} start={start} onEpisodes={onEpisodes} />
         </div>
 
-        <h1 title={title} className="mt-3 truncate font-display text-[18px] leading-[1.3] font-bold tracking-[-0.005em] md:text-[24px]">{title}</h1>
+        <h1 title={title} className={watchTitle}>{title}</h1>
         <div className="mt-1 flex items-center gap-3">
           <p className="flex min-w-0 flex-1 flex-wrap items-center text-[13px] text-muted [&>span+span]:before:mx-1.5 [&>span+span]:before:content-['·']">
             {video.live && <span className="font-semibold text-accent">Live</span>}
@@ -85,6 +85,15 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
 
         <CommentsSection key={video.id} videoId={video.id} seeds={comments} />
       </article>
+    </WatchLayout>
+  );
+}
+
+/** The page around a playing video: Up next beside it on wide screens (below on phones), then the catalogue. */
+export function WatchLayout({ children, upNext, moreVideos }: { children: ReactNode; upNext: CatalogVideo[]; moreVideos: ReactNode }) {
+  return (
+    <div className="grid gap-6 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
+      {children}
 
       {upNext.length > 0 && (
         <aside aria-labelledby="up-next-title">

@@ -100,7 +100,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const filter = `${searchWords}\n${channel}`;
   const page = pageTurn.filter === filter ? pageTurn.page : 1;
   const setPage = (next: number) => setPageTurn({ filter, page: next });
-  const pageRequest = !onTerabox && !imageSearch.search ? JSON.stringify({ page, query: searchWords, channel }) : null;
+  const pageRequest = !imageSearch.search ? JSON.stringify({ page, query: searchWords, channel }) : null;
   const paged = useAccountLoad('page', accountId, pageRequest, loadPage, { keepMs: CATALOG_KEEP_MS });
   // The last page stays up while the next one loads.
   const [shownPage, setShownPage] = useState<VideoPage | null>(null);
@@ -115,8 +115,8 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const active = loaded && ownEpisodes ? { ...loaded, episodes: ownEpisodes.episodes } : loaded;
   const episode = active ? episodeIndex(active, requestedEpisode, ownEpisodes?.playing ?? -1) : -1;
   const activeTitle = active ? titleWithEpisode(active, episode) : '';
-  // Only the shorts feed, the Terabox tab and image search still need every video at once.
-  const needsCatalog = onTerabox || Boolean(imageSearch.search) || Boolean(active?.short);
+  // Only the shorts feed and image search still need every video at once.
+  const needsCatalog = Boolean(imageSearch.search) || Boolean(active?.short);
   const catalog = useAccountLoad('catalog', accountId, needsCatalog ? '' : null, loadCatalog, { keepMs: CATALOG_KEEP_MS });
   const videos = catalog.status === 'ready' ? catalog.data : NO_VIDEOS;
 
@@ -196,8 +196,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         onEpisodes={(episodes, playing) => setReported({ id: active.id, episodes, playing })}
       />;
   } else if (onTerabox) {
-    // The paste box doesn't need the catalog, so it shows while the other videos load.
-    content = <TeraboxView videos={videos} videosLoading={catalog.status === 'loading'} onWatch={watchTerabox} />;
+    content = <TeraboxView onWatch={watchTerabox} upNext={shownPage?.videos.slice(0, UP_NEXT_LIMIT) ?? []} moreVideos={catalogPage(false)} />;
   } else if (onChannels) {
     content = shownPage ? <ChannelsView channels={shownPage.channels} active={channel} /> : loadStatus(paged);
   } else if (imageSearch.search) {
