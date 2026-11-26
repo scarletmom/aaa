@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS terabox_videos (
   updated_at   TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   UNIQUE KEY uq_terabox_videos_key (video_key),
+  UNIQUE KEY uq_terabox_videos_url (terabox_url(255)),
   KEY ix_terabox_videos_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 
