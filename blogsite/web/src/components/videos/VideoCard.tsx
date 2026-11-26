@@ -8,7 +8,8 @@ import { PlaySolidIcon } from '../ui/Icons';
 
 export const isUpcoming = (video: CatalogVideo) => Boolean(video.startsAt && new Date(video.startsAt).getTime() > Date.now());
 
-export function ChannelAvatar({ name, className }: { name: string; className?: string }) {
+export function ChannelAvatar({ name, src, className }: { name: string; src?: string; className?: string }) {
+  if (src) return <img src={src} alt="" aria-hidden="true" loading="lazy" decoding="async" className={cn('size-9 flex-none rounded-full bg-surface-2 object-cover', className)} />;
   return (
     <span aria-hidden="true" className={cn('grid size-9 flex-none place-items-center rounded-full bg-surface-2 text-[12px] font-bold text-fg-2', className)}>
       {initials(name)}

@@ -51,11 +51,22 @@ function interleave(regular: CatalogVideo[], shorts: CatalogVideo[], videosPerBl
   return sections;
 }
 
+// Channels have no image of their own, so each one shows its newest video's poster.
+function channelPosters(videos: CatalogVideo[]) {
+  const newestFirst = [...videos].sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''));
+  const posters = new Map<string, string>();
+  for (const video of newestFirst) {
+    if (video.channel && video.poster && !posters.has(video.channel)) posters.set(video.channel, video.poster);
+  }
+  return posters;
+}
+
 const matches = (video: CatalogVideo, query: string) =>
   [video.title, video.description, video.channel, ...video.tags].join(' ').toLowerCase().includes(query);
 
 export default function Catalog({ videos, query, channel, onChannel }: CatalogProps) {
   const channels = [...new Set(videos.map((v) => v.channel).filter(Boolean))].sort();
+  const posters = channelPosters(videos);
   const needle = query.trim().toLowerCase();
   const shown = videos.filter((v) => (!channel || v.channel === channel) && (!needle || matches(v, needle)));
   const shorts = shown.filter((v) => v.short);
@@ -74,7 +85,7 @@ export default function Catalog({ videos, query, channel, onChannel }: CatalogPr
         channel === value ? 'border-fg bg-fg text-bg' : 'border-line bg-surface hover:border-fg-2',
       )}
     >
-      {value && <ChannelAvatar name={value} className="size-[26px] text-[10px]" />}
+      {value && <ChannelAvatar name={value} src={posters.get(value)} className="size-[26px] text-[10px]" />}
       {label}
     </button>
   );
