@@ -1,7 +1,6 @@
 'use client';
 
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
 import { parseTeraboxLink, type TeraboxLink } from '@/lib/teraboxLink';
 import type { CatalogVideo, TeraboxVideo } from '@/lib/videos';
 import { CloseIcon, CloudPlayIcon, CopyIcon } from '../ui/Icons';
@@ -37,7 +36,10 @@ function TeraboxPlayer({ video, linkForm }: { video: TeraboxVideo; linkForm: Rea
         <CloudPlayIcon size={15} className="flex-none" />
         From Terabox
       </p>
-      <div className="mt-4 max-w-[560px]">{linkForm}</div>
+      <section aria-labelledby="terabox-new-title" className="mt-6 max-w-[560px]">
+        <h2 id="terabox-new-title" className="mb-2.5 text-[16px] font-bold">Watch new video</h2>
+        {linkForm}
+      </section>
     </article>
   );
 }
@@ -86,11 +88,11 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
     }
   };
 
-  const linkForm = (compact: boolean) => (
+  const linkForm = (
     <>
-      <form onSubmit={onSubmit} aria-busy={busy} className={cn('flex gap-2', compact ? 'flex-row' : 'flex-col gap-2.5 sm:flex-row')}>
+      <form onSubmit={onSubmit} aria-busy={busy} className="flex flex-col gap-2.5 sm:flex-row">
         <label htmlFor="terabox-link" className="sr-only">Terabox link</label>
-        <div className={cn('flex min-w-0 flex-1 items-center gap-1 border border-line bg-surface pr-1.5 focus-within:border-fg-2', compact ? 'h-10 rounded-full pl-3.5' : 'h-12 rounded-2xl pl-4')}>
+        <div className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-2xl border border-line bg-surface pr-1.5 pl-4 focus-within:border-fg-2">
           <input
             id="terabox-link"
             ref={inputRef}
@@ -101,12 +103,12 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
               setLink(event.target.value);
               setError('');
             }}
-            placeholder={compact ? 'Paste another Terabox link' : 'Paste Terabox link'}
+            placeholder="Paste Terabox link"
             autoComplete="off"
             enterKeyHint="go"
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'terabox-link-error' : undefined}
-            className={cn('min-w-0 flex-1 bg-transparent text-left text-fg outline-none placeholder:text-muted', compact ? 'text-[14px]' : 'text-[15px]')}
+            className="min-w-0 flex-1 bg-transparent text-left text-[15px] text-fg outline-none placeholder:text-muted"
           />
           {link ? (
             <button
@@ -117,7 +119,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
                 inputRef.current?.focus();
               }}
               aria-label="Clear link"
-              className={cn('grid flex-none place-items-center text-muted hover:bg-surface-2 hover:text-fg', compact ? 'size-7 rounded-full' : 'size-9 rounded-xl')}
+              className="grid size-9 flex-none place-items-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
             >
               <CloseIcon size={16} />
             </button>
@@ -125,7 +127,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
             <button
               type="button"
               onClick={pasteFromClipboard}
-              className={cn('inline-flex flex-none items-center gap-1.5 bg-surface-2 px-3 text-[13px] font-semibold text-fg hover:bg-line', compact ? 'h-7 rounded-full' : 'h-9 rounded-xl')}
+              className="inline-flex h-9 flex-none items-center gap-1.5 rounded-xl bg-surface-2 px-3 text-[13px] font-semibold text-fg hover:bg-line"
             >
               <CopyIcon size={14} />
               Paste
@@ -135,9 +137,9 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
         <button
           type="submit"
           disabled={busy}
-          className={cn('flex-none bg-fg font-semibold text-bg transition-opacity hover:opacity-90 disabled:opacity-60', compact ? 'h-10 rounded-full px-5 text-[14px]' : 'h-12 rounded-2xl px-6 text-[15px]')}
+          className="h-12 flex-none rounded-2xl bg-fg px-6 text-[15px] font-semibold text-bg transition-opacity hover:opacity-90 disabled:opacity-60"
         >
-          {busy ? 'Opening…' : compact ? 'Play' : 'Watch'}
+          {busy ? 'Opening…' : 'Watch'}
         </button>
       </form>
       {busy && (
@@ -152,7 +154,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
   if (playing) {
     return (
       <WatchLayout upNext={upNext} moreVideos={moreVideos}>
-        <TeraboxPlayer video={playing} linkForm={linkForm(true)} />
+        <TeraboxPlayer video={playing} linkForm={linkForm} />
       </WatchLayout>
     );
   }
@@ -170,7 +172,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
           Paste a Terabox share link to watch it here.
         </p>
 
-        <div className="mt-5 md:w-full md:max-w-[560px]">{linkForm(false)}</div>
+        <div className="mt-5 md:w-full md:max-w-[560px]">{linkForm}</div>
       </section>
 
       {moreVideos ? (
