@@ -2,6 +2,8 @@ const express = require("express");
 const { config, assertReady } = require("./lib/config");
 const db = require("./lib/db");
 const videos = require("./lib/videos");
+const shorts = require("./lib/shorts");
+const teraboxVideos = require("./lib/teraboxVideos");
 const tokens = require("./lib/tokens");
 const news = require("./lib/news");
 const { verifyCaptcha } = require("./lib/captcha");
@@ -362,6 +364,24 @@ app.get(
     if (req.query.page === undefined) return res.json({ videos: all.map(videos.publicVideo) });
     const result = videos.pageOf(all, req.query);
     res.json({ ...result, videos: result.videos.map(videos.publicVideo) });
+  })
+);
+
+app.get(
+  "/api/shorts",
+  wrap(requireViewer),
+  wrap(async (req, res) => {
+    res.json({ shorts: await shorts.listEnabled() });
+  })
+);
+
+// The Terabox Videos page: finished videos (those with a Terabox URL), a page at a time.
+app.get(
+  "/api/terabox/videos",
+  wrap(requireViewer),
+  wrap(async (req, res) => {
+    if (!req.member) return res.status(403).json({ error: "Sign in with a Member Lite or Pro account to watch Terabox videos.", code: "plan_required" });
+    res.json(await teraboxVideos.pageOf(req.query));
   })
 );
 

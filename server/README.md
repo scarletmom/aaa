@@ -166,6 +166,8 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 | POST | `/api/account/new-number` | `Bearer <account JWT>`, `{ accountNumber }` | the same plus the new `accountNumber`; the old number stops logging in |
 | GET  | `/api/videos` | `Bearer <pass>` or a Member Lite/Pro account token | `{ videos: [...] }` (enabled posts, no Real URL); other accounts get 403 `plan_required` |
 | GET  | `/api/videos?page=N` | the same; optional `q` (search words), `channel` (category name), `pageSize` (default 40, max 100) | `{ videos, page, pages, pageSize, total, channels: [{ name, avatar, count }] }`: one page of the matching posts; `channels` lists every category with its post count, its avatar falling back to its newest thumbnail |
+| GET  | `/api/shorts` | `Bearer <pass>` or a Member Lite/Pro account token | `{ shorts: [{ id, title, videoUrl, type, thumbnail, durationSeconds, createdAt, category }] }`: enabled shorts, newest first (`type` is `hls`, `dash` or `native`) |
+| GET  | `/api/terabox/videos?page=N` | a Member Lite/Pro account token | `{ videos: [{ key, title, teraboxUrl, thumbnail, duration, createdAt }], page, pages, pageSize, total }`: 40 per page (optional `q`, `pageSize`), only videos with a Terabox URL |
 | GET  | `/api/videos/:tag` | `Bearer <pass>` or a Member Lite/Pro account token | `{ video, same, others }`, and counts a view; an account token also gets `play`, a signed `/api/play` endpoint for the player |
 | POST | `/api/videos/:tag/unlock` | `{ captcha }` | `{ next }`: the news page to open |
 | POST | `/api/pro/checkout` | `Bearer <account token>`, `{ plan: "week" \| "month" \| "lifetime" }` | `{ url }`: Dodo's checkout page for that plan (503 `payments_off` without `DODO_API_KEY`) |

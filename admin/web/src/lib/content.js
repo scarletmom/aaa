@@ -12,6 +12,7 @@ export function loadSite() {
 export const postPath = (tag) => `/content/${encodeURIComponent(tag)}`;
 export const duplicatePath = (tag) => `/content/new?from=${encodeURIComponent(tag)}`;
 export const categoryPath = (id) => `/categories/${id}`;
+export const shortPath = (id) => `/shorts/${id}`;
 export const publicPostUrl = (siteUrl, tag) => (siteUrl ? `${siteUrl}/r/${encodeURIComponent(tag)}` : "");
 
 export function formatDuration(seconds) {

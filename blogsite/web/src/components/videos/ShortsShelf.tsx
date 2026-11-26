@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useId } from 'react';
-import { videoUrl } from '@/lib/format';
+import { shortUrl } from '@/lib/format';
 import type { CatalogVideo } from '@/lib/videos';
 import { PlaySolidIcon } from '../ui/Icons';
 import { blockTitle } from './styles';
@@ -11,7 +11,7 @@ import { videoStats } from './VideoCard';
 function ShortCard({ video }: { video: CatalogVideo }) {
   const meta = videoStats(video).join(' · ');
   return (
-    <Link href={videoUrl(video.id)} className="group block w-[168px] flex-none snap-start sm:w-[196px]">
+    <Link href={shortUrl(video.id)} className="group block w-[168px] flex-none snap-start sm:w-[196px]">
       <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-img">
         {video.poster
           ? <img src={video.poster} alt="" loading="lazy" decoding="async" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />

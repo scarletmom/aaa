@@ -2,10 +2,12 @@ const express = require("express");
 const db = require("./db");
 const posts = require("./posts");
 const categories = require("./categories");
-const { probeDuration } = require("./media");
+const { parseDuration, probeDuration } = require("./media");
 const { resolveVisit } = require("./visit");
 const visits = require("./visits");
 const accounts = require("./accounts");
+const shorts = require("./shorts");
+const teraboxVideos = require("./teraboxVideos");
 
 const { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
 
@@ -21,6 +23,33 @@ function categoryInput(body) {
   return { values, errors };
 }
 
+function shortInput(body) {
+  const values = {
+    title: trim(body.title, 255),
+    videoUrl: trim(body.videoUrl, 2048),
+    thumbnail: trim(body.thumbnail, 2048),
+    categoryId: categories.parseId(body.categoryId),
+    durationSeconds: parseDuration(trim(body.duration, 12)),
+  };
+  const errors = {};
+  if (!values.title) errors.title = "Title is required.";
+  if (!values.videoUrl) errors.videoUrl = "Video URL is required.";
+  else if (!HTTP_URL.test(values.videoUrl)) errors.videoUrl = "Must start with http:// or https://";
+  if (values.thumbnail && !HTTP_URL.test(values.thumbnail)) errors.thumbnail = "Must start with http:// or https://";
+  if (Number.isNaN(values.durationSeconds)) errors.duration = "Use seconds, m:ss or h:mm:ss, e.g. 0:45.";
+  return { values, errors };
+}
+
+async function saveShort(body, existingId) {
+  const { values, errors } = shortInput(body);
+  await checkCategory(values, errors);
+  checked(values, errors);
+  values.durationSeconds ??= await probeDuration(values.videoUrl);
+  const id = existingId ?? (await shorts.create(values));
+  if (existingId) await shorts.update(existingId, values);
+  return shorts.get(id);
+}
+
 const handle = (fn) => (req, res, next) => fn(req, res).catch(next);
 
 const router = express.Router();
@@ -32,7 +61,7 @@ router.get("/site", (req, res) =>
   })
 );
 
-router.use(["/posts", "/categories", "/visits", "/users"], (req, res, next) => {
+router.use(["/posts", "/categories", "/visits", "/users", "/shorts", "/terabox-videos"], (req, res, next) => {
   if (db.configured) return next();
   res.status(503).json({ error: "The website database is not configured.", code: "no_database" });
 });
@@ -138,6 +167,39 @@ router.delete(
     res.json({ deleted: id ? await categories.remove(id) : false });
   })
 );
+
+router.get("/shorts", handle(async (req, res) => res.json(await shorts.list())));
+
+router.get(
+  "/shorts/:id",
+  handle(async (req, res) => {
+    const short = await shorts.get(req.params.id);
+    return short ? res.json(short) : res.status(404).json({ error: "Short not found" });
+  })
+);
+
+router.post("/shorts", handle(async (req, res) => res.status(201).json(await saveShort(req.body || {}, null))));
+
+router.put(
+  "/shorts/:id",
+  handle(async (req, res) => {
+    const existing = await shorts.get(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Short not found" });
+    res.json(await saveShort(req.body || {}, existing.id));
+  })
+);
+
+router.post(
+  "/shorts/:id/enabled",
+  handle(async (req, res) => {
+    const enabled = Boolean(req.body?.enabled);
+    return (await shorts.setEnabled(req.params.id, enabled)) ? res.json({ enabled }) : res.status(404).json({ error: "Short not found" });
+  })
+);
+
+router.delete("/shorts/:id", handle(async (req, res) => res.json({ deleted: await shorts.remove(req.params.id) })));
+
+router.get("/terabox-videos", handle(async (req, res) => res.json(await teraboxVideos.list())));
 
 router.get("/users", handle(async (req, res) => res.json(await accounts.list(req.query))));
 

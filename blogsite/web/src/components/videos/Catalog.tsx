@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { channelsTabUrl } from '@/lib/format';
 import type { CatalogVideo, Channel, VideoPage } from '@/lib/videos';
 import { ChevronIcon, HomeIcon } from '../ui/Icons';
+import Pager from './Pager';
 import ShortsShelf from './ShortsShelf';
 import { blockTitle, videoGrid, videoGridBesideSidebar } from './styles';
 import VideoCard, { ChannelAvatar } from './VideoCard';
@@ -13,6 +14,8 @@ import VideoCard, { ChannelAvatar } from './VideoCard';
 interface CatalogProps {
   /** The page the server sent; it does the searching and channel filtering. */
   page: VideoPage;
+  /** Shorts to break the grid up with; pages take turns showing them. */
+  shorts?: CatalogVideo[];
   channel: string;
   onChannel: (channel: string) => void;
   onPage: (page: number) => void;
@@ -30,9 +33,6 @@ const CHANNEL_LIMIT = 10;
 // The catalog repeats: this many rows of long videos, then one row of shorts.
 const ROWS_BETWEEN_SHELVES = 2;
 const SHORTS_PER_SHELF = 6;
-
-const pagerButton =
-  'h-10 rounded-full border border-line bg-surface px-5 text-[14px] font-semibold transition-colors hover:border-fg disabled:pointer-events-none disabled:opacity-40';
 
 type ColumnQueries = [string, number][];
 
@@ -78,6 +78,14 @@ function interleave(regular: CatalogVideo[], shorts: CatalogVideo[], videosPerBl
   return sections;
 }
 
+/** One shelf per block of rows, carrying on through the shorts from where the previous page stopped. */
+function shortsForPage(shorts: CatalogVideo[], page: number, shelves: number) {
+  if (!shorts.length) return [];
+  const count = Math.min(shelves * SHORTS_PER_SHELF, shorts.length);
+  const start = ((page - 1) * shelves * SHORTS_PER_SHELF) % shorts.length;
+  return Array.from({ length: count }, (_, i) => shorts[(start + i) % shorts.length]);
+}
+
 /** The first few channels, with the chosen one kept in view even when it's further down the list. */
 function leadingChannels(channels: Channel[], chosen: string) {
   const first = channels.slice(0, CHANNEL_LIMIT);
@@ -85,12 +93,12 @@ function leadingChannels(channels: Channel[], chosen: string) {
   return picked ? [picked, ...first.slice(0, CHANNEL_LIMIT - 1)] : first;
 }
 
-export default function Catalog({ page, channel, onChannel, onPage, filtered, busy = false, sidebar = false }: CatalogProps) {
+export default function Catalog({ page, shorts = [], channel, onChannel, onPage, filtered, busy = false, sidebar = false }: CatalogProps) {
   const topRef = useRef<HTMLDivElement>(null);
   const leading = leadingChannels(page.channels, channel);
-  const shorts = page.videos.filter((v) => v.short);
-  const regular = page.videos.filter((v) => !v.short);
-  const sections = interleave(regular, shorts, useGridColumns(sidebar) * ROWS_BETWEEN_SHELVES);
+  const videosPerBlock = useGridColumns(sidebar) * ROWS_BETWEEN_SHELVES;
+  const shelves = Math.max(1, Math.ceil(page.videos.length / videosPerBlock));
+  const sections = interleave(page.videos, shortsForPage(shorts, page.page, shelves), videosPerBlock);
 
   const turnTo = (next: number) => {
     onPage(next);
@@ -163,17 +171,7 @@ export default function Catalog({ page, channel, onChannel, onPage, filtered, bu
           </section>
         )))}
       </div>
-      {page.pages > 1 && (
-        <nav aria-label="Pages" className="flex items-center justify-center gap-3 pb-12">
-          <button type="button" onClick={() => turnTo(page.page - 1)} disabled={busy || page.page <= 1} className={pagerButton}>
-            Previous
-          </button>
-          <span className="text-[13.5px] text-muted tabular-nums">Page {page.page} of {page.pages}</span>
-          <button type="button" onClick={() => turnTo(page.page + 1)} disabled={busy || page.page >= page.pages} className={pagerButton}>
-            Next
-          </button>
-        </nav>
-      )}
+      <Pager page={page.page} pages={page.pages} onPage={turnTo} busy={busy} />
     </div>
   );
 

@@ -230,6 +230,19 @@ don't show in History):
 It starts with a "Wire me" step; replace it with the steps that turn the share link into video URLs. The
 Output step already returns `title`, `thumbnail` and `qualities` from the item it receives.
 
+## Shorts and Terabox videos
+
+**Shorts** creates, edits, disables and deletes the vertical clips on the videos home page. Each short has a
+title, a video URL the viewer's browser plays directly (`.mp4`, `.m3u8` or `.mpd`), an optional thumbnail and
+category, and a length (left blank, it is read from an `.m3u8`). They live in the `shorts` table; only enabled
+ones reach the site.
+
+**Terabox videos** lists every row of the `terabox_videos` table (`video_key`, `title`, `terabox_url`,
+`thumbnail`, `duration` as text like `04:23`), unfinished ones included. A video is public on the Terabox
+Videos page only once it has a `terabox_url`. Rows can't be added from the admin yet.
+
+Both tables are created on first use by whichever app (this one or the videos API server) starts first.
+
 ## Endpoints
 
 Only **active** workflows answer. If `API_TOKEN` is set, send `Authorization: Bearer <token>`.

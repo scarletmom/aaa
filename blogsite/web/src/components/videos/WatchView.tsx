@@ -39,7 +39,7 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
   const hasDetails = Boolean(video.description || video.tags.length);
 
   return (
-    <WatchLayout upNext={upNext} moreVideos={moreVideos}>
+    <WatchLayout upNext={upNext.length > 0 && upNext.map((item) => <VideoCard key={item.id} video={item} compact />)} moreVideos={moreVideos}>
       <article className="min-w-0">
         <div className="-mx-4 sm:mx-0">
           <EmbeddedPlayer key={video.id} videoId={video.id} endpoint={playEndpoint} title={title} episode={requestedEpisode} start={start} onEpisodes={onEpisodes} />
@@ -90,17 +90,15 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
 }
 
 /** The page around a playing video: Up next beside it on wide screens (below on phones), then the catalogue. */
-export function WatchLayout({ children, upNext, moreVideos }: { children: ReactNode; upNext: CatalogVideo[]; moreVideos: ReactNode }) {
+export function WatchLayout({ children, upNext, moreVideos }: { children: ReactNode; upNext: ReactNode; moreVideos: ReactNode }) {
   return (
     <div className="grid gap-6 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
       {children}
 
-      {upNext.length > 0 && (
+      {upNext && (
         <aside aria-labelledby="up-next-title">
           <h2 id="up-next-title" className={blockTitle}>Up next</h2>
-          <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-1 lg:gap-3">
-            {upNext.map((item) => <VideoCard key={item.id} video={item} compact />)}
-          </div>
+          <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-1 lg:gap-3">{upNext}</div>
         </aside>
       )}
 

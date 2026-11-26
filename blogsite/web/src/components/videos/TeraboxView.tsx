@@ -1,22 +1,97 @@
 'use client';
 
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/cn';
+import { timeAgo } from '@/lib/format';
 import { parseTeraboxLink, type TeraboxLink } from '@/lib/teraboxLink';
-import type { CatalogVideo, TeraboxVideo } from '@/lib/videos';
-import { CloseIcon, CloudPlayIcon, CopyIcon } from '../ui/Icons';
+import type { TeraboxListing, TeraboxPage, TeraboxVideo } from '@/lib/videos';
+import { CloseIcon, CloudPlayIcon, CopyIcon, PlaySolidIcon } from '../ui/Icons';
+import Pager from './Pager';
 import { blockTitle, videoGrid, watchTitle } from './styles';
 import { WatchLayout } from './WatchView';
 
 interface TeraboxViewProps {
   /** Resolves the link to something playable; a rejection's message is shown under the box. */
   onWatch: (link: TeraboxLink) => Promise<TeraboxVideo>;
-  /** Suggested next while a Terabox video plays. */
-  upNext: CatalogVideo[];
-  /** The home page's catalogue, or null while it loads. */
-  moreVideos: ReactNode;
+  /** The current page of saved Terabox videos, or null while the first one loads. */
+  listing: TeraboxPage | null;
+  /** Shown in place of the saved videos when they couldn't load. */
+  listingProblem: ReactNode;
+  onPage: (page: number) => void;
+  /** Another page of saved videos is loading. */
+  listingBusy: boolean;
 }
 
 const SKELETON_CARDS = 4;
+const UP_NEXT_LIMIT = 6;
+
+function TeraboxCard({ video, onPlay, disabled, compact = false }: { video: TeraboxListing; onPlay: () => void; disabled: boolean; compact?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      disabled={disabled}
+      className={cn('group block w-full min-w-0 text-left disabled:cursor-wait', compact && 'lg:flex lg:gap-2.5')}
+    >
+      <span className={cn('relative block aspect-video overflow-hidden rounded-xl bg-img', compact && 'lg:w-[168px] lg:flex-none lg:rounded-[10px]')}>
+        {video.thumbnail
+          ? <img src={video.thumbnail} alt="" loading="lazy" decoding="async" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+          : <span className="grid size-full place-items-center text-muted"><PlaySolidIcon size={28} /></span>}
+        {video.duration && (
+          <span className="absolute right-2 bottom-2 rounded-[5px] bg-black/80 px-1.5 py-px text-[12px] font-semibold text-white tabular-nums">{video.duration}</span>
+        )}
+      </span>
+      <span className={cn('flex min-w-0 flex-col gap-1 px-0.5 pt-3', compact && 'lg:p-0')}>
+        <span className={cn('line-clamp-2 text-[15.5px] leading-[1.35] font-semibold decoration-1 underline-offset-[0.14em] group-hover:underline', compact && 'lg:text-[14px]')}>
+          {video.title}
+        </span>
+        {video.createdAt && <span className={cn('text-[13px] text-muted', compact && 'lg:text-[12.5px]')}>{timeAgo(video.createdAt)}</span>}
+      </span>
+    </button>
+  );
+}
+
+interface TeraboxGridProps {
+  listing: TeraboxPage;
+  onPlay: (video: TeraboxListing) => void;
+  onPage: (page: number) => void;
+  busy: boolean;
+  /** A video is being opened, so the cards wait. */
+  opening: boolean;
+}
+
+function TeraboxGrid({ listing, onPlay, onPage, busy, opening }: TeraboxGridProps) {
+  const topRef = useRef<HTMLDivElement>(null);
+  if (listing.total === 0) return <p className="py-16 text-center text-muted">No Terabox videos yet. Paste a link to watch one.</p>;
+  return (
+    <div ref={topRef} className="scroll-mt-16">
+      <div aria-busy={busy} className={cn(videoGrid, 'pb-8 transition-opacity', busy && 'opacity-60')}>
+        {listing.videos.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => onPlay(video)} disabled={opening} />)}
+      </div>
+      <Pager
+        page={listing.page}
+        pages={listing.pages}
+        busy={busy}
+        onPage={(next) => {
+          onPage(next);
+          topRef.current?.scrollIntoView({ block: 'start' });
+        }}
+      />
+    </div>
+  );
+}
+
+const skeleton = (
+  <div aria-hidden="true" className={videoGrid}>
+    {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+      <div key={index} className="animate-pulse">
+        <div className="aspect-video rounded-xl bg-surface-2" />
+        <div className="mt-3 h-4 w-4/5 rounded bg-surface-2" />
+        <div className="mt-2 h-3 w-1/2 rounded bg-surface-2" />
+      </div>
+    ))}
+  </div>
+);
 
 function TeraboxPlayer({ video, linkForm }: { video: TeraboxVideo; linkForm: ReactNode }) {
   return (
@@ -44,8 +119,9 @@ function TeraboxPlayer({ video, linkForm }: { video: TeraboxVideo; linkForm: Rea
   );
 }
 
-export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxViewProps) {
-  const [playing, setPlaying] = useState<TeraboxVideo | null>(null);
+export default function TeraboxView({ onWatch, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
+  // A saved video carries its key, so Up next can leave it out.
+  const [playing, setPlaying] = useState<(TeraboxVideo & { key?: string }) | null>(null);
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,7 +130,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
 
   useEffect(() => setCanReadClipboard(Boolean(navigator.clipboard?.readText)), []);
 
-  const submit = async (text: string) => {
+  const submit = async (text: string, saved?: TeraboxListing) => {
     const result = parseTeraboxLink(text);
     if ('error' in result) {
       setError(result.error);
@@ -63,7 +139,8 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
     setError('');
     setBusy(true);
     try {
-      setPlaying(await onWatch(result.link));
+      const video = await onWatch(result.link);
+      setPlaying(saved ? { ...video, title: saved.title, poster: saved.thumbnail || video.poster, key: saved.key } : video);
       setLink('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -151,9 +228,21 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
     </>
   );
 
+  const playSaved = (video: TeraboxListing) => {
+    if (busy) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    submit(video.teraboxUrl, video);
+  };
+
+  const grid = listing && <TeraboxGrid listing={listing} onPlay={playSaved} onPage={onPage} busy={listingBusy} opening={busy} />;
+
   if (playing) {
+    const upNext = (listing?.videos ?? []).filter((video) => video.key !== playing.key).slice(0, UP_NEXT_LIMIT);
     return (
-      <WatchLayout upNext={upNext} moreVideos={moreVideos}>
+      <WatchLayout
+        upNext={upNext.length > 0 && upNext.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => playSaved(video)} disabled={busy} compact />)}
+        moreVideos={grid}
+      >
         <TeraboxPlayer video={playing} linkForm={linkForm} />
       </WatchLayout>
     );
@@ -175,22 +264,10 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
         <div className="mt-5 md:w-full md:max-w-[560px]">{linkForm}</div>
       </section>
 
-      {moreVideos ? (
-        <section aria-labelledby="terabox-more" className="mt-9">
-          <h2 id="terabox-more" className={blockTitle}>More videos</h2>
-          {moreVideos}
-        </section>
-      ) : (
-        <div aria-hidden="true" className={`${videoGrid} mt-9`}>
-          {Array.from({ length: SKELETON_CARDS }, (_, index) => (
-            <div key={index} className="animate-pulse">
-              <div className="aspect-video rounded-xl bg-surface-2" />
-              <div className="mt-3 h-4 w-4/5 rounded bg-surface-2" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-surface-2" />
-            </div>
-          ))}
-        </div>
-      )}
+      <section aria-labelledby="terabox-saved-title" className="mt-9">
+        <h2 id="terabox-saved-title" className={blockTitle}>Terabox videos</h2>
+        {listingProblem ?? grid ?? skeleton}
+      </section>
     </div>
   );
 }

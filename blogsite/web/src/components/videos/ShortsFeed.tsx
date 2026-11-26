@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { videoUrl } from '@/lib/format';
+import { shortUrl } from '@/lib/format';
 import type { CatalogVideo } from '@/lib/videos';
 import { ChevronIcon, MutedIcon, PlaySolidIcon, VolumeIcon } from '../ui/Icons';
 import { useStreamSource } from './useStreamSource';
@@ -65,7 +65,7 @@ export default function ShortsFeed({ shorts, startId }: ShortsFeedProps) {
   }, [current, count, cycle.length]);
 
   useEffect(() => {
-    window.history.replaceState(null, '', videoUrl(currentShortId));
+    window.history.replaceState(null, '', shortUrl(currentShortId));
   }, [currentShortId]);
 
   useEffect(() => {

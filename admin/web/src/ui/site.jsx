@@ -24,7 +24,8 @@ export function useThumbnailsPref() {
 
 export function Thumb({ src, duration, show = true, size = "md" }) {
   const [failed, setFailed] = useState(false);
-  const length = formatDuration(duration);
+  // Terabox videos store their length as text ("04:23"); everything else counts seconds.
+  const length = typeof duration === "string" ? duration : formatDuration(duration);
   return (
     <span className={`thumb thumb-${size}`}>
       {show && src && !failed && <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />}

@@ -148,6 +148,63 @@ export async function fetchVideo(id: string, token: string): Promise<VideoDetail
   };
 }
 
+interface ApiShort {
+  id: number;
+  title: string;
+  videoUrl: string;
+  type: SourceType;
+  thumbnail: string;
+  durationSeconds: number | null;
+  createdAt: string | null;
+  category: { name: string; avatar?: string } | null;
+}
+
+function shortToCatalogVideo(short: ApiShort): CatalogVideo {
+  return {
+    id: String(short.id),
+    title: short.title,
+    description: '',
+    channel: short.category?.name ?? '',
+    poster: short.thumbnail ?? '',
+    tags: [],
+    publishedAt: short.createdAt ?? null,
+    startsAt: null,
+    live: false,
+    views: null,
+    short: true,
+    duration: formatDuration(short.durationSeconds),
+    sources: [{ url: short.videoUrl, type: short.type }],
+    episodes: [],
+  };
+}
+
+/** Every live short, newest first; this page plays them itself. */
+export async function fetchShorts(token: string): Promise<CatalogVideo[]> {
+  const { shorts } = await apiRequest<{ shorts: ApiShort[] }>('/api/shorts', { token });
+  return shorts.map(shortToCatalogVideo);
+}
+
+/** A finished video on the Terabox Videos page; its share link is resolved like a pasted one. */
+export interface TeraboxListing {
+  key: string;
+  title: string;
+  teraboxUrl: string;
+  thumbnail: string;
+  duration: string;
+  createdAt: string | null;
+}
+
+export interface TeraboxPage {
+  videos: TeraboxListing[];
+  page: number;
+  pages: number;
+  total: number;
+}
+
+export async function fetchTeraboxPage(page: number, token: string): Promise<TeraboxPage> {
+  return apiRequest<TeraboxPage>(`/api/terabox/videos?page=${page}`, { token });
+}
+
 export interface TeraboxVideo {
   title: string;
   poster: string;

@@ -67,5 +67,6 @@ export const subscribeUrl = '/subscribe/';
 export const teraboxTabUrl = '/videos/?tab=terabox';
 export const channelsTabUrl = '/videos/?tab=channels';
 export const channelUrl = (name: string) => `/videos/?channel=${encodeURIComponent(name)}`;
+export const shortUrl = (id: string) => `/videos/?short=${encodeURIComponent(id)}`;
 export const videoUrl = (id: string, episode?: number) =>
   `/videos/?v=${encodeURIComponent(id)}${episode ? `&ep=${episode}` : ''}`;

@@ -10,7 +10,18 @@ import { channelUrl, videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
 import { canWatchVideos, proPlan } from '@/lib/roles';
 import { getSession, useHydrated, useSession } from '@/lib/session';
-import { type CatalogVideo, type Episode, fetchVideo, fetchVideoPage, fetchVideos, openTerabox, type VideoPage } from '@/lib/videos';
+import {
+  type CatalogVideo,
+  type Episode,
+  fetchShorts,
+  fetchTeraboxPage,
+  fetchVideo,
+  fetchVideoPage,
+  fetchVideos,
+  openTerabox,
+  type TeraboxPage,
+  type VideoPage,
+} from '@/lib/videos';
 import type { TeraboxLink } from '@/lib/teraboxLink';
 import ViewerAds from '../site/ViewerAds';
 import AccessGate from './AccessGate';
@@ -38,6 +49,8 @@ const NO_VIDEOS: CatalogVideo[] = [];
 
 const loadCatalog = (_request: string, token: string) => fetchVideos(token);
 const loadPage = (request: string, token: string) => fetchVideoPage(JSON.parse(request), token);
+const loadShorts = (_request: string, token: string) => fetchShorts(token);
+const loadTeraboxPage = (request: string, token: string) => fetchTeraboxPage(Number(request), token);
 const loadDetail = (id: string, token: string) => fetchVideo(id, token);
 
 const watchTerabox = (link: TeraboxLink) => openTerabox(link.url, getSession()?.token ?? '');
@@ -71,6 +84,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const activeId = searchParams.get('v');
   const onTerabox = !activeId && searchParams.get('tab') === 'terabox';
   const onChannels = !activeId && searchParams.get('tab') === 'channels';
+  const shortId = activeId ? null : searchParams.get('short');
   // In the address, so the channels page can link to a filtered home page and Back undoes a filter.
   const channel = searchParams.get('channel') ?? '';
   const requestedEpisode = Number(searchParams.get('ep')) || 0;
@@ -100,11 +114,17 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const filter = `${searchWords}\n${channel}`;
   const page = pageTurn.filter === filter ? pageTurn.page : 1;
   const setPage = (next: number) => setPageTurn({ filter, page: next });
-  const pageRequest = !imageSearch.search ? JSON.stringify({ page, query: searchWords, channel }) : null;
+  const pageRequest = !imageSearch.search && !shortId ? JSON.stringify({ page, query: searchWords, channel }) : null;
   const paged = useAccountLoad('page', accountId, pageRequest, loadPage, { keepMs: CATALOG_KEEP_MS });
   // The last page stays up while the next one loads.
   const [shownPage, setShownPage] = useState<VideoPage | null>(null);
   if (paged.status === 'ready' && paged.data !== shownPage) setShownPage(paged.data);
+  const shortsLoad = useAccountLoad('shorts', accountId, '', loadShorts, { keepMs: CATALOG_KEEP_MS });
+  const shorts = shortsLoad.status === 'ready' ? shortsLoad.data : NO_VIDEOS;
+  const [teraboxPageNumber, setTeraboxPageNumber] = useState(1);
+  const teraboxLoad = useAccountLoad('terabox', accountId, onTerabox ? String(teraboxPageNumber) : null, loadTeraboxPage, { keepMs: CATALOG_KEEP_MS });
+  const [shownTerabox, setShownTerabox] = useState<TeraboxPage | null>(null);
+  if (teraboxLoad.status === 'ready' && teraboxLoad.data !== shownTerabox) setShownTerabox(teraboxLoad.data);
   // Not kept: each open counts a view and needs a fresh play endpoint.
   const detail = useAccountLoad('detail', accountId, activeId, loadDetail);
 
@@ -115,8 +135,8 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const active = loaded && ownEpisodes ? { ...loaded, episodes: ownEpisodes.episodes } : loaded;
   const episode = active ? episodeIndex(active, requestedEpisode, ownEpisodes?.playing ?? -1) : -1;
   const activeTitle = active ? titleWithEpisode(active, episode) : '';
-  // Only the shorts feed and image search still need every video at once.
-  const needsCatalog = Boolean(imageSearch.search) || Boolean(active?.short);
+  // Only image search still needs every video at once.
+  const needsCatalog = Boolean(imageSearch.search);
   const catalog = useAccountLoad('catalog', accountId, needsCatalog ? '' : null, loadCatalog, { keepMs: CATALOG_KEEP_MS });
   const videos = catalog.status === 'ready' ? catalog.data : NO_VIDEOS;
 
@@ -131,7 +151,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
 
   const search = (value: string) => {
     setQuery(value);
-    if ((active || onTerabox || onChannels) && value) router.push(channel ? channelUrl(channel) : videosUrl);
+    if ((active || onTerabox || onChannels || shortId) && value) router.push(channel ? channelUrl(channel) : videosUrl);
   };
 
   const openSearch = () => {
@@ -152,7 +172,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const searchByImage = (file: File) => {
     setQuery('');
     imageSearch.start(file);
-    if (active || onTerabox || onChannels) router.push(videosUrl);
+    if (active || onTerabox || onChannels || shortId) router.push(videosUrl);
   };
 
   const chooseChannel = (name: string) => router.push(name ? channelUrl(name) : videosUrl);
@@ -160,6 +180,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const catalogPage = (sidebar: boolean) => shownPage && (
     <Catalog
       page={shownPage}
+      shorts={searchWords || channel ? NO_VIDEOS : shorts}
       channel={channel}
       onChannel={chooseChannel}
       sidebar={sidebar}
@@ -178,10 +199,12 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     content = loadingMessage;
   } else if (adBlock.status === 'blocked') {
     content = null;
+  } else if (shortId) {
+    if (shortsLoad.status !== 'ready') content = loadStatus(shortsLoad);
+    else if (!shorts.length) content = <p className="py-24 text-center text-muted">There are no shorts to watch yet.</p>;
+    else content = <ShortsFeed shorts={shorts} startId={shortId} />;
   } else if (activeId && detail.status !== 'ready') {
     content = loadStatus(detail);
-  } else if (active?.short) {
-    content = catalog.status === 'ready' ? <ShortsFeed shorts={videos.filter((v) => v.short)} startId={active.id} /> : loadStatus(catalog);
   } else if (active && detail.status === 'ready') {
     content = <WatchView
         video={active}
@@ -196,7 +219,15 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         onEpisodes={(episodes, playing) => setReported({ id: active.id, episodes, playing })}
       />;
   } else if (onTerabox) {
-    content = <TeraboxView onWatch={watchTerabox} upNext={shownPage?.videos.slice(0, UP_NEXT_LIMIT) ?? []} moreVideos={catalogPage(false)} />;
+    content = (
+      <TeraboxView
+        onWatch={watchTerabox}
+        listing={shownTerabox}
+        listingProblem={teraboxLoad.status === 'error' ? loadStatus(teraboxLoad) : null}
+        onPage={setTeraboxPageNumber}
+        listingBusy={teraboxLoad.status === 'loading'}
+      />
+    );
   } else if (onChannels) {
     content = shownPage ? <ChannelsView channels={shownPage.channels} active={channel} /> : loadStatus(paged);
   } else if (imageSearch.search) {
@@ -209,7 +240,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     content = catalogPage(true);
   }
 
-  const activeTab: VideoTab = searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home';
+  const activeTab: VideoTab = searching ? 'search' : onTerabox ? 'terabox' : activeId || shortId ? null : 'home';
 
   return (
     <>
