@@ -84,9 +84,8 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
 
   const pasteFromClipboard = async () => {
     try {
-      const text = await navigator.clipboard.readText();
-      setLink(text);
-      submit(text);
+      setLink(await navigator.clipboard.readText());
+      setError('');
     } catch {
       inputRef.current?.focus();
       setError('Couldn’t read your clipboard. Long-press the box and choose Paste.');
@@ -131,13 +130,6 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
               onChange={(event) => {
                 setLink(event.target.value);
                 setError('');
-              }}
-              onPaste={(event) => {
-                const text = event.clipboardData.getData('text');
-                if (!text || busy) return;
-                event.preventDefault();
-                setLink(text);
-                submit(text);
               }}
               placeholder="Paste Terabox link"
               autoComplete="off"
