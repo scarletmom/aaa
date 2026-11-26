@@ -45,7 +45,7 @@ interface ApiVideo {
   views: number;
   durationSeconds: number | null;
   createdAt: string | null;
-  category: { name: string } | null;
+  category: { name: string; avatar?: string } | null;
 }
 
 const twoDigits = (value: number) => String(value).padStart(2, '0');
@@ -84,16 +84,54 @@ export async function fetchVideos(token: string): Promise<CatalogVideo[]> {
   return videos.map(toCatalogVideo);
 }
 
+export interface Channel {
+  name: string;
+  avatar: string;
+}
+
+export interface PageRequest {
+  page: number;
+  query: string;
+  channel: string;
+}
+
+export interface VideoPage {
+  videos: CatalogVideo[];
+  page: number;
+  pages: number;
+  total: number;
+  /** Every channel, whatever the filter, for the channel chips. */
+  channels: Channel[];
+}
+
+/** One page of the catalogue, filtered on the server. */
+export async function fetchVideoPage({ page, query, channel }: PageRequest, token: string): Promise<VideoPage> {
+  const params = new URLSearchParams({ page: String(page) });
+  if (query) params.set('q', query);
+  if (channel) params.set('channel', channel);
+  const data = await apiRequest<Omit<VideoPage, 'videos'> & { videos: ApiVideo[] }>(`/api/videos?${params}`, { token });
+  return { ...data, videos: data.videos.map(toCatalogVideo) };
+}
+
 export interface VideoDetail {
   video: CatalogVideo;
   /** A signed endpoint the player fetches for the stream; it expires after a few hours. */
   play: string;
+  /** The server's picks to watch next: the same channel first, then others. */
+  related: CatalogVideo[];
 }
 
 /** One video and its play endpoint. Each call counts a view. */
 export async function fetchVideo(id: string, token: string): Promise<VideoDetail> {
-  const detail = await apiRequest<{ video: ApiVideo; play?: string }>(`/api/videos/${encodeURIComponent(id)}`, { token });
-  return { video: toCatalogVideo(detail.video), play: detail.play ?? '' };
+  const detail = await apiRequest<{ video: ApiVideo; play?: string; same?: ApiVideo[]; others?: ApiVideo[] }>(
+    `/api/videos/${encodeURIComponent(id)}`,
+    { token },
+  );
+  return {
+    video: toCatalogVideo(detail.video),
+    play: detail.play ?? '',
+    related: [...(detail.same ?? []), ...(detail.others ?? [])].map(toCatalogVideo),
+  };
 }
 
 export interface TeraboxVideo {
@@ -173,26 +211,4 @@ export async function openTerabox(url: string, token: string): Promise<TeraboxVi
   };
   const play = URL.createObjectURL(new Blob([JSON.stringify(meta)], { type: 'application/json' }));
   return { title, poster, play };
-}
-
-// Channels have no image of their own, so each one shows its newest video's poster.
-export function channelPosters(videos: CatalogVideo[]) {
-  const newestFirst = [...videos].sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''));
-  const posters = new Map<string, string>();
-  for (const video of newestFirst) {
-    if (video.channel && video.poster && !posters.has(video.channel)) posters.set(video.channel, video.poster);
-  }
-  return posters;
-}
-
-// Same channel counts most, then each shared tag; ties go to the newest.
-export function recommendedFor(video: CatalogVideo, videos: CatalogVideo[], limit: number) {
-  const tags = new Set(video.tags);
-  const score = (other: CatalogVideo) => (other.channel && other.channel === video.channel ? 2 : 0) + other.tags.filter((tag) => tags.has(tag)).length;
-  return videos
-    .filter((other) => other.id !== video.id && !other.short)
-    .map((other) => ({ other, score: score(other) }))
-    .sort((a, b) => b.score - a.score || (b.other.publishedAt ?? '').localeCompare(a.other.publishedAt ?? ''))
-    .slice(0, limit)
-    .map(({ other }) => other);
 }

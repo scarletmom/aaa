@@ -165,6 +165,7 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 | POST | `/api/account/sign-out-others` | `Bearer <account JWT>`, `{ accountNumber }` | the session answer; every other session ends. 403 `wrong_account_number` if the number isn't this account's |
 | POST | `/api/account/new-number` | `Bearer <account JWT>`, `{ accountNumber }` | the same plus the new `accountNumber`; the old number stops logging in |
 | GET  | `/api/videos` | `Bearer <pass>` or a Member Lite/Pro account token | `{ videos: [...] }` (enabled posts, no Real URL); other accounts get 403 `plan_required` |
+| GET  | `/api/videos?page=N` | the same; optional `q` (search words), `channel` (category name), `pageSize` (default 40, max 100) | `{ videos, page, pages, pageSize, total, channels: [{ name, avatar }] }`: one page of the matching posts; `channels` lists every category, its avatar falling back to its newest thumbnail |
 | GET  | `/api/videos/:tag` | `Bearer <pass>` or a Member Lite/Pro account token | `{ video, same, others }`, and counts a view; an account token also gets `play`, a signed `/api/play` endpoint for the player |
 | POST | `/api/videos/:tag/unlock` | `{ captcha }` | `{ next }`: the news page to open |
 | POST | `/api/pro/checkout` | `Bearer <account token>`, `{ plan: "week" \| "month" \| "lifetime" }` | `{ url }`: Dodo's checkout page for that plan (503 `payments_off` without `DODO_API_KEY`) |

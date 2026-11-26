@@ -10,7 +10,7 @@ import { videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
 import { canWatchVideos, proPlan } from '@/lib/roles';
 import { getSession, useHydrated, useSession } from '@/lib/session';
-import { type CatalogVideo, channelPosters, type Episode, fetchVideo, fetchVideos, openTerabox, recommendedFor } from '@/lib/videos';
+import { type CatalogVideo, type Episode, fetchVideo, fetchVideoPage, fetchVideos, openTerabox, type VideoPage } from '@/lib/videos';
 import type { TeraboxLink } from '@/lib/teraboxLink';
 import ViewerAds from '../site/ViewerAds';
 import AccessGate from './AccessGate';
@@ -30,11 +30,13 @@ import WatchView from './WatchView';
 
 const UP_NEXT_LIMIT = 6;
 const CATALOG_KEEP_MS = 5 * 60 * 1000;
+const SEARCH_DELAY_MS = 300;
 
 const NO_COMMENTS: Comment[] = [];
 const NO_VIDEOS: CatalogVideo[] = [];
 
 const loadCatalog = (_request: string, token: string) => fetchVideos(token);
+const loadPage = (request: string, token: string) => fetchVideoPage(JSON.parse(request), token);
 const loadDetail = (id: string, token: string) => fetchVideo(id, token);
 
 const watchTerabox = (link: TeraboxLink) => openTerabox(link.url, getSession()?.token ?? '');
@@ -71,6 +73,9 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const start = Number(searchParams.get('t')) || 0;
   const [query, setQuery] = useState('');
   const [channel, setChannel] = useState('');
+  const [searchWords, setSearchWords] = useState('');
+  // Remembered with the filter it was turned under, so new search words or a new channel start again at page 1.
+  const [pageTurn, setPageTurn] = useState({ filter: '', page: 1 });
   const [searching, setSearching] = useState(false);
   const imageSearch = useImageSearch();
 
@@ -89,10 +94,16 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const adBlock = useAdBlockCheck(hydrated && allowed && adFree === false && !confirmingPayment);
   const adsCleared = adFree !== null && (adBlock.status === 'off' || adBlock.status === 'clear');
   const accountId = session && allowed && adsCleared ? session.id || session.name : null;
-  const catalog = useAccountLoad('catalog', accountId, '', loadCatalog, { keepMs: CATALOG_KEEP_MS });
+  const filter = `${searchWords}\n${channel}`;
+  const page = pageTurn.filter === filter ? pageTurn.page : 1;
+  const setPage = (next: number) => setPageTurn({ filter, page: next });
+  const pageRequest = !onTerabox && !imageSearch.search ? JSON.stringify({ page, query: searchWords, channel }) : null;
+  const paged = useAccountLoad('page', accountId, pageRequest, loadPage, { keepMs: CATALOG_KEEP_MS });
+  // The last page stays up while the next one loads.
+  const [shownPage, setShownPage] = useState<VideoPage | null>(null);
+  if (paged.status === 'ready' && paged.data !== shownPage) setShownPage(paged.data);
   // Not kept: each open counts a view and needs a fresh play endpoint.
   const detail = useAccountLoad('detail', accountId, activeId, loadDetail);
-  const videos = catalog.status === 'ready' ? catalog.data : NO_VIDEOS;
 
   const [reported, setReported] = useState<{ id: string; episodes: Episode[]; playing: number } | null>(null);
 
@@ -101,6 +112,15 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const active = loaded && ownEpisodes ? { ...loaded, episodes: ownEpisodes.episodes } : loaded;
   const episode = active ? episodeIndex(active, requestedEpisode, ownEpisodes?.playing ?? -1) : -1;
   const activeTitle = active ? titleWithEpisode(active, episode) : '';
+  // Only the shorts feed, the Terabox tab and image search still need every video at once.
+  const needsCatalog = onTerabox || Boolean(imageSearch.search) || Boolean(active?.short);
+  const catalog = useAccountLoad('catalog', accountId, needsCatalog ? '' : null, loadCatalog, { keepMs: CATALOG_KEEP_MS });
+  const videos = catalog.status === 'ready' ? catalog.data : NO_VIDEOS;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchWords(query.trim()), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     if (activeTitle) document.title = `${activeTitle} · ${brand}`;
@@ -121,7 +141,9 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     if (!activeId && !onTerabox && !searching && !query && !imageSearch.search) window.scrollTo({ top: 0, behavior: 'smooth' });
     setSearching(false);
     setQuery('');
+    setSearchWords('');
     setChannel('');
+    setPageTurn({ filter: '', page: 1 });
     imageSearch.clear();
   };
 
@@ -130,6 +152,17 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     imageSearch.start(file);
     if (active || onTerabox) router.push(videosUrl);
   };
+
+  const catalogPage = shownPage && (
+    <Catalog
+      page={shownPage}
+      channel={channel}
+      onChannel={setChannel}
+      onPage={setPage}
+      filtered={Boolean(searchWords || channel)}
+      busy={paged.status === 'loading'}
+    />
+  );
 
   let content;
   if (!hydrated) {
@@ -143,16 +176,14 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   } else if (activeId && detail.status !== 'ready') {
     content = loadStatus(detail);
   } else if (active?.short) {
-    content = <ShortsFeed shorts={videos.filter((v) => v.short)} startId={active.id} />;
+    content = catalog.status === 'ready' ? <ShortsFeed shorts={videos.filter((v) => v.short)} startId={active.id} /> : loadStatus(catalog);
   } else if (active && detail.status === 'ready') {
-    const upNext = recommendedFor(active, videos, UP_NEXT_LIMIT);
-    const moreVideos = videos.filter((v) => v.id !== active.id && !upNext.includes(v));
     content = <WatchView
         video={active}
         playEndpoint={detail.data.play}
-        upNext={upNext}
-        moreVideos={moreVideos}
-        channelPoster={channelPosters(videos).get(active.channel)}
+        upNext={detail.data.related.slice(0, UP_NEXT_LIMIT)}
+        moreVideos={catalogPage}
+        channelPoster={shownPage?.channels.find((c) => c.name === active.channel)?.avatar || undefined}
         episode={episode}
         requestedEpisode={requestedEpisode}
         start={start}
@@ -162,12 +193,14 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   } else if (onTerabox) {
     // The paste box doesn't need the catalog, so it shows while the other videos load.
     content = <TeraboxView videos={videos} videosLoading={catalog.status === 'loading'} onWatch={watchTerabox} />;
-  } else if (catalog.status !== 'ready') {
-    content = loadStatus(catalog);
   } else if (imageSearch.search) {
-    content = <ImageResults search={imageSearch.search} videos={videos} onClear={imageSearch.clear} />;
+    content = catalog.status === 'ready'
+      ? <ImageResults search={imageSearch.search} videos={videos} onClear={imageSearch.clear} />
+      : loadStatus(catalog);
+  } else if (paged.status === 'error' || !catalogPage) {
+    content = loadStatus(paged);
   } else {
-    content = <Catalog videos={videos} query={query} channel={channel} onChannel={setChannel} />;
+    content = catalogPage;
   }
 
   const activeTab: VideoTab = searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home';

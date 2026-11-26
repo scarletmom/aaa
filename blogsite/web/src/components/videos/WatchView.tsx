@@ -1,13 +1,12 @@
 'use client';
 
-import { type MouseEvent, useState } from 'react';
+import { type MouseEvent, type ReactNode, useState } from 'react';
 import { episodeLabel, episodeName, pushEpisodeUrl, titleWithEpisode } from '@/lib/episodes';
 import { cn } from '@/lib/cn';
 import { videoUrl } from '@/lib/format';
 import type { Comment } from '@/lib/comments';
 import type { CatalogVideo, Episode } from '@/lib/videos';
 import { ChevronIcon } from '../ui/Icons';
-import Catalog from './Catalog';
 import CommentsSection from './CommentsSection';
 import { blockTitle } from './styles';
 import EmbeddedPlayer from './EmbeddedPlayer';
@@ -19,8 +18,8 @@ interface WatchViewProps {
   playEndpoint: string;
   /** Recommendations for this video, shown beside it on wide screens. */
   upNext: CatalogVideo[];
-  /** Everything else, browsed below like the home page. */
-  moreVideos: CatalogVideo[];
+  /** The home page's catalogue, browsed below. */
+  moreVideos: ReactNode;
   channelPoster?: string;
   /** The playing episode (0-based), or -1. */
   episode: number;
@@ -38,7 +37,6 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
   const detailsOpen = detailsFor === video.id;
   const title = titleWithEpisode(video, episode);
   const hasDetails = Boolean(video.description || video.tags.length);
-  const [moreChannel, setMoreChannel] = useState('');
 
   return (
     <div className="grid gap-6 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
@@ -97,10 +95,10 @@ export default function WatchView({ video, playEndpoint, upNext, moreVideos, cha
         </aside>
       )}
 
-      {moreVideos.length > 0 && (
+      {moreVideos && (
         <section aria-labelledby="more-videos-title" className="min-w-0 lg:col-span-2">
           <h2 id="more-videos-title" className={blockTitle}>More videos</h2>
-          <Catalog videos={moreVideos} query="" channel={moreChannel} onChannel={setMoreChannel} />
+          {moreVideos}
         </section>
       )}
     </div>

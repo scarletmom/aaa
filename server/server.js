@@ -357,7 +357,11 @@ app.get(
   "/api/videos",
   wrap(requireViewer),
   wrap(async (req, res) => {
-    res.json({ videos: (await videos.listEnabled()).map(videos.publicVideo) });
+    const all = await videos.listEnabled();
+    // Without ?page= the whole catalogue comes back, as the videos site expects.
+    if (req.query.page === undefined) return res.json({ videos: all.map(videos.publicVideo) });
+    const result = videos.pageOf(all, req.query);
+    res.json({ ...result, videos: result.videos.map(videos.publicVideo) });
   })
 );
 

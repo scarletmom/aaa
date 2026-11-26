@@ -1,18 +1,26 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/cn';
-import { type CatalogVideo, channelPosters } from '@/lib/videos';
+import type { CatalogVideo, VideoPage } from '@/lib/videos';
 import ShortsShelf from './ShortsShelf';
 import { videoGrid } from './styles';
 import VideoCard, { ChannelAvatar } from './VideoCard';
 
 interface CatalogProps {
-  videos: CatalogVideo[];
-  query: string;
+  /** The page the server sent; it does the searching and channel filtering. */
+  page: VideoPage;
   channel: string;
   onChannel: (channel: string) => void;
+  onPage: (page: number) => void;
+  /** Search words or a channel are applied. */
+  filtered: boolean;
+  /** Another page is loading; this one stays up meanwhile. */
+  busy?: boolean;
 }
+
+const pagerButton =
+  'h-10 rounded-full border border-line bg-surface px-5 text-[14px] font-semibold transition-colors hover:border-fg disabled:pointer-events-none disabled:opacity-40';
 
 // The catalog repeats: this many rows of long videos, then one row of shorts.
 const ROWS_BETWEEN_SHELVES = 2;
@@ -51,17 +59,17 @@ function interleave(regular: CatalogVideo[], shorts: CatalogVideo[], videosPerBl
   return sections;
 }
 
-const matches = (video: CatalogVideo, query: string) =>
-  [video.title, video.description, video.channel, ...video.tags].join(' ').toLowerCase().includes(query);
-
-export default function Catalog({ videos, query, channel, onChannel }: CatalogProps) {
-  const channels = [...new Set(videos.map((v) => v.channel).filter(Boolean))].sort();
-  const posters = channelPosters(videos);
-  const needle = query.trim().toLowerCase();
-  const shown = videos.filter((v) => (!channel || v.channel === channel) && (!needle || matches(v, needle)));
-  const shorts = shown.filter((v) => v.short);
-  const regular = shown.filter((v) => !v.short);
+export default function Catalog({ page, channel, onChannel, onPage, filtered, busy = false }: CatalogProps) {
+  const topRef = useRef<HTMLDivElement>(null);
+  const avatars = new Map(page.channels.map((c) => [c.name, c.avatar]));
+  const shorts = page.videos.filter((v) => v.short);
+  const regular = page.videos.filter((v) => !v.short);
   const sections = interleave(regular, shorts, useGridColumns() * ROWS_BETWEEN_SHELVES);
+
+  const turnTo = (next: number) => {
+    onPage(next);
+    topRef.current?.scrollIntoView({ block: 'start' });
+  };
 
   const chip = (value: string, label: string) => (
     <button
@@ -75,23 +83,23 @@ export default function Catalog({ videos, query, channel, onChannel }: CatalogPr
         channel === value ? 'border-fg bg-fg text-bg' : 'border-line bg-surface hover:border-fg-2',
       )}
     >
-      {value && <ChannelAvatar name={value} src={posters.get(value)} className="size-[26px] text-[10px]" />}
+      {value && <ChannelAvatar name={value} src={avatars.get(value) || undefined} className="size-[26px] text-[10px]" />}
       {label}
     </button>
   );
 
   return (
-    <>
-      {channels.length > 1 && (
+    <div ref={topRef} className="scroll-mt-16">
+      {page.channels.length > 1 && (
         <nav aria-label="Channels" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 py-3 sm:-mx-6 sm:px-6">
           {chip('', 'All')}
-          {channels.map((name) => chip(name, name))}
+          {page.channels.map(({ name }) => chip(name, name))}
         </nav>
       )}
-      {shown.length === 0 && (
-        <p className="py-[72px] text-center text-muted">{videos.length ? 'No videos match your search.' : 'New videos are on the way. Check back soon.'}</p>
+      {page.total === 0 && (
+        <p className="py-[72px] text-center text-muted">{filtered ? 'No videos match your search.' : 'New videos are on the way. Check back soon.'}</p>
       )}
-      <div className="pt-1 pb-12">
+      <div aria-busy={busy} className={cn('pt-1 pb-4 transition-opacity', busy && 'opacity-60')}>
         {sections.map((section) => (section.kind === 'shorts' ? (
           <ShortsShelf key={`shorts-${section.items[0].id}`} shorts={section.items} />
         ) : (
@@ -102,6 +110,17 @@ export default function Catalog({ videos, query, channel, onChannel }: CatalogPr
           </section>
         )))}
       </div>
-    </>
+      {page.pages > 1 && (
+        <nav aria-label="Pages" className="flex items-center justify-center gap-3 pb-12">
+          <button type="button" onClick={() => turnTo(page.page - 1)} disabled={busy || page.page <= 1} className={pagerButton}>
+            Previous
+          </button>
+          <span className="text-[13.5px] text-muted tabular-nums">Page {page.page} of {page.pages}</span>
+          <button type="button" onClick={() => turnTo(page.page + 1)} disabled={busy || page.page >= page.pages} className={pagerButton}>
+            Next
+          </button>
+        </nav>
+      )}
+    </div>
   );
 }

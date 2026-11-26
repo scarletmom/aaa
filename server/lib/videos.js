@@ -117,9 +117,49 @@ function related(video, all, limit = 12) {
   return { same: top, others: others.slice(0, limit - top.length) };
 }
 
+const PAGE_SIZE = 40;
+const MAX_PAGE_SIZE = 100;
+
+const matchesQuery = (video, needle) =>
+  [video.title, video.description, video.category?.name].join(" ").toLowerCase().includes(needle);
+
+// A channel's picture is its category avatar, or else its newest video's thumbnail.
+function channelsOf(all) {
+  const channels = new Map();
+  const newestFirst = [...all].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  for (const video of newestFirst) {
+    const name = video.category?.name;
+    if (!name) continue;
+    const known = channels.get(name);
+    if (!known) channels.set(name, { name, avatar: video.category.avatar || video.thumbnail });
+    else if (!known.avatar) known.avatar = video.thumbnail;
+  }
+  return [...channels.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** One page of the catalogue, filtered by search words and channel; `channels` always lists every channel. */
+function pageOf(all, { page, pageSize, q, channel } = {}) {
+  const size = Math.min(Math.max(Math.floor(Number(pageSize)) || PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const needle = String(q ?? "").trim().toLowerCase();
+  const channelName = String(channel ?? "");
+  const matching = all.filter(
+    (video) => (!channelName || video.category?.name === channelName) && (!needle || matchesQuery(video, needle))
+  );
+  const pages = Math.max(Math.ceil(matching.length / size), 1);
+  const current = Math.min(Math.max(Math.floor(Number(page)) || 1, 1), pages);
+  return {
+    videos: matching.slice((current - 1) * size, current * size),
+    page: current,
+    pages,
+    pageSize: size,
+    total: matching.length,
+    channels: channelsOf(all),
+  };
+}
+
 // updated_at is pinned so a view doesn't look like an edit in the admin.
 async function addView(tag) {
   await getPool().query("UPDATE resources SET views = views + 1, updated_at = updated_at WHERE post_tag = ?", [tag]);
 }
 
-module.exports = { listEnabled, get, related, addView, publicVideo, isValidTag };
+module.exports = { listEnabled, get, pageOf, related, addView, publicVideo, isValidTag };
