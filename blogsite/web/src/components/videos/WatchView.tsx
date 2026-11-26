@@ -2,21 +2,26 @@
 
 import { type MouseEvent, useState } from 'react';
 import { episodeLabel, episodeName, pushEpisodeUrl, titleWithEpisode } from '@/lib/episodes';
+import { cn } from '@/lib/cn';
 import { videoUrl } from '@/lib/format';
 import type { Comment } from '@/lib/comments';
 import type { CatalogVideo, Episode } from '@/lib/videos';
+import { ChevronIcon } from '../ui/Icons';
+import Catalog from './Catalog';
 import CommentsSection from './CommentsSection';
 import { blockTitle } from './styles';
 import EmbeddedPlayer from './EmbeddedPlayer';
 import VideoCard, { ChannelAvatar, videoStats } from './VideoCard';
 
-const LONG_DESCRIPTION = 220;
-
 interface WatchViewProps {
   video: CatalogVideo;
   /** The API's signed play endpoint for this video. */
   playEndpoint: string;
+  /** Recommendations for this video, shown beside it on wide screens. */
   upNext: CatalogVideo[];
+  /** Everything else, browsed below like the home page. */
+  moreVideos: CatalogVideo[];
+  channelPoster?: string;
   /** The playing episode (0-based), or -1. */
   episode: number;
   /** `?ep=` as given (from 1), or 0; the player picks the file from it. */
@@ -27,46 +32,58 @@ interface WatchViewProps {
   onEpisodes: (episodes: Episode[], playing: number) => void;
 }
 
-export default function WatchView({ video, playEndpoint, upNext, episode, requestedEpisode, start, comments, onEpisodes }: WatchViewProps) {
-  const [expanded, setExpanded] = useState(false);
+export default function WatchView({ video, playEndpoint, upNext, moreVideos, channelPoster, episode, requestedEpisode, start, comments, onEpisodes }: WatchViewProps) {
+  // Keyed by video so the description starts hidden again on the next video.
+  const [detailsFor, setDetailsFor] = useState<string | null>(null);
+  const detailsOpen = detailsFor === video.id;
   const title = titleWithEpisode(video, episode);
-  const long = video.description.length > LONG_DESCRIPTION;
+  const hasDetails = Boolean(video.description || video.tags.length);
+  const [moreChannel, setMoreChannel] = useState('');
 
   return (
-    <div className="grid gap-8 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
+    <div className="grid gap-6 pb-14 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
       <article className="min-w-0">
         <div className="-mx-4 sm:mx-0">
           <EmbeddedPlayer key={video.id} videoId={video.id} endpoint={playEndpoint} title={title} episode={requestedEpisode} start={start} onEpisodes={onEpisodes} />
         </div>
 
-        <h1 className="mt-4 font-display text-[24px] leading-[1.2] font-bold tracking-[-0.005em] md:text-[30px]">{title}</h1>
-        <p className="mt-2 flex flex-wrap items-center text-[13.5px] text-muted [&>span+span]:before:mx-1.5 [&>span+span]:before:content-['·']">
-          {video.live && <span className="font-semibold text-accent">Live</span>}
-          {videoStats(video, { full: true }).map((part) => <span key={part}>{part}</span>)}
-          {video.tags.length > 0 && <span>{video.tags.join(', ')}</span>}
-        </p>
+        <h1 title={title} className="mt-3 truncate font-display text-[18px] leading-[1.3] font-bold tracking-[-0.005em] md:text-[24px]">{title}</h1>
+        <div className="mt-1 flex items-center gap-3">
+          <p className="flex min-w-0 flex-1 flex-wrap items-center text-[13px] text-muted [&>span+span]:before:mx-1.5 [&>span+span]:before:content-['·']">
+            {video.live && <span className="font-semibold text-accent">Live</span>}
+            {videoStats(video, { full: true }).map((part) => <span key={part}>{part}</span>)}
+          </p>
+          {hasDetails && (
+            <button
+              type="button"
+              onClick={() => setDetailsFor(detailsOpen ? null : video.id)}
+              aria-expanded={detailsOpen}
+              aria-controls="video-description"
+              className="flex flex-none items-center gap-0.5 rounded-full py-1 pr-1.5 pl-2.5 text-[13px] font-semibold transition-colors hover:bg-surface-2"
+            >
+              Description
+              <ChevronIcon size={16} className={cn('transition-transform', detailsOpen ? '-rotate-90' : 'rotate-90')} />
+            </button>
+          )}
+        </div>
 
-        {video.episodes.length > 0 && <EpisodeList video={video} current={episode} />}
+        {detailsOpen && (
+          <div id="video-description" className="mt-3 rounded-[14px] bg-surface px-4 py-3.5">
+            {video.description && (
+              <p className="font-serif text-[15.5px] leading-[1.6] [overflow-wrap:anywhere] whitespace-pre-line text-fg-2">{video.description}</p>
+            )}
+            {video.tags.length > 0 && <p className={cn('text-[13px] text-muted', video.description && 'mt-2.5')}>{video.tags.join(', ')}</p>}
+          </div>
+        )}
 
         {video.channel && (
-          <p className="mt-4 inline-flex items-center gap-3 rounded-full bg-surface py-1.5 pr-4 pl-1.5">
-            <ChannelAvatar name={video.channel} className="size-11" />
-            <span className="font-bold">{video.channel}</span>
+          <p className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full bg-surface py-1 pr-3.5 pl-1">
+            <ChannelAvatar name={video.channel} src={channelPoster} className="size-8 text-[11px]" />
+            <span className="truncate text-[14px] font-bold">{video.channel}</span>
           </p>
         )}
 
-        {video.description && (
-          <div className="mt-4 rounded-[14px] bg-surface px-4 py-3.5">
-            <p className={`font-serif text-[16px] leading-[1.6] [overflow-wrap:anywhere] whitespace-pre-line text-fg-2 ${long && !expanded ? 'line-clamp-4' : ''}`}>
-              {video.description}
-            </p>
-            {long && (
-              <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="mt-1.5 text-[13.5px] font-bold">
-                {expanded ? 'Show less' : 'Show more'}
-              </button>
-            )}
-          </div>
-        )}
+        {video.episodes.length > 0 && <EpisodeList video={video} current={episode} />}
 
         <CommentsSection key={video.id} videoId={video.id} seeds={comments} />
       </article>
@@ -78,6 +95,13 @@ export default function WatchView({ video, playEndpoint, upNext, episode, reques
             {upNext.map((item) => <VideoCard key={item.id} video={item} compact />)}
           </div>
         </aside>
+      )}
+
+      {moreVideos.length > 0 && (
+        <section aria-labelledby="more-videos-title" className="min-w-0 lg:col-span-2">
+          <h2 id="more-videos-title" className={blockTitle}>More videos</h2>
+          <Catalog videos={moreVideos} query="" channel={moreChannel} onChannel={setMoreChannel} />
+        </section>
       )}
     </div>
   );

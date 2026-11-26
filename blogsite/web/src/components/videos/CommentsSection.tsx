@@ -13,8 +13,7 @@ import {
 } from '@/lib/comments';
 import { formatDateTime, timeAgo } from '@/lib/format';
 import { type Session, useSession } from '@/lib/session';
-import { ThumbUpIcon } from '../ui/Icons';
-import { blockTitle } from './styles';
+import { ChevronIcon, ThumbUpIcon } from '../ui/Icons';
 import { ChannelAvatar } from './VideoCard';
 
 type Sort = 'top' | 'newest';
@@ -37,6 +36,7 @@ export default function CommentsSection({ videoId, seeds }: { videoId: string; s
   // Your own new comments stay on top until you leave, whichever order is chosen.
   const [justPosted, setJustPosted] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -88,47 +88,62 @@ export default function CommentsSection({ videoId, seeds }: { videoId: string; s
   const count = comments?.length ?? 0;
 
   return (
-    <section aria-labelledby="comments-title" className="mt-8">
-      <div className={cn(blockTitle, 'flex flex-wrap items-center justify-between gap-2')}>
-        <h2 id="comments-title">{comments ? `${count.toLocaleString('en-GB')} ${count === 1 ? 'comment' : 'comments'}` : 'Comments'}</h2>
-        {count > 1 && (
-          <div role="group" aria-label="Sort comments" className="flex gap-1 text-[12.5px] font-semibold tracking-normal normal-case">
-            {(['top', 'newest'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={sort === value}
-                onClick={() => setSort(value)}
-                className="rounded-full px-3 py-1 text-muted transition-colors hover:text-fg aria-pressed:bg-fg aria-pressed:text-bg"
-              >
-                {value === 'top' ? 'Top' : 'Newest'}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <section aria-labelledby="comments-title" className="mt-5 rounded-[14px] bg-surface">
+      <h2 id="comments-title">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls="comments-body"
+          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[15px] font-bold"
+        >
+          Comments
+          {comments && <span className="font-semibold text-muted tabular-nums">{count.toLocaleString('en-GB')}</span>}
+          <ChevronIcon size={18} className={cn('ml-auto text-muted transition-transform', open ? '-rotate-90' : 'rotate-90')} />
+        </button>
+      </h2>
 
-      {session ? <CommentForm session={session} onPost={post} /> : <p className="text-[14px] text-muted">Sign in to join the conversation.</p>}
+      {open && (
+        <div id="comments-body" className="px-4 pb-4">
+          {count > 1 && (
+            <div role="group" aria-label="Sort comments" className="mb-3 flex gap-1 text-[12.5px] font-semibold">
+              {(['top', 'newest'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={sort === value}
+                  onClick={() => setSort(value)}
+                  className="rounded-full px-3 py-1 text-muted transition-colors hover:text-fg aria-pressed:bg-fg aria-pressed:text-bg"
+                >
+                  {value === 'top' ? 'Top' : 'Newest'}
+                </button>
+              ))}
+            </div>
+          )}
 
-      {error && <p role="alert" className="mt-3 text-[13.5px] text-accent">{error}</p>}
+          {session ? <CommentForm session={session} onPost={post} /> : <p className="text-[14px] text-muted">Sign in to join the conversation.</p>}
 
-      {comments === null ? (
-        <p className="mt-6 text-[14px] text-muted">Loading comments…</p>
-      ) : count === 0 ? (
-        <p className="mt-6 text-[14px] text-muted">No comments yet. Start the conversation.</p>
-      ) : (
-        <ol className="mt-6 grid gap-5">
-          {[...pinned, ...rest].map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              mine={Boolean(session && comment.authorId === session.id)}
-              liked={liked.has(comment.id)}
-              onLike={() => like(comment.id)}
-              onDelete={() => remove(comment.id)}
-            />
-          ))}
-        </ol>
+          {error && <p role="alert" className="mt-3 text-[13.5px] text-accent">{error}</p>}
+
+          {comments === null ? (
+            <p className="mt-4 text-[14px] text-muted">Loading comments…</p>
+          ) : count === 0 ? (
+            <p className="mt-4 text-[14px] text-muted">No comments yet. Start the conversation.</p>
+          ) : (
+            <ol className="mt-5 grid gap-5">
+              {[...pinned, ...rest].map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  mine={Boolean(session && comment.authorId === session.id)}
+                  liked={liked.has(comment.id)}
+                  onLike={() => like(comment.id)}
+                  onDelete={() => remove(comment.id)}
+                />
+              ))}
+            </ol>
+          )}
+        </div>
       )}
     </section>
   );

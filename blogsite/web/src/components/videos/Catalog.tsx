@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { cn } from '@/lib/cn';
-import type { CatalogVideo } from '@/lib/videos';
+import { type CatalogVideo, channelPosters } from '@/lib/videos';
 import ShortsShelf from './ShortsShelf';
 import { videoGrid } from './styles';
 import VideoCard, { ChannelAvatar } from './VideoCard';
@@ -49,16 +49,6 @@ function interleave(regular: CatalogVideo[], shorts: CatalogVideo[], videosPerBl
     if (shelf.length) sections.push({ kind: 'shorts', items: shelf });
   }
   return sections;
-}
-
-// Channels have no image of their own, so each one shows its newest video's poster.
-function channelPosters(videos: CatalogVideo[]) {
-  const newestFirst = [...videos].sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''));
-  const posters = new Map<string, string>();
-  for (const video of newestFirst) {
-    if (video.channel && video.poster && !posters.has(video.channel)) posters.set(video.channel, video.poster);
-  }
-  return posters;
 }
 
 const matches = (video: CatalogVideo, query: string) =>

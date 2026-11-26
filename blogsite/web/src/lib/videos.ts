@@ -174,3 +174,25 @@ export async function openTerabox(url: string, token: string): Promise<TeraboxVi
   const play = URL.createObjectURL(new Blob([JSON.stringify(meta)], { type: 'application/json' }));
   return { title, poster, play };
 }
+
+// Channels have no image of their own, so each one shows its newest video's poster.
+export function channelPosters(videos: CatalogVideo[]) {
+  const newestFirst = [...videos].sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''));
+  const posters = new Map<string, string>();
+  for (const video of newestFirst) {
+    if (video.channel && video.poster && !posters.has(video.channel)) posters.set(video.channel, video.poster);
+  }
+  return posters;
+}
+
+// Same channel counts most, then each shared tag; ties go to the newest.
+export function recommendedFor(video: CatalogVideo, videos: CatalogVideo[], limit: number) {
+  const tags = new Set(video.tags);
+  const score = (other: CatalogVideo) => (other.channel && other.channel === video.channel ? 2 : 0) + other.tags.filter((tag) => tags.has(tag)).length;
+  return videos
+    .filter((other) => other.id !== video.id && !other.short)
+    .map((other) => ({ other, score: score(other) }))
+    .sort((a, b) => b.score - a.score || (b.other.publishedAt ?? '').localeCompare(a.other.publishedAt ?? ''))
+    .slice(0, limit)
+    .map(({ other }) => other);
+}

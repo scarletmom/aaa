@@ -10,7 +10,7 @@ import { videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
 import { canWatchVideos, proPlan } from '@/lib/roles';
 import { getSession, useHydrated, useSession } from '@/lib/session';
-import { type CatalogVideo, type Episode, fetchVideo, fetchVideos, openTerabox } from '@/lib/videos';
+import { type CatalogVideo, channelPosters, type Episode, fetchVideo, fetchVideos, openTerabox, recommendedFor } from '@/lib/videos';
 import type { TeraboxLink } from '@/lib/teraboxLink';
 import ViewerAds from '../site/ViewerAds';
 import AccessGate from './AccessGate';
@@ -28,7 +28,7 @@ import VideoTabBar, { type VideoTab } from './VideoTabBar';
 import VideoTopBar from './VideoTopBar';
 import WatchView from './WatchView';
 
-const UP_NEXT_LIMIT = 8;
+const UP_NEXT_LIMIT = 6;
 const CATALOG_KEEP_MS = 5 * 60 * 1000;
 
 const NO_COMMENTS: Comment[] = [];
@@ -145,11 +145,14 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   } else if (active?.short) {
     content = <ShortsFeed shorts={videos.filter((v) => v.short)} startId={active.id} />;
   } else if (active && detail.status === 'ready') {
-    const upNext = videos.filter((v) => v.id !== active.id && !v.short).slice(0, UP_NEXT_LIMIT);
+    const upNext = recommendedFor(active, videos, UP_NEXT_LIMIT);
+    const moreVideos = videos.filter((v) => v.id !== active.id && !upNext.includes(v));
     content = <WatchView
         video={active}
         playEndpoint={detail.data.play}
         upNext={upNext}
+        moreVideos={moreVideos}
+        channelPoster={channelPosters(videos).get(active.channel)}
         episode={episode}
         requestedEpisode={requestedEpisode}
         start={start}
