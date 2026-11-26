@@ -108,7 +108,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
 
   return (
     <div className="pt-5 pb-12">
-      <section aria-labelledby="terabox-title" className="sm:pt-3">
+      <section aria-labelledby="terabox-title" className="sm:pt-3 md:flex md:flex-col md:items-center md:py-10 md:text-center">
         <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-sky-500 text-white shadow-sm">
           <CloudPlayIcon size={26} />
         </span>
@@ -119,7 +119,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
           Paste a Terabox share link to watch it here.
         </p>
 
-        <form onSubmit={onSubmit} aria-busy={busy} className="mt-5 flex max-w-[560px] flex-col gap-2.5 sm:flex-row">
+        <form onSubmit={onSubmit} aria-busy={busy} className="mt-5 flex max-w-[560px] flex-col gap-2.5 sm:flex-row md:w-full">
           <label htmlFor="terabox-link" className="sr-only">Terabox link</label>
           <div className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-2xl border border-line bg-surface pr-1.5 pl-4 focus-within:border-fg-2">
             <input
@@ -144,7 +144,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
               enterKeyHint="go"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? 'terabox-link-error' : undefined}
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 bg-transparent text-left text-[15px] text-fg outline-none placeholder:text-muted"
             />
             {link ? (
               <button
