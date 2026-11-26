@@ -8,8 +8,21 @@ const visits = require("./visits");
 const accounts = require("./accounts");
 const shorts = require("./shorts");
 const teraboxVideos = require("./teraboxVideos");
+const teraboxImport = require("./teraboxImport");
 
-const { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost } = require("./inputs");
+const {
+  HTTP_URL,
+  SITE_URL,
+  TERABOX_KEY,
+  TERABOX_DURATION,
+  InputError,
+  checked,
+  trim,
+  canonicalTeraboxUrl,
+  postInput,
+  checkCategory,
+  createPost,
+} = require("./inputs");
 
 function categoryInput(body) {
   const values = {
@@ -38,20 +51,6 @@ function shortInput(body) {
   if (values.thumbnail && !HTTP_URL.test(values.thumbnail)) errors.thumbnail = "Must start with http:// or https://";
   if (Number.isNaN(values.durationSeconds)) errors.duration = "Use seconds, m:ss or h:mm:ss, e.g. 0:45.";
   return { values, errors };
-}
-
-const TERABOX_KEY = /^[A-Za-z0-9_-]{1,32}$/;
-const TERABOX_DURATION = /^\d{1,2}(:[0-5]\d){1,2}$/;
-
-// The worker saves links as https://www.terabox.com/s/1<share>; edits use the same spelling so a share stays unique.
-function canonicalTeraboxUrl(value) {
-  try {
-    const url = new URL(value);
-    const shareId = url.searchParams.get("surl") || /^\/s\/1([\w-]+)/.exec(url.pathname)?.[1];
-    return shareId ? `https://www.terabox.com/s/1${shareId}` : url.href;
-  } catch {
-    return value;
-  }
 }
 
 function teraboxVideoInput(body) {
@@ -233,6 +232,11 @@ router.post(
 router.delete("/shorts/:id", handle(async (req, res) => res.json({ deleted: await shorts.remove(req.params.id) })));
 
 router.get("/terabox-videos", handle(async (req, res) => res.json(await teraboxVideos.list())));
+
+router.post(
+  "/terabox-videos/import",
+  handle(async (req, res) => res.json(await teraboxImport.importCsv(String(req.body?.csv ?? ""))))
+);
 
 router.get(
   "/terabox-videos/:id",

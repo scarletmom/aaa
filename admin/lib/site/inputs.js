@@ -4,6 +4,20 @@ const { parseDuration, probeDuration } = require("./media");
 
 const HTTP_URL = /^https?:\/\//i;
 
+const TERABOX_KEY = /^[A-Za-z0-9_-]{1,32}$/;
+const TERABOX_DURATION = /^\d{1,2}(:[0-5]\d){1,2}$/;
+
+// The worker saves links as https://www.terabox.com/s/1<share>; edits and imports use the same spelling so a share stays unique.
+function canonicalTeraboxUrl(value) {
+  try {
+    const url = new URL(value);
+    const shareId = url.searchParams.get("surl") || /^\/s\/1([\w-]+)/.exec(url.pathname)?.[1];
+    return shareId ? `https://www.terabox.com/s/1${shareId}` : url.href;
+  } catch {
+    return value;
+  }
+}
+
 function origin(raw) {
   const value = String(raw || "").trim();
   if (!value) return "";
@@ -79,4 +93,16 @@ async function createPost(body) {
   return posts.get(values.postTag);
 }
 
-module.exports = { HTTP_URL, SITE_URL, InputError, checked, trim, postInput, checkCategory, createPost };
+module.exports = {
+  HTTP_URL,
+  SITE_URL,
+  TERABOX_KEY,
+  TERABOX_DURATION,
+  InputError,
+  checked,
+  trim,
+  canonicalTeraboxUrl,
+  postInput,
+  checkCategory,
+  createPost,
+};

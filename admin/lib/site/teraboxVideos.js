@@ -91,4 +91,29 @@ async function remove(id) {
   return result.affectedRows > 0;
 }
 
-module.exports = { list, get, keyTaken, urlTaken, update, remove };
+/** Lowercased keys and URLs already in the table; the unique indexes compare case-insensitively. */
+async function takenKeysAndUrls() {
+  await ensureTable();
+  const [rows] = await getPool().query("SELECT video_key, terabox_url FROM terabox_videos");
+  return {
+    keys: new Set(rows.map((r) => r.video_key.toLowerCase())),
+    urls: new Set(rows.filter((r) => r.terabox_url).map((r) => r.terabox_url.toLowerCase())),
+  };
+}
+
+/** Adds the videos, quietly leaving out any whose key or URL was taken meanwhile. Returns how many were added. */
+async function insertMany(videos) {
+  await ensureTable();
+  let added = 0;
+  for (let i = 0; i < videos.length; i += 500) {
+    const values = videos.slice(i, i + 500).map((v) => [v.key, v.title, v.teraboxUrl || null, v.thumbnail, v.duration]);
+    const [result] = await getPool().query(
+      "INSERT IGNORE INTO terabox_videos (video_key, title, terabox_url, thumbnail, duration) VALUES ?",
+      [values]
+    );
+    added += result.affectedRows;
+  }
+  return added;
+}
+
+module.exports = { list, get, keyTaken, urlTaken, update, remove, takenKeysAndUrls, insertMany };

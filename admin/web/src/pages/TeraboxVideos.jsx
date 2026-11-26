@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Ellipsis, ExternalLink, PencilLine, Trash2 } from "lucide-react";
+import { Ellipsis, ExternalLink, FileUp, PencilLine, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { formatDate, teraboxVideoPath } from "../lib/content.js";
 import { Button, Switch, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
+import TeraboxImportDialog from "../ui/TeraboxImportDialog.jsx";
 
 export default function TeraboxVideos() {
   const navigate = useNavigate();
@@ -15,11 +16,15 @@ export default function TeraboxVideos() {
   const [videos, setVideos] = useState(null);
   const [setupNeeded, setSetupNeeded] = useState(false);
   const [showThumbs, setShowThumbs] = useThumbnailsPref();
+  const [importOpen, setImportOpen] = useState(false);
 
-  useEffect(() => {
+  const load = () =>
     api("/api/terabox-videos")
       .then(setVideos)
       .catch((err) => (isSetupError(err) ? setSetupNeeded(true) : toast(err.message, "error")));
+
+  useEffect(() => {
+    load();
   }, []);
 
   const visible = useMemo(() => (videos || []).filter((v) => !query || `${v.title} ${v.key}`.toLowerCase().includes(query)), [videos, query]);
@@ -58,6 +63,11 @@ export default function TeraboxVideos() {
             )}
           </p>
         </div>
+        {!setupNeeded && (
+          <Button variant="primary" icon={FileUp} onClick={() => setImportOpen(true)}>
+            Import CSV
+          </Button>
+        )}
       </div>
 
       {setupNeeded ? (
@@ -71,7 +81,7 @@ export default function TeraboxVideos() {
       ) : videos.length === 0 ? (
         <div className="empty-state">
           <h2>No Terabox videos yet</h2>
-          <p>Videos added to the terabox_videos table show up here, finished or not</p>
+          <p>Import a CSV of videos, or play a Terabox link on the site. Every row shows up here, finished or not</p>
         </div>
       ) : (
         <>
@@ -135,6 +145,8 @@ export default function TeraboxVideos() {
           </div>
         </>
       )}
+
+      <TeraboxImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={load} />
     </div>
   );
 }

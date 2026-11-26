@@ -660,6 +660,54 @@
   color: var(--err);
 }
 
+/* ---- terabox import dialog ---- */
+
+.dialog.terabox-import {
+  width: min(640px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialog.terabox-import.is-dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -8px;
+}
+
+.terabox-import .dialog-text,
+.terabox-import .form-error,
+.terabox-import .dialog-actions {
+  margin-top: 0;
+}
+
+.terabox-import-csv {
+  min-height: 200px;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.terabox-import-file {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terabox-import-skips {
+  max-height: 260px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  overflow: auto;
+  border-radius: var(--r-md);
+  background: var(--bg-deep);
+  font-size: 13px;
+  list-style: none;
+}
+
+.terabox-import-skips li + li {
+  margin-top: 4px;
+}
+
 /* ---- new category dialog ---- */
 
 .dialog.category-dialog {
