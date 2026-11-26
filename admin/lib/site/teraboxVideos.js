@@ -28,13 +28,10 @@ function ensureTable() {
   return tableReady;
 }
 
-/** Every Terabox video, including unfinished ones with no Terabox URL yet (those stay off the site). */
-async function list() {
-  await ensureTable();
-  const [rows] = await getPool().query(
-    "SELECT id, video_key, title, terabox_url, thumbnail, duration, created_at FROM terabox_videos ORDER BY created_at DESC, id DESC"
-  );
-  return rows.map((row) => ({
+const SELECT = "SELECT id, video_key, title, terabox_url, thumbnail, duration, created_at, updated_at FROM terabox_videos";
+
+function toVideo(row) {
+  return {
     id: row.id,
     key: row.video_key,
     title: row.title,
@@ -43,7 +40,55 @@ async function list() {
     duration: row.duration || "",
     public: Boolean(row.terabox_url),
     createdAt: row.created_at,
-  }));
+    updatedAt: row.updated_at,
+  };
 }
 
-module.exports = { list };
+function parseId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Every Terabox video, including unfinished ones with no Terabox URL yet (those stay off the site). */
+async function list() {
+  await ensureTable();
+  const [rows] = await getPool().query(`${SELECT} ORDER BY created_at DESC, id DESC`);
+  return rows.map(toVideo);
+}
+
+async function get(id) {
+  const parsed = parseId(id);
+  if (!parsed) return null;
+  await ensureTable();
+  const [rows] = await getPool().query(`${SELECT} WHERE id = ?`, [parsed]);
+  return rows.length ? toVideo(rows[0]) : null;
+}
+
+async function keyTaken(key, exceptId) {
+  const [rows] = await getPool().query("SELECT 1 FROM terabox_videos WHERE video_key = ? AND id <> ? LIMIT 1", [key, exceptId]);
+  return rows.length > 0;
+}
+
+async function urlTaken(url, exceptId) {
+  if (!url) return false;
+  const [rows] = await getPool().query("SELECT 1 FROM terabox_videos WHERE terabox_url = ? AND id <> ? LIMIT 1", [url, exceptId]);
+  return rows.length > 0;
+}
+
+// An empty Terabox URL is stored as NULL: the video goes back to unfinished and leaves the site.
+async function update(id, { key, title, teraboxUrl, thumbnail, duration }) {
+  const [result] = await getPool().query(
+    "UPDATE terabox_videos SET video_key = ?, title = ?, terabox_url = ?, thumbnail = ?, duration = ? WHERE id = ?",
+    [key, title, teraboxUrl || null, thumbnail, duration, id]
+  );
+  return result.affectedRows > 0;
+}
+
+async function remove(id) {
+  const parsed = parseId(id);
+  if (!parsed) return false;
+  const [result] = await getPool().query("DELETE FROM terabox_videos WHERE id = ?", [parsed]);
+  return result.affectedRows > 0;
+}
+
+module.exports = { list, get, keyTaken, urlTaken, update, remove };

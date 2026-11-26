@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
-import { ExternalLink } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
+import { Ellipsis, ExternalLink, PencilLine, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
-import { formatDate } from "../lib/content.js";
-import { Switch, Tip } from "../ui/controls.jsx";
-import { useFeedback } from "../ui/overlays.jsx";
+import { formatDate, teraboxVideoPath } from "../lib/content.js";
+import { Button, Switch, Tip } from "../ui/controls.jsx";
+import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
 
 export default function TeraboxVideos() {
-  const { toast } = useFeedback();
+  const navigate = useNavigate();
+  const { confirm, toast } = useFeedback();
   const [params] = useSearchParams();
   const query = (params.get("q") || "").trim().toLowerCase();
   const [videos, setVideos] = useState(null);
@@ -23,6 +24,23 @@ export default function TeraboxVideos() {
 
   const visible = useMemo(() => (videos || []).filter((v) => !query || `${v.title} ${v.key}`.toLowerCase().includes(query)), [videos, query]);
   const published = videos?.filter((v) => v.public).length ?? 0;
+
+  const remove = async (video) => {
+    const ok = await confirm({
+      title: `Delete “${video.title}”`,
+      description: "It leaves the Terabox Videos page. Playing its link again on the site saves it as a new video. This can't be undone.",
+      confirmLabel: "Delete video",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api(`/api/terabox-videos/${video.id}`, { method: "DELETE" });
+      setVideos((list) => list.filter((v) => v.id !== video.id));
+      toast(`Deleted “${video.title}”`);
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
 
   return (
     <div className="home">
@@ -73,34 +91,46 @@ export default function TeraboxVideos() {
               <span className="col-date">Added</span>
               <span />
             </div>
-            {visible.map((video) => (
-              <div key={video.id} className={`media-row is-static${video.public ? "" : " is-off"}`}>
-                <span className="media-main">
-                  <Thumb src={video.thumbnail} duration={video.duration} show={showThumbs} />
-                  <span className="media-text">
-                    <span className="media-title">{video.title}</span>
-                    <span className="media-sub mono">{video.teraboxUrl || "No Terabox URL yet"}</span>
+            {visible.map((video) => {
+              const open = () => navigate(teraboxVideoPath(video.id));
+              return (
+                <div
+                  key={video.id}
+                  className={`media-row${video.public ? "" : " is-off"}`}
+                  role="link"
+                  tabIndex={0}
+                  onClick={open}
+                  onKeyDown={(e) => e.key === "Enter" && open()}
+                >
+                  <span className="media-main">
+                    <Thumb src={video.thumbnail} duration={video.duration} show={showThumbs} />
+                    <span className="media-text">
+                      <span className="media-title">{video.title}</span>
+                      <span className="media-sub mono">{video.teraboxUrl || "No Terabox URL yet"}</span>
+                    </span>
                   </span>
-                </span>
-                <span className="col-category mono">{video.key}</span>
-                <span>
-                  <span className={`visibility${video.public ? " is-live" : ""}`}>
-                    <span className="dot" />
-                    {video.public ? "Public" : "Disabled"}
+                  <span className="col-category mono">{video.key}</span>
+                  <span>
+                    <span className={`visibility${video.public ? " is-live" : ""}`}>
+                      <span className="dot" />
+                      {video.public ? "Public" : "Disabled"}
+                    </span>
                   </span>
-                </span>
-                <span className="col-date muted">{formatDate(video.createdAt)}</span>
-                <span>
-                  {video.teraboxUrl && (
-                    <Tip label="Open on Terabox">
-                      <a className="row-icon" href={video.teraboxUrl} target="_blank" rel="noopener noreferrer" aria-label="Open on Terabox">
-                        <ExternalLink size={16} strokeWidth={1.5} />
-                      </a>
-                    </Tip>
-                  )}
-                </span>
-              </div>
-            ))}
+                  <span className="col-date muted">{formatDate(video.createdAt)}</span>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Menu
+                      trigger={<Button variant="ghost" size="sm" icon={Ellipsis} aria-label="Video actions" />}
+                      items={[
+                        { label: "Edit", icon: PencilLine, onSelect: open },
+                        video.teraboxUrl && { label: "Open on Terabox", icon: ExternalLink, onSelect: () => window.open(video.teraboxUrl, "_blank", "noopener") },
+                        "separator",
+                        { label: "Delete", icon: Trash2, danger: true, onSelect: () => remove(video) },
+                      ]}
+                    />
+                  </span>
+                </div>
+              );
+            })}
             {visible.length === 0 && <div className="wf-none">Nothing matches “{params.get("q")}”</div>}
           </div>
         </>

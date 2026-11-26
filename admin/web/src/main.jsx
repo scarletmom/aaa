@@ -29,6 +29,7 @@ import Users from "./pages/Users.jsx";
 import Shorts from "./pages/Shorts.jsx";
 import ShortEditor from "./pages/ShortEditor.jsx";
 import TeraboxVideos from "./pages/TeraboxVideos.jsx";
+import TeraboxVideoEditor from "./pages/TeraboxVideoEditor.jsx";
 import { AuthGate } from "./pages/Login.jsx";
 import StudioShell from "./layout/StudioShell.jsx";
 
@@ -50,6 +51,7 @@ const router = createBrowserRouter(
         <Route path="/shorts/new" element={<ShortEditor key="new" />} />
         <Route path="/shorts/:id" element={<ShortEditor />} />
         <Route path="/terabox-videos" element={<TeraboxVideos />} />
+        <Route path="/terabox-videos/:id" element={<TeraboxVideoEditor />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/categories/new" element={<CategoryEditor key="new" />} />
         <Route path="/categories/:id" element={<CategoryEditor />} />

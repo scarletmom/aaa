@@ -239,7 +239,7 @@ ones reach the site.
 
 **Terabox videos** lists every row of the `terabox_videos` table (`video_key`, `title`, `terabox_url`,
 `thumbnail`, `duration` as text like `04:23`), unfinished ones included. A video is public on the Terabox
-Videos page only once it has a `terabox_url`. Rows can't be added from the admin yet.
+Videos page only once it has a `terabox_url`. Open a row to edit its title, Terabox URL, thumbnail, length or key, or delete it; clearing the URL takes the video off the site. Links are saved as `https://www.terabox.com/s/1<share>` and must be unique. Rows can't be added from the admin yet (the Terabox worker saves each link a member plays).
 
 Both tables are created on first use by whichever app (this one or the videos API server) starts first.
 

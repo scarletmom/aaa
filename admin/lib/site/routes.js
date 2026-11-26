@@ -40,6 +40,39 @@ function shortInput(body) {
   return { values, errors };
 }
 
+const TERABOX_KEY = /^[A-Za-z0-9_-]{1,32}$/;
+const TERABOX_DURATION = /^\d{1,2}(:[0-5]\d){1,2}$/;
+
+// The worker saves links as https://www.terabox.com/s/1<share>; edits use the same spelling so a share stays unique.
+function canonicalTeraboxUrl(value) {
+  try {
+    const url = new URL(value);
+    const shareId = url.searchParams.get("surl") || /^\/s\/1([\w-]+)/.exec(url.pathname)?.[1];
+    return shareId ? `https://www.terabox.com/s/1${shareId}` : url.href;
+  } catch {
+    return value;
+  }
+}
+
+function teraboxVideoInput(body) {
+  const values = {
+    key: trim(body.key, 32),
+    title: trim(body.title, 255),
+    teraboxUrl: trim(body.teraboxUrl, 2048),
+    thumbnail: trim(body.thumbnail, 2048),
+    duration: trim(body.duration, 16),
+  };
+  const errors = {};
+  if (!values.key) errors.key = "Key is required.";
+  else if (!TERABOX_KEY.test(values.key)) errors.key = "Use up to 32 letters, digits, underscores or hyphens.";
+  if (!values.title) errors.title = "Title is required.";
+  if (values.teraboxUrl && !HTTP_URL.test(values.teraboxUrl)) errors.teraboxUrl = "Must start with http:// or https://";
+  else if (values.teraboxUrl) values.teraboxUrl = canonicalTeraboxUrl(values.teraboxUrl);
+  if (values.thumbnail && !HTTP_URL.test(values.thumbnail)) errors.thumbnail = "Must start with http:// or https://";
+  if (values.duration && !TERABOX_DURATION.test(values.duration)) errors.duration = "Use mm:ss or h:mm:ss, e.g. 04:23.";
+  return { values, errors };
+}
+
 async function saveShort(body, existingId) {
   const { values, errors } = shortInput(body);
   await checkCategory(values, errors);
@@ -200,6 +233,37 @@ router.post(
 router.delete("/shorts/:id", handle(async (req, res) => res.json({ deleted: await shorts.remove(req.params.id) })));
 
 router.get("/terabox-videos", handle(async (req, res) => res.json(await teraboxVideos.list())));
+
+router.get(
+  "/terabox-videos/:id",
+  handle(async (req, res) => {
+    const video = await teraboxVideos.get(req.params.id);
+    return video ? res.json(video) : res.status(404).json({ error: "Terabox video not found" });
+  })
+);
+
+router.put(
+  "/terabox-videos/:id",
+  handle(async (req, res) => {
+    const existing = await teraboxVideos.get(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Terabox video not found" });
+    const { values, errors } = teraboxVideoInput(req.body || {});
+    if (!errors.key && (await teraboxVideos.keyTaken(values.key, existing.id))) errors.key = "Another video already uses this key.";
+    if (!errors.teraboxUrl && (await teraboxVideos.urlTaken(values.teraboxUrl, existing.id))) errors.teraboxUrl = "Another video already has this Terabox URL.";
+    checked(values, errors);
+    try {
+      await teraboxVideos.update(existing.id, values);
+    } catch (err) {
+      // Saved by someone else between the checks and this update.
+      if (err.code !== "ER_DUP_ENTRY") throw err;
+      const field = String(err.message).includes("uq_terabox_videos_url") ? "teraboxUrl" : "key";
+      throw new InputError({ [field]: field === "key" ? "Another video already uses this key." : "Another video already has this Terabox URL." });
+    }
+    res.json(await teraboxVideos.get(existing.id));
+  })
+);
+
+router.delete("/terabox-videos/:id", handle(async (req, res) => res.json({ deleted: await teraboxVideos.remove(req.params.id) })));
 
 router.get("/users", handle(async (req, res) => res.json(await accounts.list(req.query))));
 

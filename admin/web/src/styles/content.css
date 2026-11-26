@@ -815,10 +815,6 @@
   padding-bottom: 0;
 }
 
-.media-row.is-static {
-  cursor: default;
-}
-
 .media-row.is-off .media-main {
   opacity: 0.55;
 }
