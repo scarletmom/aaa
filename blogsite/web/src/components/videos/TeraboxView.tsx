@@ -108,8 +108,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
 
   return (
     <div className="pt-5 pb-12">
-      <section aria-labelledby="terabox-title" className="relative overflow-hidden rounded-3xl border border-line bg-surface px-5 py-6 sm:px-8 sm:py-8">
-        <span aria-hidden="true" className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-sky-500/10" />
+      <section aria-labelledby="terabox-title" className="sm:pt-3">
         <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-sky-500 text-white shadow-sm">
           <CloudPlayIcon size={26} />
         </span>
@@ -122,7 +121,7 @@ export default function TeraboxView({ onWatch, upNext, moreVideos }: TeraboxView
 
         <form onSubmit={onSubmit} aria-busy={busy} className="mt-5 flex max-w-[560px] flex-col gap-2.5 sm:flex-row">
           <label htmlFor="terabox-link" className="sr-only">Terabox link</label>
-          <div className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-2xl border border-line bg-bg pr-1.5 pl-4 focus-within:border-fg-2">
+          <div className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-2xl border border-line bg-surface pr-1.5 pl-4 focus-within:border-fg-2">
             <input
               id="terabox-link"
               ref={inputRef}
