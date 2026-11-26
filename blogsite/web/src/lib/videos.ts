@@ -109,8 +109,12 @@ export async function fetchVideoPage({ page, query, channel }: PageRequest, toke
   const params = new URLSearchParams({ page: String(page) });
   if (query) params.set('q', query);
   if (channel) params.set('channel', channel);
-  const data = await apiRequest<Omit<VideoPage, 'videos'> & { videos: ApiVideo[] }>(`/api/videos?${params}`, { token });
-  return { ...data, videos: data.videos.map(toCatalogVideo) };
+  const data = await apiRequest<Partial<Omit<VideoPage, 'videos'>> & { videos: ApiVideo[] }>(`/api/videos?${params}`, { token });
+  const videos = data.videos.map(toCatalogVideo);
+  if (data.pages !== undefined && data.channels) return { ...data, videos } as VideoPage;
+  // A server from before paging ignores ?page= and sends everything: show it as one page.
+  const channels = [...new Map(data.videos.filter((v) => v.category?.name).map((v) => [v.category!.name, { name: v.category!.name, avatar: v.category!.avatar || v.thumbnail }])).values()];
+  return { videos, page: 1, pages: 1, total: videos.length, channels: channels.sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
 export interface VideoDetail {
