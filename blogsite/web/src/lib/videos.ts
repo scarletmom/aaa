@@ -87,6 +87,8 @@ export async function fetchVideos(token: string): Promise<CatalogVideo[]> {
 export interface Channel {
   name: string;
   avatar: string;
+  /** How many published videos it has. */
+  count: number;
 }
 
 export interface PageRequest {
@@ -113,8 +115,16 @@ export async function fetchVideoPage({ page, query, channel }: PageRequest, toke
   const videos = data.videos.map(toCatalogVideo);
   if (data.pages !== undefined && data.channels) return { ...data, videos } as VideoPage;
   // A server from before paging ignores ?page= and sends everything: show it as one page.
-  const channels = [...new Map(data.videos.filter((v) => v.category?.name).map((v) => [v.category!.name, { name: v.category!.name, avatar: v.category!.avatar || v.thumbnail }])).values()];
-  return { videos, page: 1, pages: 1, total: videos.length, channels: channels.sort((a, b) => a.name.localeCompare(b.name)) };
+  const channels = new Map<string, Channel>();
+  for (const video of data.videos) {
+    const name = video.category?.name;
+    if (!name) continue;
+    const known = channels.get(name);
+    if (known) known.count += 1;
+    else channels.set(name, { name, avatar: video.category?.avatar || video.thumbnail, count: 1 });
+  }
+  const sorted = [...channels.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return { videos, page: 1, pages: 1, total: videos.length, channels: sorted };
 }
 
 export interface VideoDetail {

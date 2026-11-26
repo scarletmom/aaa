@@ -131,8 +131,11 @@ function channelsOf(all) {
     const name = video.category?.name;
     if (!name) continue;
     const known = channels.get(name);
-    if (!known) channels.set(name, { name, avatar: video.category.avatar || video.thumbnail });
-    else if (!known.avatar) known.avatar = video.thumbnail;
+    if (!known) channels.set(name, { name, avatar: video.category.avatar || video.thumbnail, count: 1 });
+    else {
+      known.count += 1;
+      if (!known.avatar) known.avatar = video.thumbnail;
+    }
   }
   return [...channels.values()].sort((a, b) => a.name.localeCompare(b.name));
 }

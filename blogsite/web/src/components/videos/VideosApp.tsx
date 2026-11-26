@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom';
 import { cn } from '@/lib/cn';
 import type { Comment, SeedComments } from '@/lib/comments';
 import { episodeIndex, titleWithEpisode } from '@/lib/episodes';
-import { videosUrl } from '@/lib/format';
+import { channelUrl, videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
 import { canWatchVideos, proPlan } from '@/lib/roles';
 import { getSession, useHydrated, useSession } from '@/lib/session';
@@ -16,6 +16,7 @@ import ViewerAds from '../site/ViewerAds';
 import AccessGate from './AccessGate';
 import AdBlockDialog, { useAdBlockCheck } from './AdBlockDialog';
 import Catalog from './Catalog';
+import ChannelsView from './ChannelsView';
 import ImageResults from './ImageResults';
 import ShortsFeed from './ShortsFeed';
 import TeraboxView from './TeraboxView';
@@ -69,10 +70,12 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const searchParams = useSearchParams();
   const activeId = searchParams.get('v');
   const onTerabox = !activeId && searchParams.get('tab') === 'terabox';
+  const onChannels = !activeId && searchParams.get('tab') === 'channels';
+  // In the address, so the channels page can link to a filtered home page and Back undoes a filter.
+  const channel = searchParams.get('channel') ?? '';
   const requestedEpisode = Number(searchParams.get('ep')) || 0;
   const start = Number(searchParams.get('t')) || 0;
   const [query, setQuery] = useState('');
-  const [channel, setChannel] = useState('');
   const [searchWords, setSearchWords] = useState('');
   // Remembered with the filter it was turned under, so new search words or a new channel start again at page 1.
   const [pageTurn, setPageTurn] = useState({ filter: '', page: 1 });
@@ -128,7 +131,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
 
   const search = (value: string) => {
     setQuery(value);
-    if ((active || onTerabox) && value) router.push(videosUrl);
+    if ((active || onTerabox || onChannels) && value) router.push(channel ? channelUrl(channel) : videosUrl);
   };
 
   const openSearch = () => {
@@ -142,7 +145,6 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
     setSearching(false);
     setQuery('');
     setSearchWords('');
-    setChannel('');
     setPageTurn({ filter: '', page: 1 });
     imageSearch.clear();
   };
@@ -150,14 +152,17 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const searchByImage = (file: File) => {
     setQuery('');
     imageSearch.start(file);
-    if (active || onTerabox) router.push(videosUrl);
+    if (active || onTerabox || onChannels) router.push(videosUrl);
   };
 
-  const catalogPage = shownPage && (
+  const chooseChannel = (name: string) => router.push(name ? channelUrl(name) : videosUrl);
+
+  const catalogPage = (sidebar: boolean) => shownPage && (
     <Catalog
       page={shownPage}
       channel={channel}
-      onChannel={setChannel}
+      onChannel={chooseChannel}
+      sidebar={sidebar}
       onPage={setPage}
       filtered={Boolean(searchWords || channel)}
       busy={paged.status === 'loading'}
@@ -182,7 +187,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         video={active}
         playEndpoint={detail.data.play}
         upNext={detail.data.related.slice(0, UP_NEXT_LIMIT)}
-        moreVideos={catalogPage}
+        moreVideos={catalogPage(false)}
         channelPoster={shownPage?.channels.find((c) => c.name === active.channel)?.avatar || undefined}
         episode={episode}
         requestedEpisode={requestedEpisode}
@@ -193,14 +198,16 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   } else if (onTerabox) {
     // The paste box doesn't need the catalog, so it shows while the other videos load.
     content = <TeraboxView videos={videos} videosLoading={catalog.status === 'loading'} onWatch={watchTerabox} />;
+  } else if (onChannels) {
+    content = shownPage ? <ChannelsView channels={shownPage.channels} active={channel} /> : loadStatus(paged);
   } else if (imageSearch.search) {
     content = catalog.status === 'ready'
       ? <ImageResults search={imageSearch.search} videos={videos} onClear={imageSearch.clear} />
       : loadStatus(catalog);
-  } else if (paged.status === 'error' || !catalogPage) {
+  } else if (paged.status === 'error' || !shownPage) {
     content = loadStatus(paged);
   } else {
-    content = catalogPage;
+    content = catalogPage(true);
   }
 
   const activeTab: VideoTab = searching ? 'search' : onTerabox ? 'terabox' : activeId ? null : 'home';

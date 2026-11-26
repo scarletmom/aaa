@@ -65,5 +65,7 @@ export const searchUrl = (query: string) => `/search/?q=${encodeURIComponent(que
 export const videosUrl = '/videos/';
 export const subscribeUrl = '/subscribe/';
 export const teraboxTabUrl = '/videos/?tab=terabox';
+export const channelsTabUrl = '/videos/?tab=channels';
+export const channelUrl = (name: string) => `/videos/?channel=${encodeURIComponent(name)}`;
 export const videoUrl = (id: string, episode?: number) =>
   `/videos/?v=${encodeURIComponent(id)}${episode ? `&ep=${episode}` : ''}`;
