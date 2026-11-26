@@ -85,7 +85,7 @@ export default function VideoTopBar({
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/90 backdrop-blur-md backdrop-saturate-150">
-      <div className={cn(videoContainer, 'flex h-14 items-center gap-2')}>
+      <div className={cn(videoContainer, 'flex h-14 items-center gap-2 md:gap-6')}>
         <Link href={videosUrl} className={cn('flex min-w-0 flex-none items-center gap-1.5 sm:gap-2', searching && 'max-md:hidden')}>
           <BrandMark />
           <span className="font-display text-[18px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[20px]">{brand}</span>
@@ -93,7 +93,7 @@ export default function VideoTopBar({
 
         {searchEnabled && (
           <>
-            <div ref={searchRef} className={cn('relative mx-auto max-w-[520px] flex-1 md:mx-6', searching ? 'block' : 'hidden md:block')}>
+            <div ref={searchRef} className={cn('relative mx-auto max-w-[520px] flex-1', searching ? 'block' : 'hidden md:block')}>
               <div
                 onDragEnter={() => onImage && setPanelOpen(true)}
                 className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface pr-1.5 pl-3.5 text-muted focus-within:border-fg-2"
