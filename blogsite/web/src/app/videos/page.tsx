@@ -12,7 +12,7 @@ export default async function VideosPage() {
   return (
     // The page reads ?v= on the client, which a static export needs a Suspense boundary for.
     <Suspense fallback={null}>
-      <VideosApp comments={commentsJson as SeedComments} brand={t('videosBrand', 'Quillwood Video')} />
+      <VideosApp comments={commentsJson as SeedComments} brand={t('videosBrand', 'Quillwood')} />
     </Suspense>
   );
 }

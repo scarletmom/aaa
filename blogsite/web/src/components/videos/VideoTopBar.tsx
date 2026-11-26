@@ -86,9 +86,9 @@ export default function VideoTopBar({
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/90 backdrop-blur-md backdrop-saturate-150">
       <div className={cn(videoContainer, 'flex h-14 items-center gap-2')}>
-        <Link href={videosUrl} className={cn('flex min-w-0 flex-none items-center gap-2.5', searching && 'max-md:hidden')}>
+        <Link href={videosUrl} className={cn('flex min-w-0 flex-none items-center gap-1.5 sm:gap-2', searching && 'max-md:hidden')}>
           <BrandMark />
-          <span className="font-display text-[19px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[21px]">{brand}</span>
+          <span className="font-display text-[18px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[20px]">{brand}</span>
         </Link>
 
         <nav aria-label="Video sections" className="hidden flex-none items-center gap-1 md:flex">

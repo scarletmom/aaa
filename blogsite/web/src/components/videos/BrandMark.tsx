@@ -1,12 +1,11 @@
-/** Quill on an ink tile: the video site's logo. */
+/** The quill on its own: the video site's logo. */
 export default function BrandMark({ className = '' }: { className?: string }) {
   return (
-    <span aria-hidden="true" className={`grid size-8 flex-none place-items-center rounded-[10px] bg-fg text-accent shadow-sm ${className}`}>
-      <svg viewBox="0 0 24 24" width="20" height="20">
-        <path d="M19.8 3.2C12.6 3.6 7.9 8.4 6.8 15.4l-.3 2.1 2.1-.3c7-1.1 11.8-5.8 11.2-14z" fill="currentColor" />
-        <path d="M4 20.5 14.6 9.4" fill="none" stroke="var(--bg)" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M10.2 11.6h3.4M8.6 14.2h3" fill="none" stroke="var(--bg)" strokeWidth="1.2" strokeLinecap="round" opacity=".55" />
-      </svg>
-    </span>
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`size-6 flex-none text-accent sm:size-7 ${className}`}>
+      <path d="M20.5 2.5C12.8 2.9 7.7 8 6.5 15.5l-.3 2.3 2.3-.3c7.5-1.2 12.6-6.2 12-15z" fill="currentColor" />
+      {/* The spine is cut out of the feather in the page colour, then continues past it as the nib. */}
+      <path d="M8.4 15.6 15.2 8.8" fill="none" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3.5 21 7.4 16.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }
