@@ -132,19 +132,21 @@ export default function Catalog({ page, channel, onChannel, onPage, filtered, bu
   const grid = (
     <div className="min-w-0">
       {page.channels.length > 0 && (
-        <div className={cn('-mx-4 flex items-center sm:-mx-6', sidebar && 'lg:hidden')}>
-          <nav aria-label="Channels" className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto py-3 pr-2 pl-4 sm:pl-6">
+        <div className={cn('relative -mx-4 sm:-mx-6', sidebar && 'lg:hidden')}>
+          <nav aria-label="Channels" className="no-scrollbar flex gap-2 overflow-x-auto py-3 pr-40 pl-4 sm:pl-6">
             {chip('', 'All')}
             {leading.map((c) => chip(c.name, c.name, c.avatar))}
           </nav>
-          {/* Pinned outside the scrolling row, so it shows however far the chips are scrolled. */}
-          <Link
-            href={channelsTabUrl}
-            className="relative flex h-[34px] flex-none items-center gap-0.5 rounded-full border border-line bg-surface pr-2 pl-3.5 text-[13.5px] font-semibold transition-colors before:pointer-events-none before:absolute before:inset-y-0 before:-left-7 before:w-6 before:bg-gradient-to-l before:from-bg before:to-transparent mr-4 hover:border-fg-2 sm:mr-6"
-          >
-            Explore all
-            <ChevronIcon size={16} />
-          </Link>
+          {/* Floats over the row's end; its rounded backing cuts the chips off along a curve instead of a straight edge. */}
+          <div className="absolute top-1/2 right-0 flex h-[46px] -translate-y-1/2 items-center rounded-l-full bg-bg pr-4 pl-1.5 sm:pr-6">
+            <Link
+              href={channelsTabUrl}
+              className="flex h-[34px] items-center gap-0.5 rounded-full border border-line bg-surface pr-2 pl-3.5 text-[13.5px] font-semibold transition-colors hover:border-fg-2"
+            >
+              Explore all
+              <ChevronIcon size={16} />
+            </Link>
+          </div>
         </div>
       )}
       {page.total === 0 && (
