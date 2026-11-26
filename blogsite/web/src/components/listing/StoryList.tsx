@@ -13,8 +13,8 @@ export default function StoryList({ articles }: { articles: StorySummary[] }) {
   if (!first) {
     return (
       <p className="py-10 text-fg-2">
-        No stories matched. Try a different search, or browse the{' '}
-        <Link href={sectionUrl('latest')} className="text-accent">latest news</Link>.
+        No posts matched. Try a different search, or browse the{' '}
+        <Link href={sectionUrl('latest')} className="text-accent">latest posts</Link>.
       </p>
     );
   }
@@ -22,7 +22,7 @@ export default function StoryList({ articles }: { articles: StorySummary[] }) {
   return (
     <>
       <SectionLead article={first} />
-      <LoadMore pageSize={PAGE_SIZE} label="Load more stories">
+      <LoadMore pageSize={PAGE_SIZE} label="Load more posts">
         {rest.map((a) => <StoryRow key={a.id} article={a} />)}
       </LoadMore>
     </>

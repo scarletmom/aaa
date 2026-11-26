@@ -1,5 +1,5 @@
 import { getPlayerData, getSiteData } from '@/lib/data';
-import { articleUrl, sectionUrl, tagUrl } from '@/lib/format';
+import { articleUrl, sectionUrl, tagUrl, teraboxPlayerUrl } from '@/lib/format';
 
 // Written to out/pages.json at build time. The video server picks random pages from it for link-gate steps.
 export const dynamic = 'force-static';
@@ -9,6 +9,7 @@ export async function GET() {
   const pages = [
     { slug: '/', title: site.name },
     { slug: '/player/', title: player.title },
+    { slug: teraboxPlayerUrl, title: 'Terabox Player' },
     ...site.sections.map((section) => ({ slug: sectionUrl(section.slug), title: section.name })),
     ...site.topics.map((topic) => ({ slug: tagUrl(topic), title: topic })),
     ...articles.map((article) => ({ slug: articleUrl(article), title: article.title })),

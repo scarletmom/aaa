@@ -1,6 +1,6 @@
 # Quillwood Notes
 
-A fictional blog. All stories, people, places and organisations are fictional.
+The blog for the Quillwood videos app: guides to the videos page, the Terabox Player, Shorts, the player and the plans, plus release notes.
 
 - `web/` is the blog itself: the front page, posts, sections, topics and search, built with Next.js, TypeScript and Tailwind CSS and exported as static HTML. Its content lives in `web/src/data/`. See `web/README.md`.
 - This folder holds the parts that stay static and are served beside it: the video player (`player/`), the Telegram Mini App (`tg/`), their scripts and styles (`assets/`), and Monetag's push worker (`sw.js`).
@@ -29,7 +29,7 @@ web/src/data/
   site.json       blog name, sections, topics, popular searches, all UI labels, footer;
                   apiUrl = the video server, which records page views (empty = no tracking)
   articles.json   all stories
-  videos.json     sidebar videos (each links to an article by id)
+  videos.json     "Start watching" shortcuts in the front page's sidebar
   player.json     player page text, sample streams, formats table, how-it-works guide
   streams/        example endpoint JSON files for rich player links
 assets/css/style.css
@@ -94,6 +94,8 @@ Append an object to `web/src/data/articles.json`, then rebuild:
 
 - `category` must match a `slug` in `site.json` → `sections`.
 - The article with `"featured": true` leads the front page; otherwise the newest one does.
+- Posts in the `updates` section fill the strip under the top stories instead of a section block.
+- `image` can be a local cover (`/covers/<id>.svg` in `web/public/covers/`) or any image URL.
 - "Most read" is sorted by `views`.
 - Topics in `site.json` link to articles with a matching tag; trending terms run a search.
 

@@ -259,6 +259,45 @@ app.post(
   })
 );
 
+const UPGRADE_PLANS = new Set(["lite", "pro"]);
+
+// A Member's Upgrade button: the videos site link is handed out only here, to a signed-in Member, so it never sits in
+// the blogsite's pages for crawlers. The token rides in the fragment, which never reaches a server log or a Referer.
+app.post(
+  "/api/account/upgrade-link",
+  gateLimit,
+  wrap(requireSignedIn),
+  wrap(async (req, res) => {
+    const plan = String(req.body?.plan || "");
+    if (!UPGRADE_PLANS.has(plan)) return res.status(400).json({ error: "Choose Member Lite or Member Pro." });
+    if (req.account.role !== accounts.ROLES.member) {
+      return res.status(409).json({ error: "Your account already includes videos.", code: "already_upgraded" });
+    }
+    const url = new URL(config.videosSite);
+    url.hash = `upgrade=${tokens.signUpgrade(req.sessionId, plan)}`;
+    res.json({ url: url.href });
+  })
+);
+
+// The videos site, once its captcha has given a pass, asks where to send the Member back to. The pass itself goes back
+// in the fragment, and the blogsite's /api/account/videos-access turns it into Member Lite.
+app.post(
+  "/api/upgrade/continue",
+  gateLimit,
+  wrap(async (req, res) => {
+    if (!tokens.verifyPass(tokens.bearer(req))) {
+      return res.status(401).json({ error: "Verification required.", code: "pass_required" });
+    }
+    const upgrade = tokens.verifyUpgrade(String(req.body?.upgrade || ""));
+    if (!upgrade || !UPGRADE_PLANS.has(upgrade.plan)) {
+      return res.status(400).json({ error: "This upgrade link has expired. Press Upgrade on the blog again.", code: "upgrade_expired" });
+    }
+    const url = new URL("videos/", config.newsSite);
+    if (upgrade.plan === "pro") url.searchParams.set("upgrade", "pro");
+    res.json({ url: url.href });
+  })
+);
+
 // The blogsite calls this on load: the role is re-read from the database (an admin may have changed it)
 // and a fresh token is issued, so an active visitor stays signed in.
 app.get(

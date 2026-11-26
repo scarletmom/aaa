@@ -1,8 +1,8 @@
 {
   "name": "Quillwood Notes",
-  "tagline": "A fictional blog of small-town stories",
-  "edition": "A fiction blog",
-  "description": "Quillwood Notes is a fictional blog. Every post, person, place and organisation on it is invented.",
+  "tagline": "Guides and news for the Quillwood videos app",
+  "edition": "Notes from the videos team",
+  "description": "Quillwood Notes is the blog for the Quillwood videos app: how-tos, feature guides and release notes for the videos page, the Terabox player, Shorts and the plans.",
   "apiUrl": "https://alinarose.onrender.com",
   "adFreeKey": {
     "kty": "EC",
@@ -12,96 +12,89 @@
   },
   "sections": [
     {
-      "slug": "world",
-      "name": "World",
-      "description": "Posts about faraway places, borders, rivers and the people who argue over them."
+      "slug": "getting-started",
+      "name": "Getting started",
+      "description": "Creating an account, signing in with your account number and finding your first video."
     },
     {
-      "slug": "politics",
-      "name": "Politics",
-      "description": "Notes on councils, votes and the people in charge of the made-up town of Halden."
+      "slug": "watching",
+      "name": "Watching",
+      "description": "The videos page: browsing, searching, channels, episodes, Up next and comments."
     },
     {
-      "slug": "business",
-      "name": "Business",
-      "description": "Shops, bakeries, freight yards and the money that moves between them."
+      "slug": "terabox",
+      "name": "Terabox",
+      "description": "Watching Terabox share links in the browser with the Terabox player."
     },
     {
-      "slug": "markets",
-      "name": "Money",
-      "description": "Imaginary indexes, invented interest rates and what they might mean for your wallet."
+      "slug": "shorts",
+      "name": "Shorts",
+      "description": "The vertical Shorts feed: swiping, sound and sharing a short."
     },
     {
-      "slug": "technology",
-      "name": "Technology",
-      "description": "Gadgets, apps, batteries and practical how-tos."
+      "slug": "player",
+      "name": "Player",
+      "description": "The video player itself: quality, speed, subtitles, resume, keyboard shortcuts and fullscreen."
     },
     {
-      "slug": "science",
-      "name": "Science",
-      "description": "Coral reefs, asteroids and other things that are bigger than us."
+      "slug": "plans",
+      "name": "Plans",
+      "description": "Member, Member Lite and Member Pro: what each plan includes and how to upgrade."
     },
     {
-      "slug": "health",
-      "name": "Health",
-      "description": "Flu seasons, hospital rotas and looking after yourself."
-    },
-    {
-      "slug": "sports",
-      "name": "Sport",
-      "description": "Football, running and the rest of the sporting week in a town that doesn’t exist."
-    },
-    {
-      "slug": "culture",
-      "name": "Culture",
-      "description": "Art, books, maps and ideas."
-    },
-    {
-      "slug": "opinion",
-      "name": "Essays",
-      "description": "Longer personal essays and arguments from the blog’s writers."
+      "slug": "updates",
+      "name": "Updates",
+      "description": "Release notes and what the team is working on next."
     }
   ],
   "topics": [
-    "Budget 2027",
-    "Rail Strike",
-    "Harbour Bridge",
-    "Interest Rates",
-    "Artificial Intelligence",
-    "Winter Health",
-    "Energy Transition",
-    "Cost of Living",
-    "Cup Final"
+    "Terabox",
+    "Shorts",
+    "Episodes",
+    "Keyboard shortcuts",
+    "Channels",
+    "Comments",
+    "Member Pro",
+    "Ad-free",
+    "Account number",
+    "Image search"
   ],
   "trending": [
-    "Coalition vote",
-    "Northwind Freight",
-    "Coffee prices",
-    "Flu season",
-    "Stoppage-time winner",
-    "Tarrow Island",
-    "Lumen Atlas",
-    "Marathon"
+    "Paste a link",
+    "Member Lite",
+    "Resume",
+    "Picture-in-picture",
+    "Quality",
+    "Up next",
+    "Dark mode",
+    "Subtitles"
   ],
   "labels": {
     "latestNav": "Latest",
     "mastheadLink": "About this blog",
     "topics": "Topics",
-    "featured": "Featured posts",
+    "featured": "Featured guides",
     "latest": "Latest posts",
-    "latestIntro": "Every post on the blog, newest first.",
+    "latestIntro": "Every guide and update, newest first.",
     "trending": "Popular searches",
     "mostRead": "Most read",
     "videos": "Videos",
-    "notFoundTitle": "We couldn’t find that post",
+    "notFoundTitle": "We couldn’t find that guide",
     "notFoundText": "It may have been moved or removed.",
-    "newsletterTitle": "The Sunday Letter",
-    "newsletterText": "A short round-up of new posts, once a week. No spam, unsubscribe any time.",
-    "newsletterDone": "Thanks for signing up. Check your inbox to confirm."
+    "newsletterTitle": "Release notes by email",
+    "newsletterText": "One short email when something new lands on the videos page. No spam, unsubscribe any time.",
+    "newsletterDone": "Thanks for signing up. Check your inbox to confirm.",
+    "videosWidget": "Feature tours",
+    "teraboxPlayer": "Terabox Player"
   },
   "footer": {
-    "about": "Quillwood Notes is a fictional blog. Every post, person, place and organisation on it is invented, and any resemblance to real people or events is coincidental.",
-    "company": ["About this blog", "Write for us", "Contact", "Advertise"],
+    "about": "Quillwood Notes is the blog for the Quillwood videos app. Here the team explains how the videos page, the Terabox player, Shorts and the plans work, and what changes in each release.",
+    "company": [
+      "About this blog",
+      "Write for us",
+      "Contact",
+      "Advertise"
+    ],
     "help": [
       "Terms of use",
       "Privacy policy",

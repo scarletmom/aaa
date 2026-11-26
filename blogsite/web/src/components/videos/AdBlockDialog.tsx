@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { type AdBlockResult, detectAdBlock } from '@/lib/adBlock';
 import { WarningIcon } from '../ui/Icons';
 import Modal from '../ui/Modal';
-import { proPricing } from './UpgradeDialog';
+import { proPricing } from './ProPlanPicker';
 
 const amount = (price: string) => Number(price.replace(/[^0-9.]/g, '')) || Infinity;
 const cheapest = proPricing.plans.reduce<string>(

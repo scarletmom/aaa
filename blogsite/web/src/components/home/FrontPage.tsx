@@ -1,21 +1,24 @@
 import { getSiteData } from '@/lib/data';
 import LatestStories from './LatestStories';
-import OpinionStrip from './OpinionStrip';
 import SectionBlock, { SectionsGrid } from './SectionBlock';
 import TopStories from './TopStories';
+import UpdatesStrip from './UpdatesStrip';
+import AppLinksWidget from '../sidebar/AppLinksWidget';
 import MostReadWidget from '../sidebar/MostReadWidget';
 import NewsletterWidget from '../sidebar/NewsletterWidget';
 import Sidebar from '../sidebar/Sidebar';
 import TrendingWidget from '../sidebar/TrendingWidget';
-import VideosWidget from '../sidebar/VideosWidget';
 import PageGrid from '../ui/PageGrid';
+
+// Release notes get their own strip under the top stories instead of a block in the grid.
+const UPDATES_SECTION = 'updates';
 
 export default async function FrontPage() {
   const { articles, site, sectionNames, t } = await getSiteData();
   const lead = articles.find((a) => a.featured) ?? articles[0];
   const [second, ...queue] = articles.filter((a) => a !== lead);
-  const opinions = articles.filter((a) => a.category === 'opinion').slice(0, 3);
-  const blockSections = site.sections.filter((s) => s.slug !== 'opinion');
+  const updates = articles.filter((a) => a.category === UPDATES_SECTION).slice(0, 3);
+  const blockSections = site.sections.filter((s) => s.slug !== UPDATES_SECTION);
 
   return (
     <>
@@ -28,14 +31,14 @@ export default async function FrontPage() {
           <LatestStories title={t('latest', 'Latest')} articles={queue.slice(8, 12)} />
         </div>
         <Sidebar>
-          <VideosWidget />
+          <AppLinksWidget />
           <TrendingWidget />
           <MostReadWidget />
           <NewsletterWidget />
         </Sidebar>
       </PageGrid>
 
-      <OpinionStrip title={sectionNames.opinion || 'Opinion'} articles={opinions} />
+      <UpdatesStrip section={UPDATES_SECTION} title={sectionNames[UPDATES_SECTION] || 'Updates'} articles={updates} />
 
       <SectionsGrid>
         {blockSections.map((section) => (

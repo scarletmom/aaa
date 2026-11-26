@@ -30,7 +30,7 @@ export default function SearchResults({ articles, latestTitle, latestIntro }: Se
 
   if (!path) return <p className="py-20 text-center text-muted">Loading…</p>;
 
-  const count = `${results.length} ${results.length === 1 ? 'story' : 'stories'} found.`;
+  const count = `${results.length} ${results.length === 1 ? 'post' : 'posts'} found.`;
   return (
     <>
       {/* An empty search lists every post, as section.html?q= did. */}

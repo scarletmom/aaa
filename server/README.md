@@ -31,8 +31,16 @@ asks for the captcha in a modal when there's no valid pass, and again whenever t
 | Role | Created by | Videos on the blogsite |
 | ---- | ---------- | ---------------------- |
 | `member` | `POST /api/register` without a pass (someone who came to the blogsite directly) | no |
-| `member-lite` | `POST /api/register` with `Authorization: Bearer <pass>`; a `member` becomes one by signing in with a pass (`/api/login`) or arriving with one while signed in (`/api/account/videos-access`) | yes, with ads |
+| `member-lite` | `POST /api/register` with `Authorization: Bearer <pass>`; a `member` becomes one by signing in with a pass (`/api/login`) or arriving with one while signed in (`/api/account/videos-access`), which is where the Upgrade button leads (below) | yes, with ads |
 | `member-pro` | a purchase, or an admin changing `accounts.role` (find the row with `npm run account-key`) | yes, no ads |
+
+**Upgrade from the blogsite.** A signed-in `member` presses Upgrade and picks Lite or Pro. The blogsite asks
+`POST /api/account/upgrade-link`, which answers with the videos site's address plus `#upgrade=<token>` (audience
+`member-upgrade`, `{ sid, plan }`, 30 minutes), so the videos site's address is only ever given to a signed-in Member,
+never written into the blogsite's pages. The videos site shows its captcha (only if it has no valid pass), then calls
+`POST /api/upgrade/continue` with the pass and the token, and sends the visitor to the answer, `<NEWS_SITE_URL>/videos/`
+(`?upgrade=pro` for Pro), with `#access=<pass>`. There `/api/account/videos-access` makes them Member Lite, and for Pro
+checkout opens for the plan they picked before leaving (kept in the tab's `sessionStorage`). One captcha in all.
 
 The account number is 16 random hex characters (xxxx-xxxx-xxxx-xxxx, 64 bits) made by the server; accounts made
 before that keep their UUID. It is the only login, so it is never stored: `accounts.account_key` (also
@@ -164,6 +172,8 @@ browser's network info, device, OS, browser, language and screen. linkproxy show
 | POST | `/api/logout` | `Bearer <account JWT>` | `204`; the token's session ends |
 | POST | `/api/account/sign-out-others` | `Bearer <account JWT>`, `{ accountNumber }` | the session answer; every other session ends. 403 `wrong_account_number` if the number isn't this account's |
 | POST | `/api/account/new-number` | `Bearer <account JWT>`, `{ accountNumber }` | the same plus the new `accountNumber`; the old number stops logging in |
+| POST | `/api/account/upgrade-link` | `Bearer <account JWT>` (a `member`), `{ plan: "lite" \| "pro" }` | `{ url }`: the videos site with `#upgrade=<token>`; 409 `already_upgraded` for Lite and Pro |
+| POST | `/api/upgrade/continue` | `Bearer <pass>`, `{ upgrade }` | `{ url }`: the blogsite page to return to (the caller adds `#access=<pass>`); 400 `upgrade_expired` for a bad or old token |
 | GET  | `/api/videos` | `Bearer <pass>` or a Member Lite/Pro account token | `{ videos: [...] }` (enabled posts, no Real URL); other accounts get 403 `plan_required` |
 | GET  | `/api/videos?page=N` | the same; optional `q` (search words), `channel` (category name), `pageSize` (default 40, max 100) | `{ videos, page, pages, pageSize, total, channels: [{ name, avatar, count }] }`: one page of the matching posts; `channels` lists every category with its post count, its avatar falling back to its newest thumbnail |
 | GET  | `/api/shorts` | `Bearer <pass>` or a Member Lite/Pro account token | `{ shorts: [{ id, title, videoUrl, type, thumbnail, durationSeconds, createdAt, category }] }`: enabled shorts, newest first (`type` is `hls`, `dash` or `native`) |

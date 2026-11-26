@@ -94,6 +94,11 @@
   html:has(dialog[open]) {
     overflow: hidden;
   }
+  /* While a sign-in or upgrade form is open (lib/ads.ts), the ad tag's own elements are hidden. */
+  html[data-ads-held] > :not(head, body),
+  html[data-ads-held] body > :not(#site-root, script, noscript, next-route-announcer, nextjs-portal, [data-ad-bait]) {
+    display: none !important;
+  }
   body {
     background: var(--color-bg);
     color: var(--color-fg);

@@ -34,13 +34,13 @@ export interface SearchEntry extends StorySummary {
   text: string;
 }
 
-export interface Video {
+/** A shortcut into the videos app, listed in the home page's sidebar. */
+export interface AppLink {
   id: string;
   title: string;
-  duration: string;
-  publishedAt: string;
-  image: string;
-  articleId: string;
+  text: string;
+  href: string;
+  image?: string;
 }
 
 export interface Section {

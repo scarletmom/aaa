@@ -2,14 +2,14 @@ import { cache } from 'react';
 import articlesJson from '@/data/articles.json';
 import playerJson from '@/data/player.json';
 import siteJson from '@/data/site.json';
-import videosJson from '@/data/videos.json';
+import appLinksJson from '@/data/videos.json';
 import { bodyText, tagSlug } from './format';
-import type { Article, PlayerConfig, SearchEntry, SiteConfig, Story, Video } from './types';
+import type { AppLink, Article, PlayerConfig, SearchEntry, SiteConfig, Story } from './types';
 
 // src/data/ is bundled at build time; the player and Mini App get the same files from /data/ (app/data/[...file]).
 const siteConfig: SiteConfig = siteJson;
 const articleList: Article[] = articlesJson;
-const videoList: Video[] = videosJson;
+const appLinks: AppLink[] = appLinksJson;
 const playerConfig: PlayerConfig = playerJson;
 
 const byNewest = (a: { publishedAt: string }, b: { publishedAt: string }) =>
@@ -18,7 +18,7 @@ const byNewest = (a: { publishedAt: string }, b: { publishedAt: string }) =>
 export interface SiteData {
   site: SiteConfig;
   articles: Story[];
-  videos: Video[];
+  appLinks: AppLink[];
   sectionNames: Record<string, string>;
   t: (key: string, fallback: string) => string;
 }
@@ -38,7 +38,6 @@ function checkArticles(articles: Article[], sectionNames: Record<string, string>
 
 export const getSiteData = cache(async (): Promise<SiteData> => {
   const site = siteConfig;
-  const videos = [...videoList].sort(byNewest);
   const sectionNames = Object.fromEntries(site.sections.map((s) => [s.slug, s.name]));
   checkArticles(articleList, sectionNames);
   const articles = articleList
@@ -46,7 +45,7 @@ export const getSiteData = cache(async (): Promise<SiteData> => {
     .sort(byNewest);
   const labels = site.labels || {};
   const t = (key: string, fallback: string) => labels[key] ?? fallback;
-  return { site, articles, videos, sectionNames, t };
+  return { site, articles, appLinks, sectionNames, t };
 });
 
 export const getPlayerData = async (): Promise<PlayerConfig> => playerConfig;

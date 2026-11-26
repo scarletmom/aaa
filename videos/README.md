@@ -11,6 +11,11 @@ from `server`, which reads the posts managed in linkproxy's **Content** and **Ca
   the poster opens the blogsite in a new tab at `BLOGSITE_URL/videos/?v=<post tag>#access=<pass>`, where the
   visitor registers a free Member Lite account (or signs in, which upgrades a plain Member) and lands on that video.
 
+- `/#upgrade=<token>`: where a Member's Upgrade button on the blogsite leads (the server hands out this link). The
+  page asks for the captcha if there's no valid pass, then `POST /api/upgrade/continue` names the blogsite page to go
+  back to, and the visitor is sent there with `#access=<pass>`, which makes them Member Lite (and opens checkout for
+  their Pro plan if they chose Pro).
+
 Settings live in `.env` (copy `.env.example`):
 
 ```bash

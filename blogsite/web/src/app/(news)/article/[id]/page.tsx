@@ -5,6 +5,7 @@ import RelatedStories from '@/components/article/RelatedStories';
 import StoryHeader from '@/components/article/StoryHeader';
 import TagList from '@/components/article/TagList';
 import Breadcrumb from '@/components/listing/Breadcrumb';
+import TeraboxPlayerCard from '@/components/terabox/TeraboxPlayerCard';
 import LatestWidget from '@/components/sidebar/LatestWidget';
 import MostReadWidget from '@/components/sidebar/MostReadWidget';
 import NewsletterWidget from '@/components/sidebar/NewsletterWidget';
@@ -14,6 +15,8 @@ import { getArticle, getSiteData } from '@/lib/data';
 import { sectionUrl } from '@/lib/format';
 
 export const dynamicParams = false;
+
+const TERABOX_SECTION = 'terabox';
 
 export async function generateStaticParams() {
   const { articles } = await getSiteData();
@@ -43,6 +46,7 @@ export default async function ArticlePage({ params }: PageProps<'/article/[id]'>
         <article className="max-w-[760px]">
           <StoryHeader article={article} />
           <ArticleBody body={article.body} />
+          {article.category === TERABOX_SECTION && <TeraboxPlayerCard className="mt-9" />}
           <TagList label={t('topics', 'Topics')} tags={article.tags} />
         </article>
         <Sidebar>

@@ -644,6 +644,41 @@
     }
   }
 
+  // ---------- Upgrade ----------
+
+  // A Member's Upgrade button on the blogsite lands here as /#upgrade=<token>. The captcha (via the pass) is the only
+  // step; the server checks the token and names the blogsite page to return to, which turns the pass into Member Lite.
+  function takeUpgradeToken() {
+    const match = location.hash.match(/^#upgrade=([^&]+)/);
+    if (!match) return '';
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return '';
+    }
+  }
+
+  async function upgradePage(ctx, main, upgrade) {
+    renderTopbar(ctx.site);
+    document.title = `Upgrading your account · ${ctx.site.name}`;
+    main.innerHTML = `
+      <section class="notice container">
+        <h1>Upgrading your account</h1>
+        <p>Complete the quick security check and you’ll go straight back to watch.</p>
+        <p class="loading"><span class="spinner" aria-hidden="true"></span>Getting things ready…</p>
+      </section>`;
+    try {
+      const { url } = await ctx.api('/api/upgrade/continue', { method: 'POST', body: { upgrade }, withPass: true });
+      const target = httpUrl(url);
+      if (!target) throw new Error('The way back couldn’t be found. Press Upgrade on the blog again.');
+      // In the fragment, not the query, so the pass never reaches a server log, analytics or a Referer.
+      location.replace(`${target}#access=${encodeURIComponent(pass.get())}`);
+    } catch (err) {
+      notice(main, 'Couldn’t finish the upgrade', err.message, '<a class="btn" href="/">Browse videos</a>');
+    }
+  }
+
   // ---------- Visit tracking ----------
 
   // Gate tokens and stream links ride at the end of the query string; they never leave the page.
@@ -695,6 +730,8 @@
     trackVisit(site.apiUrl);
     const ctx = { site };
     ctx.api = client(ctx);
+    const upgrade = takeUpgradeToken();
+    if (upgrade) return upgradePage(ctx, main, upgrade);
     const pages = { home: homePage, watch: watchPage };
     await (pages[document.body.dataset.page] || homePage)(ctx, main);
   }

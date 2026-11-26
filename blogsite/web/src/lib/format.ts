@@ -65,6 +65,9 @@ export const searchUrl = (query: string) => `/search/?q=${encodeURIComponent(que
 export const videosUrl = '/videos/';
 export const subscribeUrl = '/subscribe/';
 export const teraboxTabUrl = '/videos/?tab=terabox';
+export const teraboxPlayerUrl = '/terabox/';
+/** Opens the Terabox tab and plays `link` there. Not `url=`: query-parser.js would move that out of the address. */
+export const teraboxWatchUrl = (link: string) => `${teraboxTabUrl}&link=${encodeURIComponent(link)}`;
 export const channelsTabUrl = '/videos/?tab=channels';
 export const channelUrl = (name: string) => `/videos/?channel=${encodeURIComponent(name)}`;
 export const shortUrl = (id: string) => `/videos/?short=${encodeURIComponent(id)}`;

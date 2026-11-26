@@ -11,6 +11,10 @@ import { blockTitle, videoGrid, watchTitle } from './styles';
 import { WatchLayout } from './WatchView';
 
 interface TeraboxViewProps {
+  /** A link to play as soon as the view opens, as if it had been pasted. */
+  initialLink?: string;
+  /** Called once `initialLink` has been taken. */
+  onInitialLink?: () => void;
   /** Resolves the link to something playable; a rejection's message is shown under the box. */
   onWatch: (link: TeraboxLink) => Promise<TeraboxVideo>;
   /** The current page of saved Terabox videos, or null while the first one loads. */
@@ -119,7 +123,7 @@ function TeraboxPlayer({ video, linkForm }: { video: TeraboxVideo; linkForm: Rea
   );
 }
 
-export default function TeraboxView({ onWatch, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
+export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
   // A saved video carries its key, so Up next can leave it out.
   const [playing, setPlaying] = useState<(TeraboxVideo & { key?: string }) | null>(null);
   const [link, setLink] = useState('');
@@ -129,6 +133,9 @@ export default function TeraboxView({ onWatch, listing, listingProblem, onPage, 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setCanReadClipboard(Boolean(navigator.clipboard?.readText)), []);
+
+  // Strict Mode runs effects twice; the ref keeps that from opening the link twice.
+  const takenLinkRef = useRef('');
 
   const submit = async (text: string, saved?: TeraboxListing) => {
     const result = parseTeraboxLink(text);
@@ -149,6 +156,14 @@ export default function TeraboxView({ onWatch, listing, listingProblem, onPage, 
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!initialLink || takenLinkRef.current === initialLink) return;
+    takenLinkRef.current = initialLink;
+    setLink(initialLink);
+    submit(initialLink);
+    onInitialLink?.();
+  });
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();

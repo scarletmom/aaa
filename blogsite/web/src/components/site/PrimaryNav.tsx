@@ -110,7 +110,7 @@ export default function PrimaryNav({ items, articleSections }: PrimaryNavProps) 
               name="q"
               value={value}
               onChange={(event) => setValue(event.target.value)}
-              placeholder="Search news, topics and authors"
+              placeholder="Search guides, features and topics"
               autoComplete="off"
               className="min-w-0 flex-1 border-0 bg-transparent text-[15px] text-fg outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden"
             />

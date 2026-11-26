@@ -74,6 +74,17 @@ export async function joinVideos(account: Account, videosPass: string): Promise<
   }));
 }
 
+export type UpgradePlan = 'lite' | 'pro';
+
+/**
+ * Where a Member goes to upgrade: the videos site's address with a short-lived token, given only to a signed-in Member.
+ * After its captcha the videos site sends them back with its pass, and `joinVideos` makes them Member Lite.
+ */
+export async function requestUpgradeLink(account: Account, plan: UpgradePlan): Promise<string> {
+  const { url } = await apiRequest<{ url: string }>('/api/account/upgrade-link', { method: 'POST', body: { plan }, token: account.token });
+  return url;
+}
+
 /** With the videos site's pass the account is Member Lite; without it, a plain Member. */
 export async function register({ fullName, captchaToken, videosPass }: { fullName: string; captchaToken: string; videosPass?: string }): Promise<Registered> {
   const response = await apiRequest<SessionResponse>('/api/register', {

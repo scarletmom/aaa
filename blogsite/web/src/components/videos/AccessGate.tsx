@@ -1,10 +1,11 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { readVideosPass } from '@/lib/auth';
 import { ROLE_LABELS } from '@/lib/roles';
 import type { Session } from '@/lib/session';
 import LoginButton from '../auth/LoginButton';
+import MemberUpgradeDialog from '../auth/MemberUpgradeDialog';
 import { PlaySolidIcon } from '../ui/Icons';
 
 const primaryButton =
@@ -23,6 +24,16 @@ function GateCard({ title, text, children }: { title: string; text: string; chil
         {children && <div className="mt-6">{children}</div>}
       </div>
     </section>
+  );
+}
+
+function UpgradeButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={primaryButton}>Upgrade</button>
+      <MemberUpgradeDialog open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
@@ -50,7 +61,9 @@ export default function AccessGate({ session }: { session: Session | null }) {
   return (
     <GateCard
       title="Videos aren’t in your plan"
-      text={`Your ${ROLE_LABELS[session.role]} account covers reading. Open a video on our videos site and sign in from there to get Member Lite, which includes every video.`}
-    />
+      text={`Your ${ROLE_LABELS[session.role]} account covers reading. Upgrade to Member Lite for free, or to Member Pro for no ads.`}
+    >
+      <UpgradeButton />
+    </GateCard>
   );
 }

@@ -1,5 +1,5 @@
 // Terabox serves the same share links from many mirror domains.
-const TERABOX_HOSTS = [
+export const TERABOX_HOSTS = [
   'terabox.com', 'terabox.app', 'terabox.fun', 'terabox.club', 'teraboxapp.com', 'teraboxlink.com', 'teraboxshare.com',
   '1024tera.com', '1024terabox.com', 'terasharelink.com', 'terafileshare.com', 'freeterabox.com',
   '4funbox.com', '4funbox.co', 'mirrobox.com', 'nephobox.com', 'momerybox.com', 'tibibox.com', 'gibibox.com',

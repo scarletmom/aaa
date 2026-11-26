@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const { config } = require("./config");
 
-const AUDIENCE = { pass: "videos-pass", gate: "news-gate", play: "news-play", account: "videos-account" };
+const AUDIENCE = { pass: "videos-pass", gate: "news-gate", play: "news-play", account: "videos-account", upgrade: "member-upgrade" };
 
 function sign(audience, payload, ttlSeconds) {
   return jwt.sign(payload, config.jwtSecret, { algorithm: "HS256", audience, expiresIn: ttlSeconds });
@@ -43,6 +43,10 @@ function verifyAccount(token) {
   return null;
 }
 
+// Carries a Member's plan choice through the videos site's captcha and back; the session id ties it to who asked.
+const signUpgrade = (sessionId, plan) => sign(AUDIENCE.upgrade, { sid: sessionId, plan }, config.upgradeTtlSeconds);
+const verifyUpgrade = (token) => verify(AUDIENCE.upgrade, token);
+
 // Telegram's startapp parameter only allows [A-Za-z0-9_-], so no JWT dots: base64url payload
 // followed by a fixed-length base64url signature.
 const APP_SIG_LENGTH = 22;
@@ -74,4 +78,6 @@ function bearer(req) {
   return String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
 }
 
-module.exports = { signPass, verifyPass, signGate, verifyGate, signPlay, verifyPlay, signAccount, verifyAccount, signApp, verifyApp, bearer };
+module.exports = {
+  signPass, verifyPass, signGate, verifyGate, signPlay, verifyPlay, signAccount, verifyAccount, signUpgrade, verifyUpgrade, signApp, verifyApp, bearer,
+};

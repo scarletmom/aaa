@@ -3,10 +3,13 @@ import { notFound } from 'next/navigation';
 import ListingLayout from '@/components/listing/ListingLayout';
 import SectionIntro from '@/components/listing/SectionIntro';
 import StoryList from '@/components/listing/StoryList';
+import TeraboxPlayerCard from '@/components/terabox/TeraboxPlayerCard';
 import { getSiteData } from '@/lib/data';
 import type { Story } from '@/lib/types';
 
 export const dynamicParams = false;
+
+const TERABOX_SECTION = 'terabox';
 
 interface SectionView {
   name: string;
@@ -36,12 +39,14 @@ export async function generateMetadata({ params }: PageProps<'/section/[slug]'>)
 }
 
 export default async function SectionPage({ params }: PageProps<'/section/[slug]'>) {
-  const section = await getSection((await params).slug);
+  const { slug } = await params;
+  const section = await getSection(slug);
   if (!section) notFound();
 
   return (
     <ListingLayout crumb={section.name}>
       <SectionIntro heading={section.name} intro={section.description} />
+      {slug === TERABOX_SECTION && <TeraboxPlayerCard className="mb-8" />}
       <StoryList articles={section.articles} />
     </ListingLayout>
   );

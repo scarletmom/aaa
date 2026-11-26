@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAdFree } from '@/lib/adFree';
-import { adReloadHeld, adsHeld, removeAdPushWorker, useAdsHeld } from '@/lib/ads';
+import { adReloadHeld, adsHeld, guardAdTag, removeAdPushWorker, useAdsHeld } from '@/lib/ads';
 import { useHydrated, useSession } from '@/lib/session';
 import AdTag from './AdTag';
 
@@ -23,7 +23,10 @@ export default function ViewerAds() {
     if (!hydrated || adFree === null) return;
     if (withAds) {
       // Read live: a form opened in this same commit holds ads before this effect runs.
-      if (!adsHeld()) setTagLoaded(true);
+      if (!adsHeld()) {
+        guardAdTag();
+        setTagLoaded(true);
+      }
       return;
     }
     removeAdPushWorker().catch(() => {});

@@ -6,7 +6,7 @@ import Avatar from '../ui/Avatar';
 import BlockTitle from '../ui/BlockTitle';
 import { headline, summaryText } from '../ui/styles';
 
-function OpinionCard({ article }: { article: StorySummary }) {
+function UpdateCard({ article }: { article: StorySummary }) {
   return (
     <article
       className={cn(
@@ -29,13 +29,20 @@ function OpinionCard({ article }: { article: StorySummary }) {
   );
 }
 
-export default function OpinionStrip({ title, articles }: { title: string; articles: StorySummary[] }) {
+interface UpdatesStripProps {
+  section: string;
+  title: string;
+  articles: StorySummary[];
+}
+
+/** Three posts side by side, each under its author, linking to the full section. */
+export default function UpdatesStrip({ section, title, articles }: UpdatesStripProps) {
   if (!articles.length) return null;
   return (
-    <section aria-labelledby="opinion-title" className="mt-14">
-      <BlockTitle id="opinion-title" href={sectionUrl('opinion')}>{title}</BlockTitle>
+    <section aria-labelledby="updates-title" className="mt-14">
+      <BlockTitle id="updates-title" href={sectionUrl(section)}>{title}</BlockTitle>
       <div className="grid grid-cols-3 max-md:grid-cols-1">
-        {articles.map((a) => <OpinionCard key={a.id} article={a} />)}
+        {articles.map((a) => <UpdateCard key={a.id} article={a} />)}
       </div>
     </section>
   );

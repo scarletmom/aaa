@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { subscribeUrl } from '@/lib/format';
 import { proPlan } from '@/lib/roles';
 import { useSession } from '@/lib/session';
 import ThemeToggle from '../site/ThemeToggle';
 import LoginButton from './LoginButton';
+import MemberUpgradeDialog from './MemberUpgradeDialog';
 import UserMenu from './UserMenu';
 
 const upgradeClass =
@@ -18,6 +20,17 @@ interface AccountNavProps {
   onUpgrade?: () => void;
   /** Leaves sign-in and the account menu to a bottom tab bar on phones. */
   menuInTabBar?: boolean;
+}
+
+/** A plain Member's Upgrade: Lite or Pro, by way of the videos site's captcha. */
+function MemberUpgrade() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={upgradeClass}>Upgrade</button>
+      <MemberUpgradeDialog open={open} onClose={() => setOpen(false)} />
+    </>
+  );
 }
 
 function ProBadge() {
@@ -34,7 +47,9 @@ export default function AccountNav({ themeInMenu = false, onUpgrade, menuInTabBa
   if (session) {
     const plan = proPlan(session);
     let action = null;
-    if (session.role === 'member-lite') {
+    if (session.role === 'member') {
+      action = <MemberUpgrade />;
+    } else if (session.role === 'member-lite') {
       action = onUpgrade
         ? <button type="button" onClick={onUpgrade} aria-haspopup="dialog" className={upgradeClass}>Upgrade</button>
         : <Link href={subscribeUrl} className={upgradeClass}>Upgrade</Link>;

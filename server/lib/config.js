@@ -75,6 +75,7 @@ const config = {
   gateTtlSeconds: 15 * 60,
   playTtlSeconds: 3 * 60 * 60,
   appTtlSeconds: 60 * 60,
+  upgradeTtlSeconds: 30 * 60,
   accountTtlSeconds: 30 * 24 * 60 * 60,
   // Devices one account can be signed in on at once; signing in on another signs out the one used least recently.
   maxDevices: Number.isInteger(Number(process.env.MAX_DEVICES)) && Number(process.env.MAX_DEVICES) >= 1 ? Number(process.env.MAX_DEVICES) : 2,

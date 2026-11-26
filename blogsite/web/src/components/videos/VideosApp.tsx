@@ -6,8 +6,9 @@ import { flushSync } from 'react-dom';
 import { cn } from '@/lib/cn';
 import type { Comment, SeedComments } from '@/lib/comments';
 import { episodeIndex, titleWithEpisode } from '@/lib/episodes';
-import { channelUrl, videosUrl } from '@/lib/format';
+import { channelUrl, teraboxTabUrl, videosUrl } from '@/lib/format';
 import { useAdFree } from '@/lib/adFree';
+import { takeProPlan } from '@/lib/pro';
 import { canWatchVideos, proPlan } from '@/lib/roles';
 import { getSession, useHydrated, useSession } from '@/lib/session';
 import {
@@ -84,6 +85,8 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const activeId = searchParams.get('v');
   const onTerabox = !activeId && searchParams.get('tab') === 'terabox';
   const onChannels = !activeId && searchParams.get('tab') === 'channels';
+  // Sent by the blog's Terabox Player page; it plays once and then leaves the address.
+  const teraboxLink = onTerabox ? searchParams.get('link') ?? '' : '';
   const shortId = activeId ? null : searchParams.get('short');
   // In the address, so the channels page can link to a filtered home page and Back undoes a filter.
   const channel = searchParams.get('channel') ?? '';
@@ -105,6 +108,18 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   const proParam = searchParams.get('pro');
   if (!proReturn && proParam) setProReturn(proParam);
   const settleProReturn = useCallback(() => setProSettled(true), []);
+  // A Member who chose Pro comes back from the videos site's captcha as Member Lite with ?upgrade=pro: checkout opens for
+  // the plan they picked (or the plans, if it wasn't kept).
+  const wantsPro = searchParams.get('upgrade') === 'pro';
+  const [checkoutPlan, setCheckoutPlan] = useState('');
+  useEffect(() => {
+    if (!wantsPro || !session || !canWatchVideos(session.role)) return;
+    if (session.role === 'member-lite') {
+      setCheckoutPlan(takeProPlan());
+      setUpgradeOpen(true);
+    }
+    router.replace(videosUrl, { scroll: false });
+  }, [wantsPro, session, router]);
   // A buyer back from checkout is still Member Lite until the payment confirms; don't wall them meanwhile.
   const confirmingPayment = Boolean(proReturn) && !proSettled;
   // Member Lite watches with ads, so blocking them blocks the videos; a valid ad-free pass is never checked.
@@ -221,6 +236,8 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   } else if (onTerabox) {
     content = (
       <TeraboxView
+        initialLink={teraboxLink}
+        onInitialLink={() => router.replace(teraboxTabUrl, { scroll: false })}
         onWatch={watchTerabox}
         listing={shownTerabox}
         listingProblem={teraboxLoad.status === 'error' ? loadStatus(teraboxLoad) : null}
@@ -271,6 +288,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
       />
       <UpgradeDialog
         open={upgradeOpen}
+        checkoutPlan={checkoutPlan}
         onClose={() => setUpgradeOpen(false)}
         extending={Boolean(session && proPlan(session) === 'timed')}
       />

@@ -41,6 +41,7 @@ async function baitHidden(): Promise<boolean> {
   const bait = document.createElement('div');
   bait.className = BAIT_CLASSES;
   bait.setAttribute('aria-hidden', 'true');
+  bait.dataset.adBait = '';
   bait.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:300px;height:10px;';
   bait.innerHTML = '&nbsp;';
   document.body.append(bait);

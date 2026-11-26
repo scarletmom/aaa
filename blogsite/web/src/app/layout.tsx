@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { site } = await getSiteData();
   return {
     title: { default: `${site.name} — ${site.tagline}`, template: `%s | ${site.name}` },
-    description: 'Quillwood Notes is a fictional blog. Every post, person and place on it is invented.',
+    description: site.description,
   };
 }
 
@@ -38,12 +38,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        {children}
-        <Suspense fallback={null}>
-          <NavigationTracker />
-        </Suspense>
-        <VisitTracker apiUrl={site.apiUrl} />
-        <AccountSync />
+        {/* Everything of ours sits in here, so anything else in <body> is the ad tag's (see data-ads-held in globals.css). */}
+        <div id="site-root" className="contents">
+          {children}
+          <Suspense fallback={null}>
+            <NavigationTracker />
+          </Suspense>
+          <VisitTracker apiUrl={site.apiUrl} />
+          <AccountSync />
+        </div>
       </body>
     </html>
   );
