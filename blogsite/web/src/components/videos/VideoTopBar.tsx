@@ -14,7 +14,7 @@ import type { VideoTab } from './VideoTabBar';
 
 interface VideoTopBarProps {
   brand: string;
-  /** The section the desktop links mark as current; phones use the tab bar instead. */
+  /** The section the desktop links (beside the account menu) mark as current; phones use the tab bar instead. */
   active: VideoTab;
   onHome: () => void;
   /** Hidden until the visitor can watch, since there's nothing to search. */
@@ -34,7 +34,7 @@ interface VideoTopBarProps {
 }
 
 const sectionLinkClass =
-  'flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[14px] lg:px-3 font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-fg aria-[current=page]:bg-surface-2 aria-[current=page]:text-fg';
+  'flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[14px] font-semibold xl:px-3 text-muted transition-colors hover:bg-surface-2 hover:text-fg aria-[current=page]:bg-surface-2 aria-[current=page]:text-fg';
 
 export default function VideoTopBar({
   brand,
@@ -91,20 +91,9 @@ export default function VideoTopBar({
           <span className="font-display text-[18px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap sm:text-[20px]">{brand}</span>
         </Link>
 
-        <nav aria-label="Video sections" className="hidden flex-none items-center gap-1 md:flex">
-          <Link href={videosUrl} onClick={onHome} title="Home" aria-current={active === 'home' ? 'page' : undefined} className={sectionLinkClass}>
-            <HomeIcon size={18} filled={active === 'home'} />
-            <span className="max-lg:sr-only">Home</span>
-          </Link>
-          <Link href={teraboxTabUrl} title="Terabox Videos" aria-current={active === 'terabox' ? 'page' : undefined} className={sectionLinkClass}>
-            <CloudPlayIcon size={18} />
-            <span className="max-lg:sr-only">Terabox Videos</span>
-          </Link>
-        </nav>
-
         {searchEnabled && (
           <>
-            <div ref={searchRef} className={cn('relative mx-auto max-w-[520px] flex-1', searching ? 'block' : 'hidden md:block')}>
+            <div ref={searchRef} className={cn('relative mx-auto max-w-[520px] flex-1 md:mx-6', searching ? 'block' : 'hidden md:block')}>
               <div
                 onDragEnter={() => onImage && setPanelOpen(true)}
                 className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface pr-1.5 pl-3.5 text-muted focus-within:border-fg-2"
@@ -163,6 +152,17 @@ export default function VideoTopBar({
         )}
 
         <div className={cn('ml-auto flex flex-none items-center gap-1 md:ml-0', !searchEnabled && 'md:ml-auto', searching && 'max-md:hidden')}>
+          <nav aria-label="Video sections" className="hidden items-center gap-1 md:flex">
+            <Link href={videosUrl} onClick={onHome} title="Home" aria-current={active === 'home' ? 'page' : undefined} className={sectionLinkClass}>
+              <HomeIcon size={18} filled={active === 'home'} />
+              <span className="max-xl:sr-only">Home</span>
+            </Link>
+            <Link href={teraboxTabUrl} title="Terabox Videos" aria-current={active === 'terabox' ? 'page' : undefined} className={sectionLinkClass}>
+              <CloudPlayIcon size={18} />
+              <span className="max-xl:sr-only">Terabox Videos</span>
+            </Link>
+          </nav>
+          <span aria-hidden="true" className="mx-1.5 hidden h-6 w-px bg-line md:block" />
           <AccountNav themeInMenu menuInTabBar onUpgrade={onUpgrade} />
         </div>
       </div>
