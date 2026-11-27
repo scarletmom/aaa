@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Ellipsis, ExternalLink, FileUp, PencilLine, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
-import { formatDate, teraboxVideoPath } from "../lib/content.js";
+import { formatCount, formatDate, teraboxVideoPath } from "../lib/content.js";
 import { Button, Switch, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
@@ -94,10 +94,11 @@ export default function TeraboxVideos() {
             </Tip>
           </div>
           <div className="cat-list">
-            <div className="media-row cat-head">
+            <div className="media-row has-views cat-head">
               <span>Video</span>
               <span className="col-category">Key</span>
               <span>Status</span>
+              <span className="col-views">Views</span>
               <span className="col-date">Added</span>
               <span />
             </div>
@@ -106,7 +107,7 @@ export default function TeraboxVideos() {
               return (
                 <div
                   key={video.id}
-                  className={`media-row${video.public ? "" : " is-off"}`}
+                  className={`media-row has-views${video.public ? "" : " is-off"}`}
                   role="link"
                   tabIndex={0}
                   onClick={open}
@@ -126,6 +127,7 @@ export default function TeraboxVideos() {
                       {video.public ? "Public" : "Disabled"}
                     </span>
                   </span>
+                  <span className="col-views mono">{formatCount(video.views)}</span>
                   <span className="col-date muted">{formatDate(video.createdAt)}</span>
                   <span onClick={(e) => e.stopPropagation()}>
                     <Menu

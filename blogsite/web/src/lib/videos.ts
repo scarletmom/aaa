@@ -191,6 +191,7 @@ export interface TeraboxListing {
   teraboxUrl: string;
   thumbnail: string;
   duration: string;
+  views: number;
   createdAt: string | null;
 }
 
@@ -203,6 +204,10 @@ export interface TeraboxPage {
 
 export async function fetchTeraboxPage(page: number, token: string): Promise<TeraboxPage> {
   return apiRequest<TeraboxPage>(`/api/terabox/videos?page=${page}`, { token });
+}
+
+export async function recordTeraboxView(key: string, token: string): Promise<void> {
+  await apiRequest(`/api/terabox/videos/${encodeURIComponent(key)}/view`, { method: 'POST', token });
 }
 
 export interface TeraboxVideo {

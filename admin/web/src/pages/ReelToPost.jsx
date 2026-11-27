@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Check, Ellipsis, Plus, RotateCcw, Workflow, TriangleAlert } from "lucide-react";
-import { EMPTY_DRAFT as EMPTY, STEPS, failureMessage, loadReelSetup, loadSavedReel, normalizeDraft, reachableSteps, resumeStep, withoutTransient } from "../lib/reels.js";
+import { EMPTY_DRAFT as EMPTY, STEPS, failureMessage, hasProgress, loadReelSetup, loadSavedReel, normalizeDraft, reachableSteps, resumeStep, withoutTransient } from "../lib/reels.js";
 import { workflowPath } from "../lib/workflow.js";
 import { Button } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
@@ -133,7 +133,7 @@ export default function ReelToPost() {
   const startOver = async () => {
     const ok = await confirm({
       title: "Start over?",
-      description: "The video, chosen frame, matches and the form you filled in are cleared.",
+      description: "The video, thumbnails, matches and the form you filled in are cleared.",
       confirmLabel: "Start over",
       danger: true,
     });
@@ -157,7 +157,7 @@ export default function ReelToPost() {
               New reel
             </Button>
           ) : (
-            draft.video &&
+            hasProgress(draft) &&
             !draft.post && (
               <Button variant="ghost" icon={RotateCcw} onClick={startOver}>
                 Start over

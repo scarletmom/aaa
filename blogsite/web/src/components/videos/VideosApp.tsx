@@ -20,6 +20,7 @@ import {
   fetchVideoPage,
   fetchVideos,
   openTerabox,
+  recordTeraboxView,
   type TeraboxPage,
   type VideoPage,
 } from '@/lib/videos';
@@ -55,6 +56,9 @@ const loadTeraboxPage = (request: string, token: string) => fetchTeraboxPage(Num
 const loadDetail = (id: string, token: string) => fetchVideo(id, token);
 
 const watchTerabox = (link: TeraboxLink) => openTerabox(link.url, getSession()?.token ?? '');
+const countTeraboxView = (key: string) => {
+  recordTeraboxView(key, getSession()?.token ?? '').catch(() => {});
+};
 
 const loadingMessage = <p className="py-24 text-center text-muted">Loading…</p>;
 
@@ -239,6 +243,7 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         initialLink={teraboxLink}
         onInitialLink={() => router.replace(teraboxTabUrl, { scroll: false })}
         onWatch={watchTerabox}
+        onViewed={countTeraboxView}
         listing={shownTerabox}
         listingProblem={teraboxLoad.status === 'error' ? loadStatus(teraboxLoad) : null}
         onPage={setTeraboxPageNumber}

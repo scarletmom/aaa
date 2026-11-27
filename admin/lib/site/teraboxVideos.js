@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS terabox_videos (
   terabox_url  VARCHAR(2048)  NULL,
   thumbnail    VARCHAR(2048)  NOT NULL DEFAULT '',
   duration     VARCHAR(16)    NOT NULL DEFAULT '',
+  views        INT UNSIGNED   NOT NULL DEFAULT 0,
   created_at   TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at   TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -17,10 +18,19 @@ CREATE TABLE IF NOT EXISTS terabox_videos (
   KEY ix_terabox_videos_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 
+// Tables made before views were counted lack the column.
+async function createTable() {
+  await getPool().query(CREATE_TERABOX_VIDEOS);
+  await getPool()
+    .query("ALTER TABLE terabox_videos ADD COLUMN views INT UNSIGNED NOT NULL DEFAULT 0 AFTER duration")
+    .catch((err) => {
+      if (err.code !== "ER_DUP_FIELDNAME") throw err;
+    });
+}
+
 let tableReady = null;
 function ensureTable() {
-  tableReady ||= getPool()
-    .query(CREATE_TERABOX_VIDEOS)
+  tableReady ||= createTable()
     .catch((err) => {
       tableReady = null;
       throw err;
@@ -28,7 +38,7 @@ function ensureTable() {
   return tableReady;
 }
 
-const SELECT = "SELECT id, video_key, title, terabox_url, thumbnail, duration, created_at, updated_at FROM terabox_videos";
+const SELECT = "SELECT id, video_key, title, terabox_url, thumbnail, duration, views, created_at, updated_at FROM terabox_videos";
 
 function toVideo(row) {
   return {
@@ -38,6 +48,7 @@ function toVideo(row) {
     teraboxUrl: row.terabox_url || "",
     thumbnail: row.thumbnail || "",
     duration: row.duration || "",
+    views: Number(row.views) || 0,
     public: Boolean(row.terabox_url),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

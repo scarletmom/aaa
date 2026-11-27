@@ -2,7 +2,7 @@
 
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { timeAgo } from '@/lib/format';
+import { formatViews, timeAgo } from '@/lib/format';
 import { parseTeraboxLink, type TeraboxLink } from '@/lib/teraboxLink';
 import type { TeraboxListing, TeraboxPage, TeraboxVideo } from '@/lib/videos';
 import { CloseIcon, CloudPlayIcon, CopyIcon, PlaySolidIcon } from '../ui/Icons';
@@ -17,6 +17,8 @@ interface TeraboxViewProps {
   onInitialLink?: () => void;
   /** Resolves the link to something playable; a rejection's message is shown under the box. */
   onWatch: (link: TeraboxLink) => Promise<TeraboxVideo>;
+  /** A saved video has opened in the player. */
+  onViewed?: (key: string) => void;
   /** The current page of saved Terabox videos, or null while the first one loads. */
   listing: TeraboxPage | null;
   /** Shown in place of the saved videos when they couldn't load. */
@@ -29,13 +31,12 @@ interface TeraboxViewProps {
 const SKELETON_CARDS = 4;
 const UP_NEXT_LIMIT = 6;
 
-function TeraboxCard({ video, onPlay, disabled, compact = false }: { video: TeraboxListing; onPlay: () => void; disabled: boolean; compact?: boolean }) {
+function TeraboxCard({ video, onPlay, compact = false }: { video: TeraboxListing; onPlay: () => void; compact?: boolean }) {
   return (
     <button
       type="button"
       onClick={onPlay}
-      disabled={disabled}
-      className={cn('group block w-full min-w-0 text-left disabled:cursor-wait', compact && 'lg:flex lg:gap-2.5')}
+      className={cn('group block w-full min-w-0 text-left', compact && 'lg:flex lg:gap-2.5')}
     >
       <span className={cn('relative block aspect-video overflow-hidden rounded-xl bg-img', compact && 'lg:w-[168px] lg:flex-none lg:rounded-[10px]')}>
         {video.thumbnail
@@ -49,7 +50,9 @@ function TeraboxCard({ video, onPlay, disabled, compact = false }: { video: Tera
         <span className={cn('line-clamp-2 text-[15.5px] leading-[1.35] font-semibold decoration-1 underline-offset-[0.14em] group-hover:underline', compact && 'lg:text-[14px]')}>
           {video.title}
         </span>
-        {video.createdAt && <span className={cn('text-[13px] text-muted', compact && 'lg:text-[12.5px]')}>{timeAgo(video.createdAt)}</span>}
+        <span className={cn('text-[13px] text-muted', compact && 'lg:text-[12.5px]')}>
+          {[formatViews(video.views ?? 0), video.createdAt && timeAgo(video.createdAt)].filter(Boolean).join(' · ')}
+        </span>
       </span>
     </button>
   );
@@ -60,17 +63,15 @@ interface TeraboxGridProps {
   onPlay: (video: TeraboxListing) => void;
   onPage: (page: number) => void;
   busy: boolean;
-  /** A video is being opened, so the cards wait. */
-  opening: boolean;
 }
 
-function TeraboxGrid({ listing, onPlay, onPage, busy, opening }: TeraboxGridProps) {
+function TeraboxGrid({ listing, onPlay, onPage, busy }: TeraboxGridProps) {
   const topRef = useRef<HTMLDivElement>(null);
   if (listing.total === 0) return <p className="py-16 text-center text-muted">No Terabox videos yet. Paste a link to watch one.</p>;
   return (
     <div ref={topRef} className="scroll-mt-16">
       <div aria-busy={busy} className={cn(videoGrid, 'pb-8 transition-opacity', busy && 'opacity-60')}>
-        {listing.videos.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => onPlay(video)} disabled={opening} />)}
+        {listing.videos.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => onPlay(video)} />)}
       </div>
       <Pager
         page={listing.page}
@@ -97,35 +98,86 @@ const skeleton = (
   </div>
 );
 
-function TeraboxPlayer({ video, linkForm }: { video: TeraboxVideo; linkForm: ReactNode }) {
+// A saved video carries its key, so Up next can leave it out.
+type Playing = TeraboxVideo & { key?: string; views?: number };
+
+/** A saved video that was tapped and is still being fetched from Terabox, or failed to be. */
+interface Opening {
+  video: TeraboxListing;
+  error: string;
+}
+
+function OpeningScreen({ opening, onRetry }: { opening: Opening; onRetry: () => void }) {
+  const { video, error } = opening;
+  return (
+    <>
+      {video.thumbnail && <img src={video.thumbnail} alt="" className="absolute inset-0 size-full scale-110 object-cover opacity-35 blur-md" />}
+      <div role={error ? 'alert' : 'status'} className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-white">
+        {error ? (
+          <>
+            <p className="max-w-[420px] text-[14.5px] font-medium">{error}</p>
+            <button type="button" onClick={onRetry} className="h-10 rounded-full bg-white px-5 text-[14px] font-semibold text-black hover:opacity-90">
+              Try again
+            </button>
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true" className="size-11 animate-spin rounded-full border-[3px] border-white/25 border-t-white" />
+            <p className="text-[14.5px] font-semibold">Getting your video from Terabox…</p>
+            <p className="-mt-2 text-[12.5px] text-white/70">This can take up to a minute.</p>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface TeraboxPlayerProps {
+  video: Playing | null;
+  opening: Opening | null;
+  onRetry: () => void;
+  linkForm: ReactNode;
+}
+
+function TeraboxPlayer({ video, opening, onRetry, linkForm }: TeraboxPlayerProps) {
+  const title = opening?.video.title ?? video?.title ?? '';
+  const views = opening ? opening.video.views : video?.views;
   return (
     <article className="min-w-0">
       <div className="relative -mx-4 aspect-video overflow-hidden bg-black sm:mx-0 sm:rounded-2xl">
-        <iframe
-          key={video.play}
-          src={`/player/?embed=1&endpoint=${encodeURIComponent(video.play)}`}
-          title={video.title}
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
-          allowFullScreen
-          className="absolute inset-0 size-full border-0"
-        />
+        {opening || !video ? (
+          opening && <OpeningScreen opening={opening} onRetry={onRetry} />
+        ) : (
+          <iframe
+            key={video.play}
+            src={`/player/?embed=1&endpoint=${encodeURIComponent(video.play)}`}
+            title={video.title}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+            allowFullScreen
+            className="absolute inset-0 size-full border-0"
+          />
+        )}
       </div>
-      <h1 title={video.title} className={watchTitle}>{video.title}</h1>
+      <h1 title={title} className={watchTitle}>{title}</h1>
       <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted">
         <CloudPlayIcon size={15} className="flex-none" />
-        From Terabox
+        {['From Terabox', views != null && formatViews(views, { full: true })].filter(Boolean).join(' · ')}
       </p>
-      <section aria-labelledby="terabox-new-title" className="mt-6 max-w-[560px]">
-        <h2 id="terabox-new-title" className="mb-2.5 text-[16px] font-bold">Watch new video</h2>
-        {linkForm}
-      </section>
+      {!opening && (
+        <section aria-labelledby="terabox-new-title" className="mt-6 max-w-[560px]">
+          <h2 id="terabox-new-title" className="mb-2.5 text-[16px] font-bold">Watch new video</h2>
+          {linkForm}
+        </section>
+      )}
     </article>
   );
 }
 
-export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
-  // A saved video carries its key, so Up next can leave it out.
-  const [playing, setPlaying] = useState<(TeraboxVideo & { key?: string }) | null>(null);
+const failureOf = (err: unknown) => (err instanceof Error ? err.message : 'This video can’t be played right now.');
+
+export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, onViewed, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
+  const [playing, setPlaying] = useState<Playing | null>(null);
+  const [opening, setOpening] = useState<Opening | null>(null);
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -136,24 +188,49 @@ export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, 
 
   // Strict Mode runs effects twice; the ref keeps that from opening the link twice.
   const takenLinkRef = useRef('');
+  // Only the latest pasted link or tapped video gets to play; earlier ones still loading are dropped.
+  const requestRef = useRef(0);
 
-  const submit = async (text: string, saved?: TeraboxListing) => {
+  const submit = async (text: string) => {
     const result = parseTeraboxLink(text);
     if ('error' in result) {
       setError(result.error);
       return;
     }
+    const request = ++requestRef.current;
     setError('');
     setBusy(true);
     try {
       const video = await onWatch(result.link);
-      setPlaying(saved ? { ...video, title: saved.title, poster: saved.thumbnail || video.poster, key: saved.key } : video);
+      if (request !== requestRef.current) return;
+      setPlaying(video);
+      setOpening(null);
       setLink('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'This video can’t be played right now.');
+      if (request === requestRef.current) setError(failureOf(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Opens the watch page straight away, with the player loading, like following a link to a new page.
+  const playSaved = async (saved: TeraboxListing) => {
+    if (opening && !opening.error && opening.video.key === saved.key) return;
+    const request = ++requestRef.current;
+    setOpening({ video: saved, error: '' });
+    setError('');
+    window.scrollTo({ top: 0 });
+    try {
+      const result = parseTeraboxLink(saved.teraboxUrl);
+      if ('error' in result) throw new Error(result.error);
+      const video = await onWatch(result.link);
+      if (request !== requestRef.current) return;
+      setPlaying({ ...video, title: saved.title, poster: saved.thumbnail || video.poster, key: saved.key, views: saved.views + 1 });
+      setOpening(null);
+      onViewed?.(saved.key);
+    } catch (err) {
+      if (request === requestRef.current) setOpening({ video: saved, error: failureOf(err) });
     }
   };
 
@@ -243,22 +320,17 @@ export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, 
     </>
   );
 
-  const playSaved = (video: TeraboxListing) => {
-    if (busy) return;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    submit(video.teraboxUrl, video);
-  };
+  const grid = listing && <TeraboxGrid listing={listing} onPlay={playSaved} onPage={onPage} busy={listingBusy} />;
 
-  const grid = listing && <TeraboxGrid listing={listing} onPlay={playSaved} onPage={onPage} busy={listingBusy} opening={busy} />;
-
-  if (playing) {
-    const upNext = (listing?.videos ?? []).filter((video) => video.key !== playing.key).slice(0, UP_NEXT_LIMIT);
+  if (opening || playing) {
+    const currentKey = opening?.video.key ?? playing?.key;
+    const upNext = (listing?.videos ?? []).filter((video) => video.key !== currentKey).slice(0, UP_NEXT_LIMIT);
     return (
       <WatchLayout
-        upNext={upNext.length > 0 && upNext.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => playSaved(video)} disabled={busy} compact />)}
+        upNext={upNext.length > 0 && upNext.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => playSaved(video)} compact />)}
         moreVideos={grid}
       >
-        <TeraboxPlayer video={playing} linkForm={linkForm} />
+        <TeraboxPlayer video={playing} opening={opening} onRetry={() => opening && playSaved(opening.video)} linkForm={linkForm} />
       </WatchLayout>
     );
   }

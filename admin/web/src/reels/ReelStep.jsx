@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ClipboardPaste, Download, History, Link2, X } from "lucide-react";
+import { ArrowRight, ClipboardPaste, Download, History, Link2, SkipForward, X } from "lucide-react";
 import { STAGE_LABELS, failureMessage, findSavedReel, freshReel, mediaRef, normalizeDraft, pickUrl, runReelStep, startSavedReel, timeAgo } from "../lib/reels.js";
 import { Button, TextInput } from "../ui/controls.jsx";
 import { Field } from "../ui/form.jsx";
@@ -174,9 +174,13 @@ export default function ReelStep({ draft, update, go, resume, onDeleted }) {
               </>
             ) : (
               <>
-                {sameAsLoaded && (
+                {sameAsLoaded ? (
                   <Button icon={ArrowRight} onClick={() => go("frame")}>
                     Continue with loaded video
+                  </Button>
+                ) : (
+                  <Button variant="ghost" icon={SkipForward} onClick={() => go("post")}>
+                    Skip to post
                   </Button>
                 )}
                 <Button type="submit" variant="primary" icon={Download} disabled={!value}>

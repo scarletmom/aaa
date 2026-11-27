@@ -45,6 +45,7 @@ function MatchCard({ match, chosen, onChoose }) {
 }
 
 export default function DetailsStep({ draft, update, go, back }) {
+  const searched = Boolean(draft.matches);
   const groups = draft.matches || [];
   const total = groups.reduce((sum, group) => sum + group.results.length, 0);
   const [tab, setTab] = useState("all");
@@ -70,12 +71,13 @@ export default function DetailsStep({ draft, update, go, back }) {
         <span className="reel-status-thumb is-lg">{draft.searchedFrame && <img src={draft.searchedFrame} alt="Searched frame" />}</span>
         <div className="reel-summary-text">
           <h2>
-            {total} {total === 1 ? "match" : "matches"}
+            {searched ? `${total} ${total === 1 ? "match" : "matches"}` : "No search yet"}
             {groups.length > 0 && <span className="muted"> across {groups.length} {groups.length === 1 ? "source" : "sources"}</span>}
           </h2>
           <p className="reel-lead">
-            {draft.searchedTime != null ? `Searched the frame at ${formatClock(draft.searchedTime)}. ` : "Searched your image. "}
-            Open a thumbnail to check it, then pick the one to post.
+            {!searched
+              ? "Search a frame or your own image on Frame to see matches here, or go on and fill in the post yourself."
+              : `${draft.searchedTime != null ? `Searched the frame at ${formatClock(draft.searchedTime)}.` : "Searched your image."} Open a thumbnail to check it, then pick the one to post.`}
           </p>
           <div className="reel-summary-facts">
             <span className={`reel-fact${draft.form.thumbnail ? " is-ok" : ""}`}>
@@ -90,7 +92,7 @@ export default function DetailsStep({ draft, update, go, back }) {
         </div>
       </div>
 
-      {total === 0 ? (
+      {!searched ? null : total === 0 ? (
         <div className="empty-state reel-empty">
           <SearchX size={28} strokeWidth={1.25} />
           <h2>No matches for this frame</h2>

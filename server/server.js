@@ -424,6 +424,17 @@ app.get(
   })
 );
 
+// Counted once a saved Terabox video has opened in the player.
+app.post(
+  "/api/terabox/videos/:key/view",
+  wrap(requireViewer),
+  wrap(async (req, res) => {
+    if (!req.member) return res.status(403).json({ error: "Sign in with a Member Lite or Pro account to watch Terabox videos.", code: "plan_required" });
+    if (!(await teraboxVideos.addView(req.params.key))) return res.status(404).json({ error: "Video not found" });
+    res.status(204).end();
+  })
+);
+
 app.get(
   "/api/videos/:tag",
   wrap(requireViewer),

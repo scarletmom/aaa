@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ImageUp, Pause, Play, ScanFace, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ImageUp, Link2, Pause, Play, ScanFace, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { captureFrame, failureMessage, formatClock, imageFromDevice, imageFromUrl, matchGroups, playableUrl, runReelStep } from "../lib/reels.js";
 import { formatDuration } from "../lib/content.js";
 import { Button, Segmented, Tip } from "../ui/controls.jsx";
@@ -19,7 +19,7 @@ const readImage = (read) => read({ variants: SEARCH_SIZES }).catch(() => read())
 export default function FrameStep({ draft, update, go, back }) {
   const { toast } = useFeedback();
   const videoRef = useRef(null);
-  const [duration, setDuration] = useState(draft.video.duration || 0);
+  const [duration, setDuration] = useState(draft.video?.duration || 0);
   const [time, setTime] = useState(draft.frameTime || 0);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -31,9 +31,9 @@ export default function FrameStep({ draft, update, go, back }) {
   const { uploading, upload } = useThumbnailUpload(update);
   const busy = searching ? "details" : uploading;
   const image = draft.customImage;
-  const usingImage = source === "image" && Boolean(image);
+  const src = draft.video?.url || "";
+  const usingImage = (source === "image" || !src) && Boolean(image);
   const elapsed = useElapsed(Boolean(busy));
-  const src = draft.video.url;
   const passedThrough = playableUrl(src);
   const playingSrc = direct ? src : passedThrough;
 
@@ -148,7 +148,7 @@ export default function FrameStep({ draft, update, go, back }) {
   const progress = duration ? (time / duration) * 100 : 0;
   const selected = draft.thumbnails.find((t) => t.url === draft.form.thumbnail);
   const uploads = draft.thumbnails.length;
-  const canCapture = !busy && !reading && (usingImage || (!failed && Boolean(duration)));
+  const canCapture = !busy && !reading && (usingImage || (Boolean(src) && !failed && Boolean(duration)));
   const noun = usingImage ? "image" : "frame";
   const skipLabel = draft.matches ? "Go to details" : "Skip to post";
   const skip = () => go(draft.matches ? "details" : "post");
@@ -157,7 +157,14 @@ export default function FrameStep({ draft, update, go, back }) {
     <div className="reel-split" {...dragProps}>
       <div className="reel-card reel-player-card">
         <div className="reel-player">
-          {failed ? (
+          {!src ? (
+            <div className="reel-player-error">
+              <p>No reel video. Use your own image instead, or get the reel first.</p>
+              <Button variant="secondary" size="sm" icon={Link2} onClick={() => go("reel")}>
+                Get the reel
+              </Button>
+            </div>
+          ) : failed ? (
             <div className="reel-player-error">
               <p>This video can't play in the browser.</p>
               <a href={src} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
@@ -193,37 +200,39 @@ export default function FrameStep({ draft, update, go, back }) {
           )}
         </div>
 
-        <div className="reel-scrub">
-          <input
-            type="range"
-            className="reel-slider"
-            min={0}
-            max={duration || 0}
-            step={FRAME_SECONDS}
-            value={Math.min(time, duration || 0)}
-            disabled={!duration || failed}
-            onChange={(e) => seek(Number(e.target.value))}
-            style={{ "--progress": `${progress}%` }}
-            aria-label="Choose frame"
-          />
-          <div className="reel-scrub-row">
-            <Tip label={playing ? "Pause" : "Play"}>
-              <Button variant="ghost" size="sm" icon={playing ? Pause : Play} onClick={togglePlay} disabled={failed} aria-label={playing ? "Pause" : "Play"} />
-            </Tip>
-            <Tip label="Previous frame">
-              <Button variant="ghost" size="sm" icon={ChevronLeft} onClick={() => seek(time - FRAME_SECONDS)} disabled={failed} aria-label="Previous frame" />
-            </Tip>
-            <span className="reel-clock mono">
-              {formatClock(time)} <span className="muted">/ {formatClock(duration)}</span>
-            </span>
-            <Tip label="Next frame">
-              <Button variant="ghost" size="sm" icon={ChevronRight} onClick={() => seek(time + FRAME_SECONDS)} disabled={failed} aria-label="Next frame" />
-            </Tip>
-            <Tip label={muted ? "Unmute" : "Mute"}>
-              <Button variant="ghost" size="sm" icon={muted ? VolumeX : Volume2} onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute" : "Mute"} />
-            </Tip>
+        {src && (
+          <div className="reel-scrub">
+            <input
+              type="range"
+              className="reel-slider"
+              min={0}
+              max={duration || 0}
+              step={FRAME_SECONDS}
+              value={Math.min(time, duration || 0)}
+              disabled={!duration || failed}
+              onChange={(e) => seek(Number(e.target.value))}
+              style={{ "--progress": `${progress}%` }}
+              aria-label="Choose frame"
+            />
+            <div className="reel-scrub-row">
+              <Tip label={playing ? "Pause" : "Play"}>
+                <Button variant="ghost" size="sm" icon={playing ? Pause : Play} onClick={togglePlay} disabled={failed} aria-label={playing ? "Pause" : "Play"} />
+              </Tip>
+              <Tip label="Previous frame">
+                <Button variant="ghost" size="sm" icon={ChevronLeft} onClick={() => seek(time - FRAME_SECONDS)} disabled={failed} aria-label="Previous frame" />
+              </Tip>
+              <span className="reel-clock mono">
+                {formatClock(time)} <span className="muted">/ {formatClock(duration)}</span>
+              </span>
+              <Tip label="Next frame">
+                <Button variant="ghost" size="sm" icon={ChevronRight} onClick={() => seek(time + FRAME_SECONDS)} disabled={failed} aria-label="Next frame" />
+              </Tip>
+              <Tip label={muted ? "Unmute" : "Mute"}>
+                <Button variant="ghost" size="sm" icon={muted ? VolumeX : Volume2} onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute" : "Mute"} />
+              </Tip>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <aside className="reel-side">
@@ -263,7 +272,7 @@ export default function FrameStep({ draft, update, go, back }) {
 
           <ImageDrop image={image} reading={reading} dragging={dragging} disabled={Boolean(busy)} onFile={takeFile} onRemove={removeImage} />
 
-          {image && (
+          {image && src && (
             <div className="reel-source">
               <span className="reel-status-sub">Use</span>
               <Segmented

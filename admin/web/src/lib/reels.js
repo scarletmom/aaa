@@ -43,11 +43,15 @@ export function normalizeDraft(saved) {
   return { ...EMPTY_DRAFT, ...saved, thumbnails, form: { ...EMPTY_FORM, ...saved.form } };
 }
 
+// Every step before Share is open, so a post can be made without a reel, a frame or a search.
 // Once the post exists, the earlier steps are closed so it can't be created twice.
 export function reachableSteps(draft) {
   if (draft.post) return ["share"];
-  return STEPS.map((s) => s.key).filter((key) => key === "reel" || (draft.video && (key !== "details" || draft.matches) && key !== "share"));
+  return STEPS.map((s) => s.key).filter((key) => key !== "share");
 }
+
+export const hasProgress = (draft) =>
+  Boolean(draft.video || draft.matches || draft.thumbnails.length || Object.entries(draft.form).some(([key, value]) => value !== EMPTY_FORM[key]));
 
 // The step a reel was left on, judged from what it has; matches the server's stage for the Recent list.
 export function resumeStep(draft) {

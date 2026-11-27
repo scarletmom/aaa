@@ -177,7 +177,10 @@ field. A change applies on the next run, with no restart or rebuild.
 
 The **Reel to post** page takes an Instagram reel link through five steps: download the .mp4, pick a
 frame (upload it as the thumbnail and/or search it with FaceDigger), choose a match, create the post,
-then send a Telegram notification. Each step runs one Pipeline workflow with a fixed id:
+then send a Telegram notification. Any step up to Post can be opened from the stepper without finishing
+the ones before it, so a post can be made without a reel (use your own image on Frame, or skip straight
+to Post); Share opens once the post exists. A reel that was never downloaded stays in the browser tab only,
+since **Recent** lists downloaded reels. Each step runs one Pipeline workflow with a fixed id:
 
 | Workflow id       | Input                                                                          | Output step must return                                       |
 | ----------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
@@ -238,7 +241,8 @@ category, and a length (left blank, it is read from an `.m3u8`). They live in th
 ones reach the site.
 
 **Terabox videos** lists every row of the `terabox_videos` table (`video_key`, `title`, `terabox_url`,
-`thumbnail`, `duration` as text like `04:23`), unfinished ones included. A video is public on the Terabox
+`thumbnail`, `duration` as text like `04:23`, `views`), unfinished ones included. Views count each time a
+saved video opens in the player on the videos site. A video is public on the Terabox
 Videos page only once it has a `terabox_url`. Open a row to edit its title, Terabox URL, thumbnail, length or key, or delete it; clearing the URL takes the video off the site. Links are saved as `https://www.terabox.com/s/1<share>` and must be unique. The Terabox worker saves each link a member plays; to add many at once, use **Import CSV** and paste or
 choose a file with `id, file_name, thumbnail, duration, url` (header row optional, any column order with one;
 tab-separated text pasted from a spreadsheet works too). `id` becomes the key, `file_name` the title without its video

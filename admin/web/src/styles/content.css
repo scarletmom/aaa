@@ -801,6 +801,10 @@
   transition: background-color var(--fast) var(--ease);
 }
 
+.media-row.has-views {
+  grid-template-columns: minmax(0, 1fr) 140px 104px 72px 112px 40px;
+}
+
 .media-row:first-child {
   border-top: 0;
 }
@@ -869,6 +873,10 @@
 @container content (max-width: 760px) {
   .media-row {
     grid-template-columns: minmax(0, 1fr) 96px 40px;
+  }
+
+  .media-row.has-views {
+    grid-template-columns: minmax(0, 1fr) 96px 56px 40px;
   }
 
   .media-row .col-category,
