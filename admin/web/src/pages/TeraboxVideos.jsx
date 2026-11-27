@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ChevronLeft, ChevronRight, Ellipsis, ExternalLink, FileUp, PencilLine, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ellipsis, ExternalLink, FileUp, PencilLine, Search, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { formatCount, formatDate, teraboxVideoPath } from "../lib/content.js";
-import { Button, Switch, Tip } from "../ui/controls.jsx";
+import { Button, Select, Switch, TextInput, Tip } from "../ui/controls.jsx";
 import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
 import TeraboxImportDialog from "../ui/TeraboxImportDialog.jsx";
 
 const PAGE_SIZE = 50;
+
+const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id;
+const SORTS = {
+  newest: { label: "Newest first", compare: byNewest },
+  oldest: { label: "Oldest first", compare: (a, b) => -byNewest(a, b) },
+  "most-viewed": { label: "Most viewed", compare: (a, b) => b.views - a.views || byNewest(a, b) },
+  "least-viewed": { label: "Least viewed", compare: (a, b) => a.views - b.views || byNewest(a, b) },
+};
 
 function Stat({ label, value, note }) {
   return (
@@ -43,7 +51,9 @@ export default function TeraboxVideos() {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
   const [params, setParams] = useSearchParams();
-  const query = (params.get("q") || "").trim().toLowerCase();
+  const rawQuery = params.get("q") || "";
+  const query = rawQuery.trim().toLowerCase();
+  const sort = SORTS[params.get("sort")] ? params.get("sort") : "newest";
   const [videos, setVideos] = useState(null);
   const [setupNeeded, setSetupNeeded] = useState(false);
   const [showThumbs, setShowThumbs] = useThumbnailsPref();
@@ -59,7 +69,23 @@ export default function TeraboxVideos() {
     load();
   }, []);
 
-  const visible = useMemo(() => (videos || []).filter((v) => !query || `${v.title} ${v.key}`.toLowerCase().includes(query)), [videos, query]);
+  const visible = useMemo(
+    () => (videos || []).filter((v) => !query || `${v.title} ${v.key} ${v.teraboxUrl}`.toLowerCase().includes(query)).sort(SORTS[sort].compare),
+    [videos, query, sort]
+  );
+
+  // Changing the search or the order starts again at page 1.
+  const setParam = (key, value, fallback = "") =>
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        if (value && value !== fallback) updated.set(key, value);
+        else updated.delete(key);
+        updated.delete("page");
+        return updated;
+      },
+      { replace: true }
+    );
   const published = videos?.filter((v) => v.public).length ?? 0;
   const views = videos?.reduce((sum, v) => sum + v.views, 0) ?? 0;
 
@@ -141,6 +167,22 @@ export default function TeraboxVideos() {
       ) : (
         <>
           <div className="content-toolbar">
+            <TextInput
+              type="search"
+              icon={Search}
+              className="toolbar-search"
+              placeholder="Search title, key or Terabox URL"
+              aria-label="Search Terabox videos by title, key or Terabox URL"
+              value={rawQuery}
+              onChange={(e) => setParam("q", e.target.value)}
+            />
+            <Select
+              value={sort}
+              onChange={(value) => setParam("sort", value, "newest")}
+              className="toolbar-select"
+              aria-label="Sort"
+              options={Object.entries(SORTS).map(([value, { label }]) => ({ value, label }))}
+            />
             <div className="spacer" />
             <Tip label="Off keeps the list light on mobile data">
               <span>

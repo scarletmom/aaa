@@ -62,7 +62,17 @@ function HeaderSearch() {
 
   // Searching from a details page jumps back to that section's list.
   const update = (value) => {
-    if (pathname === section.to) setParams(value ? { q: value } : {}, { replace: true });
+    if (pathname === section.to)
+      setParams(
+        // A new search drops other filters and the page, but keeps the list's sort order.
+        (current) => {
+          const updated = new URLSearchParams();
+          if (value) updated.set("q", value);
+          if (current.get("sort")) updated.set("sort", current.get("sort"));
+          return updated;
+        },
+        { replace: true }
+      );
     else navigate(value ? `${section.to}?q=${encodeURIComponent(value)}` : section.to);
   };
 
