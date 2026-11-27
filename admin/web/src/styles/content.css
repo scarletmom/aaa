@@ -1109,6 +1109,27 @@
   font-size: 12px;
 }
 
+.list-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.list-pager-range,
+.list-pager-page {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.list-pager-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .visit-more {
   display: flex;
   justify-content: center;

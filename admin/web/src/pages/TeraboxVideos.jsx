@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Ellipsis, ExternalLink, FileUp, PencilLine, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ellipsis, ExternalLink, FileUp, PencilLine, Trash2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { formatCount, formatDate, teraboxVideoPath } from "../lib/content.js";
 import { Button, Switch, Tip } from "../ui/controls.jsx";
@@ -8,15 +8,47 @@ import { Menu, useFeedback } from "../ui/overlays.jsx";
 import { SetupNotice, Thumb, isSetupError, useThumbnailsPref } from "../ui/site.jsx";
 import TeraboxImportDialog from "../ui/TeraboxImportDialog.jsx";
 
+const PAGE_SIZE = 50;
+
+function Stat({ label, value, note }) {
+  return (
+    <div className="stat-card">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value mono">{value}</span>
+      <span className="stat-note">{note}</span>
+    </div>
+  );
+}
+
+function Pager({ page, pages, total, onPage }) {
+  const first = (page - 1) * PAGE_SIZE + 1;
+  const last = Math.min(page * PAGE_SIZE, total);
+  return (
+    <nav className="list-pager" aria-label="Pages">
+      <span className="list-pager-range mono">
+        {formatCount(first)}–{formatCount(last)} of {formatCount(total)}
+      </span>
+      <div className="list-pager-buttons">
+        <Button variant="ghost" size="sm" icon={ChevronLeft} onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page" />
+        <span className="list-pager-page mono">
+          {page} / {pages}
+        </span>
+        <Button variant="ghost" size="sm" icon={ChevronRight} onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next page" />
+      </div>
+    </nav>
+  );
+}
+
 export default function TeraboxVideos() {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const query = (params.get("q") || "").trim().toLowerCase();
   const [videos, setVideos] = useState(null);
   const [setupNeeded, setSetupNeeded] = useState(false);
   const [showThumbs, setShowThumbs] = useThumbnailsPref();
   const [importOpen, setImportOpen] = useState(false);
+  const listRef = useRef(null);
 
   const load = () =>
     api("/api/terabox-videos")
@@ -29,6 +61,21 @@ export default function TeraboxVideos() {
 
   const visible = useMemo(() => (videos || []).filter((v) => !query || `${v.title} ${v.key}`.toLowerCase().includes(query)), [videos, query]);
   const published = videos?.filter((v) => v.public).length ?? 0;
+  const views = videos?.reduce((sum, v) => sum + v.views, 0) ?? 0;
+
+  // The page lives in the address so coming back from a video's editor returns to it; a new search starts at page 1.
+  const pages = Math.max(Math.ceil(visible.length / PAGE_SIZE), 1);
+  const page = Math.min(Math.max(Number.parseInt(params.get("page"), 10) || 1, 1), pages);
+  const shown = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const goToPage = (next) => {
+    setParams((current) => {
+      const updated = new URLSearchParams(current);
+      if (next > 1) updated.set("page", String(next));
+      else updated.delete("page");
+      return updated;
+    });
+    listRef.current?.scrollIntoView({ block: "start" });
+  };
 
   const remove = async (video) => {
     const ok = await confirm({
@@ -70,6 +117,14 @@ export default function TeraboxVideos() {
         )}
       </div>
 
+      {videos && videos.length > 0 && (
+        <div className="stat-row">
+          <Stat label="Videos" value={formatCount(videos.length)} note="total" />
+          <Stat label="Public" value={formatCount(published)} note={`${formatCount(videos.length - published)} without a Terabox URL`} />
+          <Stat label="Views" value={formatCount(views)} note="all time" />
+        </div>
+      )}
+
       {setupNeeded ? (
         <SetupNotice />
       ) : videos === null ? (
@@ -93,7 +148,7 @@ export default function TeraboxVideos() {
               </span>
             </Tip>
           </div>
-          <div className="cat-list">
+          <div className="cat-list" ref={listRef}>
             <div className="media-row has-views cat-head">
               <span>Video</span>
               <span className="col-category">Key</span>
@@ -102,7 +157,7 @@ export default function TeraboxVideos() {
               <span className="col-date">Added</span>
               <span />
             </div>
-            {visible.map((video) => {
+            {shown.map((video) => {
               const open = () => navigate(teraboxVideoPath(video.id));
               return (
                 <div
@@ -145,6 +200,7 @@ export default function TeraboxVideos() {
             })}
             {visible.length === 0 && <div className="wf-none">Nothing matches “{params.get("q")}”</div>}
           </div>
+          {pages > 1 && <Pager page={page} pages={pages} total={visible.length} onPage={goToPage} />}
         </>
       )}
 
