@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog } from "radix-ui";
 import { FileUp, X } from "lucide-react";
 import { api } from "../lib/api.js";
@@ -6,8 +6,9 @@ import { Button } from "./controls.jsx";
 import { TextArea } from "./form.jsx";
 import { useDropTarget } from "./imageIntake.js";
 
-const EXAMPLE = "id,file_name,thumbnail,duration,url,views\nabc123,My video.mp4,https://…/thumb.jpg,04:23,https://www.terabox.com/s/1…,1250";
+const EXAMPLE = "id,file_name,thumbnail,duration,views,created_at,url\nabc123,My video.mp4,https://…/thumb.jpg,04:23,1250,2026-11-28 14:30:00,https://www.terabox.com/s/1…";
 const SHOWN_SKIPS = 100;
+const UPLOAD_POLL_MS = 2000;
 
 export default function TeraboxImportDialog({ open, onOpenChange, onImported }) {
   return (
@@ -85,7 +86,9 @@ function ImportContent({ onClose, onImported }) {
       ) : (
         <>
           <p className="dialog-text terabox-import-text">
-            Paste CSV, or choose or drop a file. Columns: <span className="mono">id, file_name, thumbnail, duration, url, views</span>. The header row is optional; views may be left out.
+            Paste CSV, or choose or drop a file. Columns: <span className="mono">id, file_name, thumbnail, duration, views, created_at, url</span>. The header row is optional.
+            Blank views count as 0 and a blank created_at is the time of the import. Thumbnails are uploaded to our image host
+            after the import and the videos switched to the new links.
             Rows whose id or url is already saved are skipped; rows without a url stay off the site.
           </p>
           <input
@@ -143,9 +146,58 @@ function ImportContent({ onClose, onImported }) {
   );
 }
 
+const plural = (n, word) => `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;
+
+function useThumbnailUploads(active) {
+  const [uploads, setUploads] = useState(null);
+  useEffect(() => {
+    if (!active) return undefined;
+    let stopped = false;
+    let timer;
+    const poll = async () => {
+      try {
+        const next = await api("/api/terabox-videos/thumbnail-uploads");
+        if (stopped) return;
+        setUploads(next);
+        if (!next.pending) return;
+      } catch {
+        if (stopped) return;
+      }
+      timer = setTimeout(poll, UPLOAD_POLL_MS);
+    };
+    poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [active]);
+  return uploads;
+}
+
+function ThumbnailUploads({ uploads }) {
+  if (!uploads) return <p className="dialog-text muted">Uploading thumbnails…</p>;
+  const { queued, uploaded, failed, pending, lastError, stopped } = uploads;
+  return (
+    <>
+      <p className="dialog-text" role="status">
+        {pending
+          ? `Uploading thumbnails: ${uploaded.toLocaleString("en-US")} of ${queued.toLocaleString("en-US")} done. You can close this; it carries on.`
+          : `Uploaded ${plural(uploaded, "thumbnail")}.`}
+        {failed ? ` ${plural(failed, "thumbnail")} kept the original link.` : ""}
+      </p>
+      {lastError && (
+        <p className={stopped ? "form-error" : "dialog-text muted"}>
+          {stopped ? "Stopped after too many failed uploads: " : "Last error: "}
+          {lastError}
+        </p>
+      )}
+    </>
+  );
+}
+
 function ImportResult({ result }) {
-  const { added, skipped, raced } = result;
-  const plural = (n, word) => `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;
+  const { added, skipped, raced, thumbnails } = result;
+  const uploads = useThumbnailUploads(thumbnails > 0);
   return (
     <div className="terabox-import-result">
       <p className="dialog-text">
@@ -153,6 +205,7 @@ function ImportResult({ result }) {
         {skipped.length ? `, skipped ${plural(skipped.length, "row")}` : ""}.
         {raced ? ` ${plural(raced, "row")} matched a video saved during the import and ${raced === 1 ? "was" : "were"} left out.` : ""}
       </p>
+      {thumbnails > 0 && <ThumbnailUploads uploads={uploads} />}
       {skipped.length > 0 && (
         <ul className="terabox-import-skips">
           {skipped.slice(0, SHOWN_SKIPS).map(({ row, reason }) => (

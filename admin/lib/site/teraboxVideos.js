@@ -115,11 +115,14 @@ async function takenKeysAndUrls() {
 /** Adds the videos, quietly leaving out any whose key or URL was taken meanwhile. Returns how many were added. */
 async function insertMany(videos) {
   await ensureTable();
+  const now = new Date();
   let added = 0;
   for (let i = 0; i < videos.length; i += 500) {
-    const values = videos.slice(i, i + 500).map((v) => [v.key, v.title, v.teraboxUrl || null, v.thumbnail, v.duration, v.views || 0]);
+    const values = videos
+      .slice(i, i + 500)
+      .map((v) => [v.key, v.title, v.teraboxUrl || null, v.thumbnail, v.duration, v.views || 0, v.createdAt || now]);
     const [result] = await getPool().query(
-      "INSERT IGNORE INTO terabox_videos (video_key, title, terabox_url, thumbnail, duration, views) VALUES ?",
+      "INSERT IGNORE INTO terabox_videos (video_key, title, terabox_url, thumbnail, duration, views, created_at) VALUES ?",
       [values]
     );
     added += result.affectedRows;
@@ -127,4 +130,13 @@ async function insertMany(videos) {
   return added;
 }
 
-module.exports = { list, get, keyTaken, urlTaken, update, remove, takenKeysAndUrls, insertMany };
+// Only while the row still has the imported thumbnail, so an edit made meanwhile wins. updated_at is pinned: it isn't an edit.
+async function replaceThumbnail(key, from, to) {
+  const [result] = await getPool().query(
+    "UPDATE terabox_videos SET thumbnail = ?, updated_at = updated_at WHERE video_key = ? AND thumbnail = ?",
+    [to, key, from]
+  );
+  return result.affectedRows > 0;
+}
+
+module.exports = { list, get, keyTaken, urlTaken, update, remove, takenKeysAndUrls, insertMany, replaceThumbnail };

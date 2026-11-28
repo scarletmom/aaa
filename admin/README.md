@@ -244,9 +244,13 @@ ones reach the site.
 `thumbnail`, `duration` as text like `04:23`, `views`), unfinished ones included. Views count each time a
 saved video opens in the player on the videos site. A video is public on the Terabox
 Videos page only once it has a `terabox_url`. Open a row to edit its title, Terabox URL, thumbnail, length or key, or delete it; clearing the URL takes the video off the site. Links are saved as `https://www.terabox.com/s/1<share>` and must be unique. The Terabox worker saves each link a member plays; to add many at once, use **Import CSV** and paste or
-choose a file with `id, file_name, thumbnail, duration, url, views` (header row optional, any column order with one;
+choose a file with `id, file_name, thumbnail, duration, views, created_at, url` (header row optional, any column order with one;
 tab-separated text pasted from a spreadsheet works too). `id` becomes the key, `file_name` the title without its video
-extension, `duration` may be seconds, `m:ss` or `h:mm:ss`, and `views` (optional, `0` when blank) is the video's starting view count; it counts toward Popular but not Trending, which only sums views from the last 7 days. Rows whose id or url is already saved, or that don't
+extension, `duration` may be seconds, `m:ss` or `h:mm:ss`, `views` (optional, `0` when blank) is the video's starting view count; it counts toward Popular but not Trending, which only sums views from the last 7 days. `created_at` (optional, the time of the import when blank) is `YYYY-MM-DD`, `YYYY-MM-DD HH:MM[:SS]` in UTC unless it ends in an offset like `+05:45`, or a Unix timestamp in seconds or milliseconds; it sets the Recent order. After the import, each new row's thumbnail is downloaded and uploaded
+through the `reel-thumbnail` workflow (the one Reel to post uses), three at a time in the background, and the row
+switches to the hosted URL; the dialog shows the progress (`GET /api/terabox-videos/thumbnail-uploads`). A thumbnail
+that fails keeps its original link, a row edited meanwhile is left alone, and ten failures in a row stop the rest.
+The queue lives in memory, so restarting the admin drops uploads that haven't started. Rows whose id or url is already saved, or that don't
 validate, are skipped and listed by row number.
 
 Both tables are created on first use by whichever app (this one or the videos API server) starts first.

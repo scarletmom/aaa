@@ -9,6 +9,7 @@ const accounts = require("./accounts");
 const shorts = require("./shorts");
 const teraboxVideos = require("./teraboxVideos");
 const teraboxImport = require("./teraboxImport");
+const teraboxThumbnails = require("./teraboxThumbnails");
 
 const {
   HTTP_URL,
@@ -232,6 +233,8 @@ router.post(
 router.delete("/shorts/:id", handle(async (req, res) => res.json({ deleted: await shorts.remove(req.params.id) })));
 
 router.get("/terabox-videos", handle(async (req, res) => res.json(await teraboxVideos.list())));
+
+router.get("/terabox-videos/thumbnail-uploads", (req, res) => res.json(teraboxThumbnails.status()));
 
 router.post(
   "/terabox-videos/import",

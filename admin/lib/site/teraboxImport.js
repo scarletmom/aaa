@@ -1,9 +1,13 @@
 const { HTTP_URL, TERABOX_KEY, TERABOX_DURATION, InputError, trim, canonicalTeraboxUrl } = require("./inputs");
 const teraboxVideos = require("./teraboxVideos");
+const teraboxThumbnails = require("./teraboxThumbnails");
 
 const MAX_ROWS = 10000;
-const FIELDS = ["key", "title", "thumbnail", "duration", "teraboxUrl", "views"];
+const FIELDS = ["key", "title", "thumbnail", "duration", "views", "createdAt", "teraboxUrl"];
 const MAX_VIEWS = 4294967295;
+// The range a MySQL TIMESTAMP column can hold.
+const MIN_CREATED = Date.UTC(1970, 0, 2);
+const MAX_CREATED = Date.UTC(2038, 0, 19);
 const HEADER_NAMES = {
   key: ["id", "key", "video_key"],
   title: ["file_name", "filename", "title", "name"],
@@ -11,6 +15,7 @@ const HEADER_NAMES = {
   duration: ["duration", "length"],
   teraboxUrl: ["url", "terabox_url", "link", "share_url"],
   views: ["views", "view_count", "views_count", "plays"],
+  createdAt: ["created_at", "created", "date", "upload_date", "uploaded_at", "published_at"],
 };
 const VIDEO_EXTENSION = /\.(mp4|mkv|mov|avi|webm|m4v|ts|flv|wmv|3gp|mpe?g)$/i;
 
@@ -90,6 +95,31 @@ function parseViews(raw) {
   return views <= MAX_VIEWS ? views : null;
 }
 
+const DATE_TIME = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?)?\s*(Z|[+-]\d{2}:?\d{2})?$/i;
+
+/**
+ * Unix seconds or milliseconds, or YYYY-MM-DD with an optional time (UTC unless it carries an offset).
+ * Returns null when blank, false when unreadable.
+ */
+function parseCreatedAt(raw) {
+  if (!raw) return null;
+  let time;
+  if (/^\d+$/.test(raw)) time = raw.length > 11 ? Number(raw) : Number(raw) * 1000;
+  else {
+    const match = DATE_TIME.exec(raw);
+    if (!match) return false;
+    const [, year, month, day, hour = "0", minute = "0", second = "0", ms = "0", zone] = match;
+    const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms.padEnd(3, "0")));
+    if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== Number(day) || hour > 23) return false;
+    time = date.getTime();
+    if (zone && zone.toUpperCase() !== "Z") {
+      const [, sign, hours, minutes] = /^([+-])(\d{2}):?(\d{2})$/.exec(zone);
+      time -= (sign === "-" ? -1 : 1) * (hours * 60 + Number(minutes)) * 60000;
+    }
+  }
+  return time >= MIN_CREATED && time <= MAX_CREATED ? new Date(time) : false;
+}
+
 function titleFromFileName(fileName) {
   return fileName.replace(VIDEO_EXTENSION, "").trim() || fileName;
 }
@@ -102,6 +132,7 @@ function videoOf(cells, columns) {
   const teraboxUrl = cell("teraboxUrl", 2048);
   const duration = normalizeDuration(cell("duration", 16));
   const views = parseViews(cell("views", 32));
+  const createdAt = parseCreatedAt(cell("createdAt", 40));
 
   if (!key) return { error: "id is empty" };
   if (!TERABOX_KEY.test(key)) return { error: `id “${key}” must be up to 32 letters, digits, underscores or hyphens` };
@@ -110,7 +141,8 @@ function videoOf(cells, columns) {
   if (duration === null) return { error: `duration “${cell("duration", 16)}” isn't seconds, mm:ss or h:mm:ss` };
   if (teraboxUrl && !HTTP_URL.test(teraboxUrl)) return { error: "url must start with http:// or https://" };
   if (views === null) return { error: `views “${cell("views", 32)}” isn't a whole number` };
-  return { video: { key, title, thumbnail, duration, views, teraboxUrl: teraboxUrl ? canonicalTeraboxUrl(teraboxUrl) : "" } };
+  if (createdAt === false) return { error: `created_at “${cell("createdAt", 40)}” isn't a date like 2026-11-28 14:30:00 or a Unix timestamp` };
+  return { video: { key, title, thumbnail, duration, views, createdAt, teraboxUrl: teraboxUrl ? canonicalTeraboxUrl(teraboxUrl) : "" } };
 }
 
 function duplicateReason(video, inFile, taken) {
@@ -124,8 +156,9 @@ function duplicateReason(video, inFile, taken) {
 }
 
 /**
- * Adds a row to terabox_videos for each CSV record (id, file_name, thumbnail, duration, url, views).
+ * Adds a row to terabox_videos for each CSV record (id, file_name, thumbnail, duration, views, created_at, url).
  * The header row is optional; without one the columns are read in that order.
+ * Thumbnails are then uploaded to our image host in the background and the rows switched to the hosted URLs.
  */
 async function importCsv(csv) {
   const text = csv.replace(/^﻿/, "");
@@ -157,7 +190,8 @@ async function importCsv(csv) {
   }
 
   const added = videos.length ? await teraboxVideos.insertMany(videos) : 0;
-  return { added, skipped, raced: videos.length - added };
+  const thumbnails = added ? teraboxThumbnails.enqueue(videos) : 0;
+  return { added, skipped, raced: videos.length - added, thumbnails };
 }
 
 module.exports = { importCsv };
