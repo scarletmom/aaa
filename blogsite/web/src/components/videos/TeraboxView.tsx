@@ -46,9 +46,13 @@ function TeraboxCard({ video, onPlay, compact = false }: { video: TeraboxListing
       className={cn('group block w-full min-w-0 text-left', compact && 'lg:flex lg:gap-2.5')}
     >
       <span className={cn('relative block aspect-video overflow-hidden rounded-xl bg-img', compact && 'lg:w-[168px] lg:flex-none lg:rounded-[10px]')}>
-        {video.thumbnail
-          ? <img src={video.thumbnail} alt="" loading="lazy" decoding="async" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-          : <span className="grid size-full place-items-center text-muted"><PlaySolidIcon size={28} /></span>}
+        {video.thumbnail ? (
+          <>
+            {/* Thumbnails can be portrait: show the whole image over a blurred fill of itself instead of cropping it. */}
+            <img src={video.thumbnail} alt="" aria-hidden="true" loading="lazy" decoding="async" className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl" />
+            <img src={video.thumbnail} alt="" loading="lazy" decoding="async" className="relative size-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
+          </>
+        ) : <span className="grid size-full place-items-center text-muted"><PlaySolidIcon size={28} /></span>}
         {video.duration && (
           <span className="absolute right-2 bottom-2 rounded-[5px] bg-black/80 px-1.5 py-px text-[12px] font-semibold text-white tabular-nums">{video.duration}</span>
         )}
