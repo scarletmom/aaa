@@ -22,6 +22,7 @@ import {
   openTerabox,
   recordTeraboxView,
   type TeraboxPage,
+  type TeraboxSort,
   type VideoPage,
 } from '@/lib/videos';
 import type { TeraboxLink } from '@/lib/teraboxLink';
@@ -52,7 +53,10 @@ const NO_VIDEOS: CatalogVideo[] = [];
 const loadCatalog = (_request: string, token: string) => fetchVideos(token);
 const loadPage = (request: string, token: string) => fetchVideoPage(JSON.parse(request), token);
 const loadShorts = (_request: string, token: string) => fetchShorts(token);
-const loadTeraboxPage = (request: string, token: string) => fetchTeraboxPage(Number(request), token);
+const loadTeraboxPage = (request: string, token: string) => {
+  const { page, sort } = JSON.parse(request) as { page: number; sort: TeraboxSort };
+  return fetchTeraboxPage(page, sort, token);
+};
 const loadDetail = (id: string, token: string) => fetchVideo(id, token);
 
 const watchTerabox = (link: TeraboxLink) => openTerabox(link.url, getSession()?.token ?? '');
@@ -140,8 +144,9 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
   if (paged.status === 'ready' && paged.data !== shownPage) setShownPage(paged.data);
   const shortsLoad = useAccountLoad('shorts', accountId, '', loadShorts, { keepMs: CATALOG_KEEP_MS });
   const shorts = shortsLoad.status === 'ready' ? shortsLoad.data : NO_VIDEOS;
-  const [teraboxPageNumber, setTeraboxPageNumber] = useState(1);
-  const teraboxLoad = useAccountLoad('terabox', accountId, onTerabox ? String(teraboxPageNumber) : null, loadTeraboxPage, { keepMs: CATALOG_KEEP_MS });
+  const [teraboxTurn, setTeraboxTurn] = useState<{ sort: TeraboxSort; page: number }>({ sort: 'trending', page: 1 });
+  const teraboxRequest = onTerabox ? JSON.stringify(teraboxTurn) : null;
+  const teraboxLoad = useAccountLoad('terabox', accountId, teraboxRequest, loadTeraboxPage, { keepMs: CATALOG_KEEP_MS });
   const [shownTerabox, setShownTerabox] = useState<TeraboxPage | null>(null);
   if (teraboxLoad.status === 'ready' && teraboxLoad.data !== shownTerabox) setShownTerabox(teraboxLoad.data);
   // Not kept: each open counts a view and needs a fresh play endpoint.
@@ -246,7 +251,9 @@ export default function VideosApp({ comments, brand }: VideosAppProps) {
         onViewed={countTeraboxView}
         listing={shownTerabox}
         listingProblem={teraboxLoad.status === 'error' ? loadStatus(teraboxLoad) : null}
-        onPage={setTeraboxPageNumber}
+        sort={teraboxTurn.sort}
+        onSort={(sort) => setTeraboxTurn({ sort, page: 1 })}
+        onPage={(page) => setTeraboxTurn((turn) => ({ ...turn, page }))}
         listingBusy={teraboxLoad.status === 'loading'}
       />
     );

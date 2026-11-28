@@ -117,9 +117,9 @@ async function insertMany(videos) {
   await ensureTable();
   let added = 0;
   for (let i = 0; i < videos.length; i += 500) {
-    const values = videos.slice(i, i + 500).map((v) => [v.key, v.title, v.teraboxUrl || null, v.thumbnail, v.duration]);
+    const values = videos.slice(i, i + 500).map((v) => [v.key, v.title, v.teraboxUrl || null, v.thumbnail, v.duration, v.views || 0]);
     const [result] = await getPool().query(
-      "INSERT IGNORE INTO terabox_videos (video_key, title, terabox_url, thumbnail, duration) VALUES ?",
+      "INSERT IGNORE INTO terabox_videos (video_key, title, terabox_url, thumbnail, duration, views) VALUES ?",
       [values]
     );
     added += result.affectedRows;

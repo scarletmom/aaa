@@ -4,7 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'rea
 import { cn } from '@/lib/cn';
 import { formatViews, timeAgo } from '@/lib/format';
 import { parseTeraboxLink, type TeraboxLink } from '@/lib/teraboxLink';
-import type { TeraboxListing, TeraboxPage, TeraboxVideo } from '@/lib/videos';
+import type { TeraboxListing, TeraboxPage, TeraboxSort, TeraboxVideo } from '@/lib/videos';
 import { CloseIcon, CloudPlayIcon, CopyIcon, PlaySolidIcon } from '../ui/Icons';
 import Pager from './Pager';
 import { blockTitle, videoGrid, watchTitle } from './styles';
@@ -23,12 +23,19 @@ interface TeraboxViewProps {
   listing: TeraboxPage | null;
   /** Shown in place of the saved videos when they couldn't load. */
   listingProblem: ReactNode;
+  sort: TeraboxSort;
+  onSort: (sort: TeraboxSort) => void;
   onPage: (page: number) => void;
   /** Another page of saved videos is loading. */
   listingBusy: boolean;
 }
 
 const SKELETON_CARDS = 4;
+const SORTS: { value: TeraboxSort; label: string }[] = [
+  { value: 'trending', label: 'Trending' },
+  { value: 'popular', label: 'Popular' },
+  { value: 'recent', label: 'Recent' },
+];
 const UP_NEXT_LIMIT = 6;
 
 function TeraboxCard({ video, onPlay, compact = false }: { video: TeraboxListing; onPlay: () => void; compact?: boolean }) {
@@ -82,6 +89,27 @@ function TeraboxGrid({ listing, onPlay, onPage, busy }: TeraboxGridProps) {
           topRef.current?.scrollIntoView({ block: 'start' });
         }}
       />
+    </div>
+  );
+}
+
+function SortTabs({ sort, onSort }: { sort: TeraboxSort; onSort: (sort: TeraboxSort) => void }) {
+  return (
+    <div role="group" aria-label="Sort Terabox videos" className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {SORTS.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={sort === value}
+          onClick={() => sort !== value && onSort(value)}
+          className={cn(
+            'inline-flex h-[34px] flex-none items-center rounded-full border px-3.5 text-[13.5px] font-semibold transition-colors',
+            sort === value ? 'border-fg bg-fg text-bg' : 'border-line bg-surface hover:border-fg-2',
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -175,7 +203,7 @@ function TeraboxPlayer({ video, opening, onRetry, linkForm }: TeraboxPlayerProps
 
 const failureOf = (err: unknown) => (err instanceof Error ? err.message : 'This video can’t be played right now.');
 
-export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, onViewed, listing, listingProblem, onPage, listingBusy }: TeraboxViewProps) {
+export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, onViewed, listing, listingProblem, sort, onSort, onPage, listingBusy }: TeraboxViewProps) {
   const [playing, setPlaying] = useState<Playing | null>(null);
   const [opening, setOpening] = useState<Opening | null>(null);
   const [link, setLink] = useState('');
@@ -320,7 +348,12 @@ export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, 
     </>
   );
 
-  const grid = listing && <TeraboxGrid listing={listing} onPlay={playSaved} onPage={onPage} busy={listingBusy} />;
+  const browse = (
+    <>
+      <SortTabs sort={sort} onSort={onSort} />
+      {listingProblem ?? (listing ? <TeraboxGrid listing={listing} onPlay={playSaved} onPage={onPage} busy={listingBusy} /> : skeleton)}
+    </>
+  );
 
   if (opening || playing) {
     const currentKey = opening?.video.key ?? playing?.key;
@@ -328,7 +361,7 @@ export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, 
     return (
       <WatchLayout
         upNext={upNext.length > 0 && upNext.map((video) => <TeraboxCard key={video.key} video={video} onPlay={() => playSaved(video)} compact />)}
-        moreVideos={grid}
+        moreVideos={browse}
       >
         <TeraboxPlayer video={playing} opening={opening} onRetry={() => opening && playSaved(opening.video)} linkForm={linkForm} />
       </WatchLayout>
@@ -353,7 +386,7 @@ export default function TeraboxView({ initialLink = '', onInitialLink, onWatch, 
 
       <section aria-labelledby="terabox-saved-title" className="mt-9">
         <h2 id="terabox-saved-title" className={blockTitle}>Terabox videos</h2>
-        {listingProblem ?? grid ?? skeleton}
+        {browse}
       </section>
     </div>
   );

@@ -2,13 +2,15 @@ const { HTTP_URL, TERABOX_KEY, TERABOX_DURATION, InputError, trim, canonicalTera
 const teraboxVideos = require("./teraboxVideos");
 
 const MAX_ROWS = 10000;
-const FIELDS = ["key", "title", "thumbnail", "duration", "teraboxUrl"];
+const FIELDS = ["key", "title", "thumbnail", "duration", "teraboxUrl", "views"];
+const MAX_VIEWS = 4294967295;
 const HEADER_NAMES = {
   key: ["id", "key", "video_key"],
   title: ["file_name", "filename", "title", "name"],
   thumbnail: ["thumbnail", "thumb", "thumbnail_url"],
   duration: ["duration", "length"],
   teraboxUrl: ["url", "terabox_url", "link", "share_url"],
+  views: ["views", "view_count", "views_count", "plays"],
 };
 const VIDEO_EXTENSION = /\.(mp4|mkv|mov|avi|webm|m4v|ts|flv|wmv|3gp|mpe?g)$/i;
 
@@ -79,6 +81,15 @@ function normalizeDuration(raw) {
   return TERABOX_DURATION.test(text) ? text : null;
 }
 
+/** A whole number, with or without thousands separators ("12,345", "12 345"); 0 when blank, null when unreadable. */
+function parseViews(raw) {
+  if (!raw) return 0;
+  const digits = raw.replace(/[\s,]/g, "");
+  if (!/^\d+$/.test(digits)) return null;
+  const views = Number(digits);
+  return views <= MAX_VIEWS ? views : null;
+}
+
 function titleFromFileName(fileName) {
   return fileName.replace(VIDEO_EXTENSION, "").trim() || fileName;
 }
@@ -90,6 +101,7 @@ function videoOf(cells, columns) {
   const thumbnail = cell("thumbnail", 2048);
   const teraboxUrl = cell("teraboxUrl", 2048);
   const duration = normalizeDuration(cell("duration", 16));
+  const views = parseViews(cell("views", 32));
 
   if (!key) return { error: "id is empty" };
   if (!TERABOX_KEY.test(key)) return { error: `id “${key}” must be up to 32 letters, digits, underscores or hyphens` };
@@ -97,7 +109,8 @@ function videoOf(cells, columns) {
   if (thumbnail && !HTTP_URL.test(thumbnail)) return { error: "thumbnail must start with http:// or https://" };
   if (duration === null) return { error: `duration “${cell("duration", 16)}” isn't seconds, mm:ss or h:mm:ss` };
   if (teraboxUrl && !HTTP_URL.test(teraboxUrl)) return { error: "url must start with http:// or https://" };
-  return { video: { key, title, thumbnail, duration, teraboxUrl: teraboxUrl ? canonicalTeraboxUrl(teraboxUrl) : "" } };
+  if (views === null) return { error: `views “${cell("views", 32)}” isn't a whole number` };
+  return { video: { key, title, thumbnail, duration, views, teraboxUrl: teraboxUrl ? canonicalTeraboxUrl(teraboxUrl) : "" } };
 }
 
 function duplicateReason(video, inFile, taken) {
@@ -111,7 +124,7 @@ function duplicateReason(video, inFile, taken) {
 }
 
 /**
- * Adds a row to terabox_videos for each CSV record (id, file_name, thumbnail, duration, url).
+ * Adds a row to terabox_videos for each CSV record (id, file_name, thumbnail, duration, url, views).
  * The header row is optional; without one the columns are read in that order.
  */
 async function importCsv(csv) {

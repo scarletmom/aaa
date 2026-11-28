@@ -6,7 +6,7 @@ import { Button } from "./controls.jsx";
 import { TextArea } from "./form.jsx";
 import { useDropTarget } from "./imageIntake.js";
 
-const EXAMPLE = "id,file_name,thumbnail,duration,url\nabc123,My video.mp4,https://…/thumb.jpg,04:23,https://www.terabox.com/s/1…";
+const EXAMPLE = "id,file_name,thumbnail,duration,url,views\nabc123,My video.mp4,https://…/thumb.jpg,04:23,https://www.terabox.com/s/1…,1250";
 const SHOWN_SKIPS = 100;
 
 export default function TeraboxImportDialog({ open, onOpenChange, onImported }) {
@@ -85,7 +85,7 @@ function ImportContent({ onClose, onImported }) {
       ) : (
         <>
           <p className="dialog-text terabox-import-text">
-            Paste CSV, or choose or drop a file. Columns: <span className="mono">id, file_name, thumbnail, duration, url</span>. The header row is optional.
+            Paste CSV, or choose or drop a file. Columns: <span className="mono">id, file_name, thumbnail, duration, url, views</span>. The header row is optional; views may be left out.
             Rows whose id or url is already saved are skipped; rows without a url stay off the site.
           </p>
           <input

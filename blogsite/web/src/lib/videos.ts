@@ -195,6 +195,8 @@ export interface TeraboxListing {
   createdAt: string | null;
 }
 
+export type TeraboxSort = 'trending' | 'popular' | 'recent';
+
 export interface TeraboxPage {
   videos: TeraboxListing[];
   page: number;
@@ -202,8 +204,8 @@ export interface TeraboxPage {
   total: number;
 }
 
-export async function fetchTeraboxPage(page: number, token: string): Promise<TeraboxPage> {
-  return apiRequest<TeraboxPage>(`/api/terabox/videos?page=${page}`, { token });
+export async function fetchTeraboxPage(page: number, sort: TeraboxSort, token: string): Promise<TeraboxPage> {
+  return apiRequest<TeraboxPage>(`/api/terabox/videos?page=${page}&sort=${sort}`, { token });
 }
 
 export async function recordTeraboxView(key: string, token: string): Promise<void> {
